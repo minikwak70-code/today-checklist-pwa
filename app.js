@@ -1081,6 +1081,9 @@ function renderAuthState() {
     elements.authMessage.textContent =
       "현재는 체험용 로컬 모드입니다. config.js에 Supabase 정보를 넣으면 동기화가 켜집니다.";
     elements.authForm.hidden = true;
+  } else {
+    elements.authMessage.textContent = "";
+    elements.authForm.hidden = false;
   }
 }
 
