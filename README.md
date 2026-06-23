@@ -3,7 +3,7 @@
 날짜별로 할 일을 입력하고 완료 여부를 체크하는 반응형 웹앱입니다.
 
 Supabase를 연결하기 전에는 브라우저의 로컬 저장소를 사용하므로 바로 체험할 수 있습니다.
-Supabase를 연결하면 이메일 로그인, 여러 기기 간 데이터 공유, 실시간 동기화가 활성화됩니다.
+Supabase를 연결하면 Google 로그인, 이메일 로그인, 여러 기기 간 데이터 공유, 실시간 동기화가 활성화됩니다.
 
 요일별 루틴을 설정하면 해당 요일의 체크리스트에 반복 항목이 자동으로 생성됩니다.
 루틴 항목의 × 버튼은 반복 설정을 삭제하지 않고 선택한 날짜에서만 제외합니다.
@@ -25,6 +25,7 @@ python3 -m http.server 4173
 3. Project Settings → API에서 Project URL과 anon public key를 확인합니다.
 4. `config.js`에 두 값을 입력합니다.
 5. Authentication → URL Configuration의 Site URL을 실제 배포 주소로 설정합니다.
+6. Google 로그인을 쓰려면 Authentication → Providers → Google을 켜고 Google OAuth Client ID와 Client Secret을 입력합니다.
 
 ```js
 window.APP_CONFIG = {

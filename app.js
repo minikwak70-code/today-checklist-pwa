@@ -32,6 +32,7 @@ const elements = {
   installButton: document.querySelector("#installButton"),
   installConfirmButton: document.querySelector("#installConfirmButton"),
   installDialog: document.querySelector("#installDialog"),
+  googleLoginButton: document.querySelector("#googleLoginButton"),
   nextDate: document.querySelector("#nextDate"),
   previousDate: document.querySelector("#previousDate"),
   progressBar: document.querySelector("#progressBar"),
@@ -1430,6 +1431,25 @@ elements.accountButton.addEventListener("click", () => {
 elements.closeDialog.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("click", (event) => {
   if (event.target === elements.authDialog) elements.authDialog.close();
+});
+
+elements.googleLoginButton.addEventListener("click", async () => {
+  if (!supabase) return;
+
+  elements.authMessage.textContent = "Google 로그인으로 이동하는 중…";
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+      queryParams: {
+        access_type: "offline",
+        prompt: "select_account",
+      },
+    },
+  });
+
+  if (error) elements.authMessage.textContent = `오류: ${error.message}`;
 });
 
 elements.authForm.addEventListener("submit", async (event) => {
