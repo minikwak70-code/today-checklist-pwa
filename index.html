@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f4ee" />
+    <meta
+      name="description"
+      content="어떤 기기에서든 오늘의 할 일을 기록하고 실시간으로 확인하는 체크리스트"
+    />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./assets/icon-192.png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>오늘, 하나씩</title>
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="오늘, 하나씩 홈">
+          <span class="brand-mark" aria-hidden="true">✓</span>
+          <span>오늘, 하나씩</span>
+        </a>
+        <div class="account-area">
+          <span id="syncStatus" class="sync-status" aria-live="polite">
+            <span class="sync-dot"></span>
+            <span>로컬 저장 중</span>
+          </span>
+          <button id="searchButton" class="ghost-button search-open-button" type="button">
+            <span aria-hidden="true">⌕</span>
+            <span>검색</span>
+          </button>
+          <button id="installButton" class="ghost-button install-button" type="button" hidden>
+            앱 설치
+          </button>
+          <button id="routineButton" class="ghost-button" type="button">루틴 설정</button>
+          <button id="accountButton" class="ghost-button" type="button">로그인</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero-row">
+            <div>
+              <p id="heroTitle" class="eyebrow">오늘 할 일</p>
+              <h1 id="dateEyebrow" class="date-heading"></h1>
+              <div id="heroMessage" class="hero-message">
+                <strong id="englishPhrase"></strong>
+                <span id="englishMeaning"></span>
+              </div>
+            </div>
+            <div class="date-controls" aria-label="날짜 이동">
+              <button id="previousDate" class="icon-button" type="button" aria-label="이전 날짜">←</button>
+              <button id="todayButton" class="today-button" type="button">오늘</button>
+              <label class="calendar-button">
+                <span class="calendar-glyph" aria-hidden="true"></span>
+                <span>날짜 선택</span>
+                <input id="datePicker" type="date" aria-label="달력에서 날짜 선택" />
+              </label>
+              <button id="nextDate" class="icon-button" type="button" aria-label="다음 날짜">→</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="checklist-card" aria-labelledby="listHeading">
+          <div class="progress-head">
+            <div>
+              <p class="section-label">DAILY CHECKLIST</p>
+              <h2 id="listHeading">나의 체크리스트</h2>
+            </div>
+            <div class="progress-copy">
+              <strong id="progressCount">0 / 0</strong>
+              <span>완료</span>
+            </div>
+          </div>
+
+          <div
+            id="progressTrack"
+            class="progress-track"
+            role="progressbar"
+            aria-label="완료 진행률"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <span id="progressBar"></span>
+          </div>
+
+          <form id="taskForm" class="task-form">
+            <label class="sr-only" for="taskInput">새로운 할 일</label>
+            <input
+              id="taskInput"
+              name="task"
+              type="text"
+              maxlength="120"
+              placeholder="새로운 할 일을 입력하세요"
+              autocomplete="off"
+              required
+            />
+            <button class="add-button" type="submit">
+              <span aria-hidden="true">＋</span>
+              추가
+            </button>
+          </form>
+
+          <div id="taskList" class="task-list" aria-live="polite"></div>
+
+          <div id="rolloverArea" class="rollover-area" hidden>
+            <button id="rolloverButton" class="rollover-button" type="button">
+              <span aria-hidden="true">↗</span>
+              <span id="rolloverLabel">못한 일 내일로 미루기</span>
+            </button>
+            <p id="rolloverMessage" class="rollover-message" aria-live="polite"></p>
+          </div>
+
+          <div id="emptyState" class="empty-state">
+            <div class="empty-illustration" aria-hidden="true">
+              <span>✓</span>
+            </div>
+            <h3>아직 적어둔 일이 없어요</h3>
+            <p>오늘 꼭 하고 싶은 작은 일부터 추가해보세요.</p>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <p>작은 완료가 하루를 바꿉니다.</p>
+      </footer>
+    </div>
+
+    <dialog id="authDialog" class="auth-dialog">
+      <button id="closeDialog" class="dialog-close" type="button" aria-label="닫기">×</button>
+      <div id="signedOutView">
+        <p class="section-label">SYNC EVERYWHERE</p>
+        <h2>어디서든 이어서 하세요</h2>
+        <p class="dialog-copy">
+          이메일로 로그인하면 PC와 휴대폰의 체크리스트가 실시간으로 동기화됩니다.
+        </p>
+        <form id="authForm" class="auth-form">
+          <label for="emailInput">이메일</label>
+          <input id="emailInput" type="email" placeholder="you@example.com" required />
+          <button class="primary-button" type="submit">로그인 링크 받기</button>
+        </form>
+        <p id="authMessage" class="auth-message" aria-live="polite"></p>
+      </div>
+      <div id="signedInView" hidden>
+        <p class="section-label">SIGNED IN</p>
+        <h2>동기화 중입니다</h2>
+        <p id="signedInEmail" class="dialog-copy"></p>
+        <button id="signOutButton" class="secondary-button" type="button">로그아웃</button>
+      </div>
+    </dialog>
+
+    <dialog id="routineDialog" class="auth-dialog routine-dialog">
+      <button id="closeRoutineDialog" class="dialog-close" type="button" aria-label="루틴 설정 닫기">×</button>
+      <p class="section-label">WEEKLY ROUTINE</p>
+      <h2>요일별 루틴</h2>
+      <p class="dialog-copy">요일을 고르고 반복할 일을 추가하세요. 해당 요일의 체크리스트에 자동으로 나타납니다.</p>
+
+      <div id="weekdayTabs" class="weekday-tabs" role="tablist" aria-label="요일 선택">
+        <button type="button" role="tab" data-weekday="1">월</button>
+        <button type="button" role="tab" data-weekday="2">화</button>
+        <button type="button" role="tab" data-weekday="3">수</button>
+        <button type="button" role="tab" data-weekday="4">목</button>
+        <button type="button" role="tab" data-weekday="5">금</button>
+        <button type="button" role="tab" data-weekday="6">토</button>
+        <button type="button" role="tab" data-weekday="0">일</button>
+      </div>
+
+      <form id="routineForm" class="task-form routine-form">
+        <label class="sr-only" for="routineInput">새 루틴</label>
+        <input
+          id="routineInput"
+          type="text"
+          maxlength="120"
+          placeholder="예: 아침 스트레칭 10분"
+          autocomplete="off"
+          required
+        />
+        <button class="add-button" type="submit"><span aria-hidden="true">＋</span> 추가</button>
+      </form>
+
+      <div id="routineList" class="routine-list" aria-live="polite"></div>
+      <div id="routineEmpty" class="routine-empty">이 요일에 등록된 루틴이 없어요.</div>
+      <p id="routineMessage" class="auth-message" aria-live="polite"></p>
+    </dialog>
+
+    <dialog id="searchDialog" class="auth-dialog search-dialog">
+      <button id="closeSearchDialog" class="dialog-close" type="button" aria-label="할 일 검색 닫기">×</button>
+      <p class="section-label">TASK HISTORY</p>
+      <h2>할 일 검색</h2>
+      <p class="dialog-copy">예전에 했던 일과 예정된 일을 모든 날짜에서 찾아보세요.</p>
+
+      <form id="searchForm" class="search-form" role="search">
+        <label class="sr-only" for="searchInput">할 일 검색어</label>
+        <span class="search-glyph" aria-hidden="true"></span>
+        <input
+          id="searchInput"
+          type="search"
+          maxlength="120"
+          placeholder="예: 유튜브 촬영"
+          autocomplete="off"
+        />
+        <button id="clearSearchButton" type="button" aria-label="검색어 지우기" hidden>×</button>
+      </form>
+
+      <p id="searchSummary" class="search-summary" aria-live="polite">
+        검색어를 입력하면 날짜별 기록을 보여드려요.
+      </p>
+      <div id="searchResults" class="search-results"></div>
+    </dialog>
+
+    <dialog id="installDialog" class="auth-dialog install-dialog">
+      <button id="closeInstallDialog" class="dialog-close" type="button" aria-label="설치 안내 닫기">×</button>
+      <p class="section-label">INSTALL APP</p>
+      <h2>홈 화면에 설치하기</h2>
+      <p class="dialog-copy">
+        갤럭시에서 Chrome 또는 Samsung Internet 메뉴를 열고
+        <strong>앱 설치</strong> 또는 <strong>홈 화면에 추가</strong>를 선택하세요.
+      </p>
+      <ul class="install-benefits">
+        <li>브라우저 주소창 없이 앱처럼 실행</li>
+        <li>홈 화면 아이콘으로 바로 접속</li>
+        <li>인터넷이 잠시 끊겨도 기본 화면 사용</li>
+      </ul>
+      <button id="installConfirmButton" class="primary-button install-confirm-button" type="button">
+        설치하기
+      </button>
+    </dialog>
+
+    <div id="updateToast" class="update-toast" role="status" hidden>
+      <span>새 버전이 준비됐어요.</span>
+      <button id="updateButton" type="button">업데이트</button>
+    </div>
+
+    <template id="taskTemplate">
+      <article class="task-item">
+        <button class="drag-handle" type="button" draggable="true" aria-label="드래그하여 순서 변경" title="드래그하여 순서 변경">
+          <span></span><span></span><span></span>
+        </button>
+        <label class="task-check">
+          <input type="checkbox" />
+          <span class="custom-check" aria-hidden="true">✓</span>
+          <span class="task-title"></span>
+          <span class="routine-badge" hidden>루틴</span>
+        </label>
+        <div class="task-actions">
+          <button class="move-button move-up" type="button" aria-label="위로 이동">↑</button>
+          <button class="move-button move-down" type="button" aria-label="아래로 이동">↓</button>
+          <button class="delete-button" type="button" aria-label="할 일 삭제">×</button>
+        </div>
+      </article>
+    </template>
+
+    <template id="routineTemplate">
+      <article class="routine-item">
+        <span class="routine-item-title"></span>
+        <button class="delete-button" type="button" aria-label="루틴 삭제">×</button>
+      </article>
+    </template>
+
+    <template id="searchResultTemplate">
+      <button class="search-result" type="button">
+        <span class="search-result-main">
+          <strong class="search-result-title"></strong>
+          <span class="search-result-date"></span>
+        </span>
+        <span class="search-result-meta">
+          <span class="search-result-routine" hidden>루틴</span>
+          <span class="search-result-status"></span>
+          <span aria-hidden="true">›</span>
+        </span>
+      </button>
+    </template>
+
+    <script src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
