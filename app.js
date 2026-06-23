@@ -646,6 +646,88 @@ async function autoRolloverOverdueTasks() {
   return movedCount;
 }
 
+async function migrateLocalDataToCloud() {
+  if (!supabase || !state.user) return;
+
+  const migrationKey = `daily-checklist:migrated:${state.user.id}`;
+  if (localStorage.getItem(migrationKey) === "done") return;
+
+  setSyncStatus("기존 기록을 동기화하는 중…", true);
+  const localRoutines = readLocalRoutines();
+  const routineIds = new Set(localRoutines.map((routine) => routine.id));
+
+  if (localRoutines.length > 0) {
+    const { error: routinesError } = await supabase.from("routines").upsert(
+      localRoutines.map((routine) => ({
+        id: routine.id,
+        user_id: state.user.id,
+        title: routine.title,
+        weekday: routine.weekday,
+      })),
+      { onConflict: "id", ignoreDuplicates: true },
+    );
+    if (routinesError) throw routinesError;
+  }
+
+  const prefix = "daily-checklist:";
+  const localTasks = [];
+
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (
+      !key?.startsWith(prefix) ||
+      key === ROUTINES_STORAGE_KEY ||
+      key.startsWith("daily-checklist:migrated:")
+    ) {
+      continue;
+    }
+
+    const taskDate = key.slice(prefix.length);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(taskDate)) continue;
+
+    for (const task of readLocalTasks(key)) {
+      localTasks.push({
+        id: task.id,
+        user_id: state.user.id,
+        routine_id:
+          task.routine_id && routineIds.has(task.routine_id) ? task.routine_id : null,
+        title: task.title,
+        task_date: taskDate,
+        is_completed: Boolean(task.is_completed),
+        is_hidden: Boolean(task.is_hidden),
+        position: task.position ?? 0,
+      });
+    }
+  }
+
+  for (let index = 0; index < localTasks.length; index += 200) {
+    const { error: tasksError } = await supabase
+      .from("tasks")
+      .upsert(localTasks.slice(index, index + 200), {
+        onConflict: "id",
+        ignoreDuplicates: true,
+      });
+    if (tasksError) throw tasksError;
+  }
+
+  localStorage.setItem(migrationKey, "done");
+  if (localRoutines.length > 0 || localTasks.length > 0) {
+    setSyncStatus(
+      `기존 기록 ${localTasks.length}개 동기화 완료`,
+      true,
+    );
+  }
+}
+
+async function safelyMigrateLocalData() {
+  try {
+    await migrateLocalDataToCloud();
+  } catch (error) {
+    console.error(error);
+    setSyncStatus("기존 기록 동기화 오류");
+  }
+}
+
 function scheduleMidnightRollover() {
   if (state.midnightTimer) clearTimeout(state.midnightTimer);
 
@@ -1255,6 +1337,7 @@ async function initializeAuth() {
   } = await supabase.auth.getSession();
   state.user = session?.user ?? null;
   renderAuthState();
+  await safelyMigrateLocalData();
   await autoRolloverOverdueTasks();
   await loadTasks();
   await subscribeToRealtime();
@@ -1263,6 +1346,7 @@ async function initializeAuth() {
   supabase.auth.onAuthStateChange(async (_event, nextSession) => {
     state.user = nextSession?.user ?? null;
     renderAuthState();
+    await safelyMigrateLocalData();
     await autoRolloverOverdueTasks();
     await loadTasks();
     await subscribeToRealtime();
