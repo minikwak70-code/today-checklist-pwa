@@ -1437,9 +1437,10 @@ elements.authForm.addEventListener("submit", async (event) => {
   if (!supabase) return;
 
   elements.authMessage.textContent = "로그인 링크를 보내는 중…";
+  const redirectUrl = `${window.location.origin}${window.location.pathname}`;
   const { error } = await supabase.auth.signInWithOtp({
     email: elements.emailInput.value,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: redirectUrl },
   });
 
   elements.authMessage.textContent = error
