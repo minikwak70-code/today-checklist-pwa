@@ -30,6 +30,7 @@
             <span aria-hidden="true">⌕</span>
             <span>검색</span>
           </button>
+          <button id="displayButton" class="ghost-button" type="button">표시</button>
           <button id="installButton" class="ghost-button install-button" type="button" hidden>
             앱 설치
           </button>
@@ -235,6 +236,53 @@
       <button id="installConfirmButton" class="primary-button install-confirm-button" type="button">
         설치하기
       </button>
+    </dialog>
+
+    <dialog id="displayDialog" class="auth-dialog display-dialog">
+      <button id="closeDisplayDialog" class="dialog-close" type="button" aria-label="표시 설정 닫기">×</button>
+      <p class="section-label">DISPLAY</p>
+      <h2>포스트잇처럼 맞추기</h2>
+      <p class="dialog-copy">작은 창에서도 보기 좋게 글자 크기와 간격을 조절하세요. 이 기기에만 저장됩니다.</p>
+
+      <fieldset class="display-option-group">
+        <legend>글자 크기</legend>
+        <label>
+          <input type="radio" name="textSize" value="compact" />
+          <span>작게</span>
+        </label>
+        <label>
+          <input type="radio" name="textSize" value="normal" />
+          <span>보통</span>
+        </label>
+        <label>
+          <input type="radio" name="textSize" value="large" />
+          <span>크게</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="display-option-group">
+        <legend>화면 간격</legend>
+        <label>
+          <input type="radio" name="density" value="cozy" />
+          <span>여유</span>
+        </label>
+        <label>
+          <input type="radio" name="density" value="normal" />
+          <span>보통</span>
+        </label>
+        <label>
+          <input type="radio" name="density" value="tight" />
+          <span>촘촘</span>
+        </label>
+      </fieldset>
+
+      <label class="postit-toggle">
+        <input id="postitModeInput" type="checkbox" />
+        <span>포스트잇 모드</span>
+        <small>상단 여백과 큰 장식을 줄입니다.</small>
+      </label>
+
+      <button id="resetDisplayButton" class="secondary-button" type="button">기본값으로</button>
     </dialog>
 
     <div id="updateToast" class="update-toast" role="status" hidden>

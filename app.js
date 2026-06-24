@@ -17,12 +17,15 @@ const elements = {
   authForm: document.querySelector("#authForm"),
   authMessage: document.querySelector("#authMessage"),
   closeDialog: document.querySelector("#closeDialog"),
+  closeDisplayDialog: document.querySelector("#closeDisplayDialog"),
   closeInstallDialog: document.querySelector("#closeInstallDialog"),
   closeRoutineDialog: document.querySelector("#closeRoutineDialog"),
   closeSearchDialog: document.querySelector("#closeSearchDialog"),
   clearSearchButton: document.querySelector("#clearSearchButton"),
   dateEyebrow: document.querySelector("#dateEyebrow"),
   datePicker: document.querySelector("#datePicker"),
+  displayButton: document.querySelector("#displayButton"),
+  displayDialog: document.querySelector("#displayDialog"),
   emailInput: document.querySelector("#emailInput"),
   emptyState: document.querySelector("#emptyState"),
   englishMeaning: document.querySelector("#englishMeaning"),
@@ -38,6 +41,7 @@ const elements = {
   progressBar: document.querySelector("#progressBar"),
   progressCount: document.querySelector("#progressCount"),
   progressTrack: document.querySelector("#progressTrack"),
+  postitModeInput: document.querySelector("#postitModeInput"),
   routineButton: document.querySelector("#routineButton"),
   routineDialog: document.querySelector("#routineDialog"),
   routineEmpty: document.querySelector("#routineEmpty"),
@@ -50,6 +54,7 @@ const elements = {
   rolloverButton: document.querySelector("#rolloverButton"),
   rolloverLabel: document.querySelector("#rolloverLabel"),
   rolloverMessage: document.querySelector("#rolloverMessage"),
+  resetDisplayButton: document.querySelector("#resetDisplayButton"),
   signedInEmail: document.querySelector("#signedInEmail"),
   signedInView: document.querySelector("#signedInView"),
   signedOutView: document.querySelector("#signedOutView"),
@@ -86,6 +91,51 @@ const state = {
   installPrompt: null,
   waitingServiceWorker: null,
 };
+
+const DISPLAY_SETTINGS_KEY = "daily-checklist:display-settings";
+const DEFAULT_DISPLAY_SETTINGS = {
+  textSize: "normal",
+  density: "normal",
+  postitMode: false,
+};
+
+function readDisplaySettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(DISPLAY_SETTINGS_KEY) || "{}");
+    return { ...DEFAULT_DISPLAY_SETTINGS, ...saved };
+  } catch {
+    return { ...DEFAULT_DISPLAY_SETTINGS };
+  }
+}
+
+function writeDisplaySettings(nextSettings) {
+  localStorage.setItem(DISPLAY_SETTINGS_KEY, JSON.stringify(nextSettings));
+}
+
+function syncDisplayControls(settings) {
+  const textSizeInput = document.querySelector(
+    `input[name="textSize"][value="${settings.textSize}"]`,
+  );
+  const densityInput = document.querySelector(
+    `input[name="density"][value="${settings.density}"]`,
+  );
+  if (textSizeInput) textSizeInput.checked = true;
+  if (densityInput) densityInput.checked = true;
+  elements.postitModeInput.checked = settings.postitMode;
+}
+
+function applyDisplaySettings(settings = readDisplaySettings()) {
+  document.body.dataset.textSize = settings.textSize;
+  document.body.dataset.density = settings.density;
+  document.body.dataset.postitMode = settings.postitMode ? "on" : "off";
+  syncDisplayControls(settings);
+}
+
+function updateDisplaySettings(partialSettings) {
+  const nextSettings = { ...readDisplaySettings(), ...partialSettings };
+  writeDisplaySettings(nextSettings);
+  applyDisplaySettings(nextSettings);
+}
 
 function startOfDay(date) {
   const next = new Date(date);
@@ -1473,6 +1523,29 @@ elements.signOutButton.addEventListener("click", async () => {
   elements.authDialog.close();
 });
 
+elements.displayButton.addEventListener("click", () => elements.displayDialog.showModal());
+elements.closeDisplayDialog.addEventListener("click", () => elements.displayDialog.close());
+elements.displayDialog.addEventListener("click", (event) => {
+  if (event.target === elements.displayDialog) elements.displayDialog.close();
+});
+elements.displayDialog.addEventListener("change", (event) => {
+  if (event.target.name === "textSize") {
+    updateDisplaySettings({ textSize: event.target.value });
+  }
+
+  if (event.target.name === "density") {
+    updateDisplaySettings({ density: event.target.value });
+  }
+
+  if (event.target === elements.postitModeInput) {
+    updateDisplaySettings({ postitMode: elements.postitModeInput.checked });
+  }
+});
+elements.resetDisplayButton.addEventListener("click", () => {
+  writeDisplaySettings(DEFAULT_DISPLAY_SETTINGS);
+  applyDisplaySettings(DEFAULT_DISPLAY_SETTINGS);
+});
+
 function isStandaloneMode() {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -1550,5 +1623,6 @@ elements.updateButton.addEventListener("click", () => {
   state.waitingServiceWorker?.postMessage({ type: "SKIP_WAITING" });
 });
 
+applyDisplaySettings();
 refreshInstallButton();
 initializeAuth();
