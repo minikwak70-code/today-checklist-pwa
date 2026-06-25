@@ -1279,60 +1279,245 @@ body[data-density="cozy"] .task-list {
 }
 
 body[data-postit-mode="on"] .page-shell {
-  width: min(100% - 16px, 620px);
+  width: min(100% - 10px, 420px);
+}
+
+body[data-postit-mode="on"] {
+  min-width: 220px;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.32), transparent 34%),
+    #fff3a6;
 }
 
 body[data-postit-mode="on"] .topbar {
   height: auto;
-  padding: 10px 0;
+  padding: 6px 0 4px;
+  justify-content: flex-end;
 }
 
+body[data-postit-mode="on"] .brand,
 body[data-postit-mode="on"] .brand-mark,
 body[data-postit-mode="on"] footer,
-body[data-postit-mode="on"] .sync-status {
+body[data-postit-mode="on"] .sync-status,
+body[data-postit-mode="on"] .search-open-button,
+body[data-postit-mode="on"] .install-button,
+body[data-postit-mode="on"] #routineButton {
   display: none;
 }
 
-body[data-postit-mode="on"] .brand {
-  font-size: 13px;
+body[data-postit-mode="on"] .account-area {
+  gap: 5px;
 }
 
-body[data-postit-mode="on"] .account-area {
-  gap: 6px;
+body[data-postit-mode="on"] .ghost-button {
+  padding: 5px 8px;
+  border-color: rgba(155, 126, 45, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.36);
+  color: #6c5720;
+  font-size: 10px;
 }
 
 body[data-postit-mode="on"] main {
-  padding: 14px 0 14px;
+  padding: 0 0 8px;
 }
 
 body[data-postit-mode="on"] .hero {
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 body[data-postit-mode="on"] .hero-row {
-  display: block;
+  display: grid;
+  gap: 7px;
 }
 
 body[data-postit-mode="on"] h1 {
-  font-size: clamp(26px, 8vw, 38px);
+  font-size: clamp(18px, 6.2vw, 25px);
+  letter-spacing: -0.045em;
+}
+
+body[data-postit-mode="on"] .eyebrow {
+  margin-bottom: 3px;
+  color: #8a6f24;
+  font-size: 9px;
+  letter-spacing: 0.08em;
 }
 
 body[data-postit-mode="on"] .hero-message {
-  margin-top: 8px;
-  display: grid;
-  gap: 2px;
-}
-
-body[data-postit-mode="on"] .hero-message span::before {
-  content: "";
+  display: none;
 }
 
 body[data-postit-mode="on"] .date-controls {
-  margin-top: 14px;
+  margin-top: 0;
+  gap: 4px;
 }
 
-body[data-postit-mode="on"] .progress-track {
-  margin: 13px 0 16px;
+body[data-postit-mode="on"] .icon-button,
+body[data-postit-mode="on"] .today-button,
+body[data-postit-mode="on"] .calendar-button {
+  height: 25px;
+  border-color: rgba(155, 126, 45, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.3);
+  color: #6c5720;
+  font-size: 10px;
+}
+
+body[data-postit-mode="on"] .icon-button {
+  width: 25px;
+}
+
+body[data-postit-mode="on"] .today-button,
+body[data-postit-mode="on"] .calendar-button {
+  padding-inline: 8px;
+}
+
+body[data-postit-mode="on"] .calendar-glyph {
+  width: 12px;
+  height: 11px;
+}
+
+body[data-postit-mode="on"] .checklist-card {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+body[data-postit-mode="on"] .progress-head,
+body[data-postit-mode="on"] .progress-track,
+body[data-postit-mode="on"] .drag-handle {
+  display: none;
+}
+
+body[data-postit-mode="on"] .task-form {
+  grid-template-columns: 1fr 34px;
+  gap: 5px;
+}
+
+body[data-postit-mode="on"] .task-form input {
+  height: 31px;
+  padding: 0 9px;
+  border-color: rgba(155, 126, 45, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+}
+
+body[data-postit-mode="on"] .add-button {
+  min-width: 0;
+  padding: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 0;
+}
+
+body[data-postit-mode="on"] .add-button span {
+  margin: 0;
+  font-size: 16px;
+}
+
+body[data-postit-mode="on"] .task-list {
+  gap: 5px;
+  margin-top: 8px;
+}
+
+body[data-postit-mode="on"] .task-section-heading {
+  min-height: 18px;
+  margin-top: 4px;
+}
+
+body[data-postit-mode="on"] .task-section-heading:not(:first-child) {
+  margin-top: 9px;
+  padding-top: 8px;
+  border-color: rgba(155, 126, 45, 0.2);
+}
+
+body[data-postit-mode="on"] .task-section-heading span,
+body[data-postit-mode="on"] .task-section-heading small {
+  font-size: 8px;
+}
+
+body[data-postit-mode="on"] .task-section-heading strong {
+  font-size: 10px;
+}
+
+body[data-postit-mode="on"] .task-item {
+  min-height: 31px;
+  gap: 6px;
+  padding: 3px 5px 3px 7px;
+  border-color: rgba(155, 126, 45, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+body[data-postit-mode="on"] .task-check {
+  gap: 7px;
+}
+
+body[data-postit-mode="on"] .custom-check {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+body[data-postit-mode="on"] .task-title {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+body[data-postit-mode="on"] .routine-badge {
+  padding: 2px 5px;
+  font-size: 8px;
+}
+
+body[data-postit-mode="on"] .delete-button,
+body[data-postit-mode="on"] .move-button {
+  width: 21px;
+  height: 21px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+body[data-postit-mode="on"] .delete-button {
+  font-size: 15px;
+}
+
+body[data-postit-mode="on"] .rollover-area {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-color: rgba(155, 126, 45, 0.18);
+}
+
+body[data-postit-mode="on"] .rollover-button {
+  min-height: 30px;
+  border-color: rgba(155, 126, 45, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 10px;
+}
+
+body[data-postit-mode="on"] .empty-state {
+  padding: 24px 8px 12px;
+}
+
+body[data-postit-mode="on"] .empty-illustration {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  font-size: 15px;
+}
+
+body[data-postit-mode="on"] .empty-state h3 {
+  font-size: 12px;
+}
+
+body[data-postit-mode="on"] .empty-state p {
+  font-size: 10px;
 }
 
 .update-toast {
