@@ -1086,7 +1086,7 @@ function renderNotes(data, results, typeResult, validation) {
     "본 리포트는 질병을 진단하거나 확진하기 위한 도구가 아니라, 초진 상태와 관리 전후 변화를 비교하기 위한 임상 관리지표입니다.",
     "검사 결과는 증상, 병력, 복용약 및 추가검사와 함께 해석해야 합니다.",
     "TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.",
-    "검사 저장을 실행한 환자정보와 검사결과는 인증된 사용자만 접근할 수 있는 서버 데이터베이스에 기록됩니다.",
+    "검사 저장을 실행한 환자정보와 검사결과는 공덕경희한의원 공동 작업공간의 인증된 사용자만 접근할 수 있는 서버 데이터베이스에 기록됩니다.",
   ];
   renderList(elements.conditionList, conditions);
   renderList(elements.limitList, limits);

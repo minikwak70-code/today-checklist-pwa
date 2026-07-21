@@ -1,5 +1,9 @@
 const tracking = {
   user: null,
+  clinic: null,
+  member: null,
+  permissions: {},
+  members: [],
   patients: [],
   selectedPatient: null,
   assessments: [],
@@ -8,6 +12,8 @@ const tracking = {
 
 const t = {
   banner: document.querySelector("#trackingAuthBanner"),
+  workspaceIdentity: document.querySelector("#workspaceIdentity"),
+  adminOnly: document.querySelectorAll(".admin-only"),
   search: document.querySelector("#patientSearch"),
   typeFilter: document.querySelector("#patientTypeFilter"),
   sort: document.querySelector("#patientSort"),
@@ -33,6 +39,11 @@ const t = {
   compareButton: document.querySelector("#compareButton"),
   comparisonPrint: document.querySelector("#comparisonPrintButton"),
   comparisonReport: document.querySelector("#comparisonReport"),
+  refreshMembers: document.querySelector("#refreshMembersButton"),
+  memberInviteForm: document.querySelector("#memberInviteForm"),
+  inviteMemberButton: document.querySelector("#inviteMemberButton"),
+  inviteResult: document.querySelector("#inviteResult"),
+  memberTable: document.querySelector("#memberTableBody"),
 };
 
 const axisMeta = [
@@ -63,6 +74,24 @@ function setBanner(text, tone = "") {
   t.banner.className = `tracking-banner ${tone}`.trim();
 }
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;",
+  }[char]));
+}
+
+function roleLabel(role) {
+  return {
+    admin: "관리자",
+    staff: "직원",
+    readOnly: "조회 전용",
+  }[role] || role || "--";
+}
+
 function setTrackingEnabled(enabled) {
   [
     t.search,
@@ -80,6 +109,29 @@ function setTrackingEnabled(enabled) {
   ].forEach((item) => {
     if (item) item.disabled = !enabled;
   });
+}
+
+function setFormControls(form, enabled) {
+  form?.querySelectorAll("input, select, textarea, button").forEach((item) => {
+    item.disabled = !enabled;
+  });
+}
+
+function applyPermissions() {
+  const permissions = tracking.permissions || {};
+  const isAdmin = Boolean(permissions.canManageMembers);
+  t.adminOnly.forEach((item) => {
+    item.hidden = !isAdmin;
+  });
+  setFormControls(t.createForm, Boolean(permissions.canCreatePatient));
+  if (t.saveAssessment) t.saveAssessment.disabled = !permissions.canCreateAssessment || !tracking.selectedPatient;
+  if (t.comparisonPrint) t.comparisonPrint.disabled = !permissions.canRead;
+  if (t.compareButton) t.compareButton.disabled = !permissions.canRead;
+  if (t.workspaceIdentity) {
+    const clinic = tracking.clinic?.name || "작업공간 없음";
+    const name = tracking.user?.name || tracking.user?.email || "로그인 필요";
+    t.workspaceIdentity.textContent = `${clinic} · ${name} · ${roleLabel(tracking.member?.role)}`;
+  }
 }
 
 async function api(path, options = {}) {
@@ -132,18 +184,28 @@ async function loadMe() {
   try {
     const data = await api("/api/me");
     tracking.user = data.user;
-    setBanner(`${data.user.name || data.user.email} 계정으로 서버 저장 기능이 활성화되었습니다. 권한: ${data.user.role}`, "ok");
+    tracking.clinic = data.clinic;
+    tracking.member = data.member;
+    tracking.permissions = data.permissions || {};
+    setBanner(`${data.clinic.name} 공동 작업공간이 활성화되었습니다. ${data.user.name || data.user.email} · ${data.member.roleLabel}`, "ok");
     setTrackingEnabled(true);
+    applyPermissions();
     await loadPatients();
+    if (tracking.permissions.canManageMembers) await loadMembers();
   } catch (error) {
     tracking.user = null;
+    tracking.clinic = null;
+    tracking.member = null;
+    tracking.permissions = {};
     setTrackingEnabled(false);
+    applyPermissions();
     const signInPath = error.data?.signInPath || "/signin-with-chatgpt?return_to=/";
     const message = error.status === 503
       ? "서버 데이터베이스가 아직 연결되지 않아 환자 저장 기능을 사용할 수 없습니다."
       : "환자 저장 기능을 사용하려면 로그인과 접근 권한이 필요합니다.";
     t.banner.innerHTML = `${message} <a href="${signInPath}">로그인</a>`;
     t.table.innerHTML = `<tr><td colspan="8">${message}</td></tr>`;
+    if (t.workspaceIdentity) t.workspaceIdentity.textContent = "로그인 필요";
   }
 }
 
@@ -165,14 +227,14 @@ function renderPatientTable() {
   }
   t.table.innerHTML = tracking.patients.map((patient) => `
     <tr>
-      <td>${patient.chart_number}</td>
-      <td>${patient.name}</td>
-      <td>${patient.sex || "--"}</td>
+      <td>${escapeHtml(patient.chart_number)}</td>
+      <td>${escapeHtml(patient.name)}</td>
+      <td>${escapeHtml(patient.sex || "--")}</td>
       <td>${ageAt(patient.birth_date)}</td>
       <td>${formatDate(patient.latest_assessment_date)}</td>
       <td>${scoreText(patient.latest_total_score)}</td>
-      <td>${patient.latest_primary_type || "--"}</td>
-      <td><button class="mini-button" type="button" data-open-patient="${patient.id}">열기</button></td>
+      <td>${escapeHtml(patient.latest_primary_type || "--")}</td>
+      <td><button class="mini-button" type="button" data-open-patient="${escapeHtml(patient.id)}">열기</button></td>
     </tr>
   `).join("");
 }
@@ -196,7 +258,7 @@ async function createPatient(event) {
   } catch (error) {
     setBanner(error.message, "warning");
   } finally {
-    t.createButton.disabled = false;
+    applyPermissions();
   }
 }
 
@@ -206,6 +268,7 @@ async function openPatient(patientId) {
   t.detailPanel.hidden = false;
   t.selectedTitle.textContent = tracking.selectedPatient.name;
   t.selectedMeta.textContent = patientDisplay(tracking.selectedPatient);
+  applyPermissions();
   window.metabolicReportApp?.setValues({
     patientName: tracking.selectedPatient.name,
     chartNumber: tracking.selectedPatient.chart_number,
@@ -258,10 +321,11 @@ function renderAssessmentTable() {
       <td>${scoreText(assessment.liverScore)}</td>
       <td>${scoreText(assessment.inflammationScore)}</td>
       <td>${scoreText(assessment.autonomicScore)}</td>
-      <td>${assessment.primaryType || "--"}</td>
+      <td>${escapeHtml(assessment.primaryType || "--")}</td>
       <td>
-        <button class="mini-button" type="button" data-open-assessment="${assessment.id}">열기</button>
-        <button class="mini-button danger" type="button" data-delete-assessment="${assessment.id}">삭제</button>
+        <button class="mini-button" type="button" data-open-assessment="${escapeHtml(assessment.id)}">열기</button>
+        ${tracking.permissions.canDeleteAssessment ? `<button class="mini-button danger" type="button" data-delete-assessment="${escapeHtml(assessment.id)}">삭제</button>` : ""}
+        <small class="byline">${escapeHtml(assessment.createdByName || "작성자 미상")} · ${escapeHtml((assessment.createdAt || "").slice(0, 10))}</small>
       </td>
     </tr>
   `).join("");
@@ -341,6 +405,10 @@ function openAssessment(assessmentId) {
 
 async function deleteAssessment(assessmentId) {
   if (!tracking.selectedPatient) return;
+  if (!tracking.permissions.canDeleteAssessment) {
+    setBanner("검사 삭제는 관리자만 가능합니다.", "warning");
+    return;
+  }
   if (!confirm("이 검사기록을 삭제 처리할까요?\n기록은 즉시 영구삭제하지 않고 삭제 이력으로 남깁니다.")) return;
   try {
     await api(`/api/patients/${tracking.selectedPatient.id}/assessments/${assessmentId}`, { method: "DELETE" });
@@ -350,6 +418,74 @@ async function deleteAssessment(assessmentId) {
   } catch (error) {
     setBanner(error.message, "warning");
   }
+}
+
+async function loadMembers() {
+  if (!tracking.permissions.canManageMembers) return;
+  const data = await api("/api/members");
+  tracking.members = data.members || [];
+  renderMembers();
+}
+
+function renderMembers() {
+  if (!t.memberTable) return;
+  if (!tracking.members.length) {
+    t.memberTable.innerHTML = `<tr><td colspan="6">등록된 구성원이 없습니다.</td></tr>`;
+    return;
+  }
+  t.memberTable.innerHTML = tracking.members.map((member) => `
+    <tr>
+      <td>${escapeHtml(member.name || "--")}</td>
+      <td>${escapeHtml(member.email || "--")}</td>
+      <td>
+        <select class="member-role-select" data-member-role="${escapeHtml(member.id)}" ${member.isActive ? "" : "disabled"}>
+          <option value="admin" ${member.role === "admin" ? "selected" : ""}>관리자</option>
+          <option value="staff" ${member.role === "staff" ? "selected" : ""}>직원</option>
+          <option value="readOnly" ${member.role === "readOnly" ? "selected" : ""}>조회 전용</option>
+        </select>
+      </td>
+      <td>${member.isActive ? "활성" : "비활성"}</td>
+      <td>${escapeHtml(member.joinedAt ? member.joinedAt.slice(0, 10) : "초대 대기")}</td>
+      <td>
+        ${member.isActive ? `<button class="mini-button danger" type="button" data-deactivate-member="${escapeHtml(member.id)}">비활성화</button>` : ""}
+      </td>
+    </tr>
+  `).join("");
+}
+
+async function inviteMember(event) {
+  event.preventDefault();
+  if (!tracking.permissions.canManageMembers) return;
+  const payload = {
+    name: document.querySelector("#inviteName").value.trim(),
+    email: document.querySelector("#inviteEmail").value.trim(),
+    role: document.querySelector("#inviteRole").value,
+  };
+  t.inviteMemberButton.disabled = true;
+  try {
+    const data = await api("/api/members/invite", { method: "POST", body: JSON.stringify(payload) });
+    t.memberInviteForm.reset();
+    t.inviteResult.textContent = `초대가 생성되었습니다. 직원은 로그인 후 자동으로 ${tracking.clinic.name} 작업공간에 연결됩니다.`;
+    if (data.member?.inviteLink) t.inviteResult.textContent += ` 초대 링크: ${location.origin}${data.member.inviteLink}`;
+    await loadMembers();
+  } catch (error) {
+    t.inviteResult.textContent = error.message;
+  } finally {
+    t.inviteMemberButton.disabled = false;
+  }
+}
+
+async function changeMemberRole(memberId, role) {
+  await api(`/api/members/${memberId}`, { method: "PATCH", body: JSON.stringify({ role }) });
+  await loadMembers();
+  setBanner("구성원 역할이 변경되었습니다.", "ok");
+}
+
+async function deactivateMember(memberId) {
+  if (!confirm("이 구성원의 공덕경희한의원 접근을 비활성화할까요?\n과거 작성기록은 유지됩니다.")) return;
+  await api(`/api/members/${memberId}`, { method: "PATCH", body: JSON.stringify({ isActive: false }) });
+  await loadMembers();
+  setBanner("구성원이 비활성화되었습니다.", "ok");
 }
 
 function lowestAxis(assessment) {
@@ -414,14 +550,14 @@ function renderComparison() {
   const rows = metricRows(base, compare);
   const totalDiff = compare.totalScore - base.totalScore;
   const conditionNote = base.fastingStatus && compare.fastingStatus && base.fastingStatus !== compare.fastingStatus
-    ? `<p class="comparison-note">두 검사의 채혈 조건이 달라 TG 및 TG/HDL-C 변화 해석에 제한이 있을 수 있습니다. 기준 검사: ${base.fastingStatus}, 비교 검사: ${compare.fastingStatus}</p>`
+    ? `<p class="comparison-note">두 검사의 채혈 조건이 달라 TG 및 TG/HDL-C 변화 해석에 제한이 있을 수 있습니다. 기준 검사: ${escapeHtml(base.fastingStatus)}, 비교 검사: ${escapeHtml(compare.fastingStatus)}</p>`
     : "";
   t.comparisonReport.innerHTML = `
     <div class="comparison-pages">
       <section class="comparison-page">
         <p class="eyebrow">BEFORE & AFTER REPORT</p>
         <h2>치료 전후 비교 리포트</h2>
-        <p>${tracking.selectedPatient ? patientDisplay(tracking.selectedPatient) : ""}</p>
+        <p>${tracking.selectedPatient ? escapeHtml(patientDisplay(tracking.selectedPatient)) : ""}</p>
         <div class="comparison-score">
           <span>종합점수</span>
           <strong>${numberText(base.totalScore)}점 → ${numberText(compare.totalScore)}점</strong>
@@ -444,7 +580,7 @@ function renderComparison() {
           <tbody>${rows.map((row) => `<tr><td>${row.metricLabel}</td><td>${numberText(row.before, 2)} ${row.unit}</td><td>${numberText(row.after, 2)} ${row.unit}</td><td>${row.diff >= 0 ? "+" : ""}${numberText(row.diff, 2)} ${row.unit}</td><td>${row.evaluation}</td></tr>`).join("")}</tbody>
         </table>
         <h3>주된 관리 패턴의 변화</h3>
-        <p>${base.primaryType || "--"} → ${compare.primaryType || "--"}</p>
+        <p>${escapeHtml(base.primaryType || "--")} → ${escapeHtml(compare.primaryType || "--")}</p>
       </section>
       <section class="comparison-page">
         <h3>해석 제한</h3>
@@ -570,5 +706,21 @@ t.assessmentTable.addEventListener("click", (event) => {
 t.trendAxis.addEventListener("change", renderTrend);
 t.compareButton.addEventListener("click", renderComparison);
 t.comparisonPrint.addEventListener("click", printComparison);
+t.refreshMembers?.addEventListener("click", () => loadMembers().catch((error) => setBanner(error.message, "warning")));
+t.memberInviteForm?.addEventListener("submit", inviteMember);
+t.memberTable?.addEventListener("change", (event) => {
+  const memberId = event.target.closest("[data-member-role]")?.dataset.memberRole;
+  if (memberId) changeMemberRole(memberId, event.target.value).catch((error) => setBanner(error.message, "warning"));
+});
+t.memberTable?.addEventListener("click", (event) => {
+  const memberId = event.target.closest("[data-deactivate-member]")?.dataset.deactivateMember;
+  if (memberId) deactivateMember(memberId).catch((error) => setBanner(error.message, "warning"));
+});
+
+setInterval(() => {
+  if (!tracking.user) return;
+  loadPatients().catch(() => {});
+  if (tracking.selectedPatient) loadAssessments().catch(() => {});
+}, 60000);
 
 loadMe();
