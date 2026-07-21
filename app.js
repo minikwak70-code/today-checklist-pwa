@@ -377,10 +377,10 @@ function axisDisplay(axis) {
 function getGrade(total, max) {
   if (!max) return { label: "계산 대기", text: "입력된 핵심 검사값이 부족합니다." };
   if (max < 100) return { label: "부분 판정", text: "일부 축이 미측정이므로 측정 완료 점수로 해석합니다." };
-  if (total >= 85) return { label: "안정권", text: "전반적으로 양호한 상태입니다.", short: "전반적으로 양호한 상태" };
-  if (total >= 70) return { label: "관리권", text: "일부 영역의 개선과 추적관찰이 필요합니다.", short: "일부 영역의 개선이 필요한 상태" };
-  if (total >= 55) return { label: "집중관리권", text: "여러 대사영역의 적극적인 관리가 필요합니다.", short: "여러 영역의 집중관리가 필요한 상태" };
-  return { label: "우선평가권", text: "원인 평가와 우선 관리가 필요합니다.", short: "원인 확인과 적극적인 관리가 필요한 상태" };
+  if (total >= 85) return { label: "건강", text: "전반적으로 건강한 상태입니다.", short: "전반적으로 건강한 상태" };
+  if (total >= 70) return { label: "양호", text: "일부 영역의 개선과 추적관찰이 필요합니다.", short: "대체로 양호한 상태" };
+  if (total >= 55) return { label: "관리필요", text: "여러 대사영역의 관리가 필요합니다.", short: "관리가 필요한 상태" };
+  return { label: "적극관리필요", text: "원인 확인과 적극적인 관리가 필요합니다.", short: "적극적인 관리가 필요한 상태" };
 }
 
 function makeResults(data) {
