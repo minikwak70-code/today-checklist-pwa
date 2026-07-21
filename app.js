@@ -13,6 +13,14 @@ const TYPE_OPTIONS = [
   ["해당 없음", "해당 없음"],
 ];
 
+const AXIS_SHORT_COMMENTS = {
+  glucose: "혈당 상태와 인슐린 저항성 관련 패턴",
+  lipid: "중성지방과 동맥경화성 지질 부담",
+  liver: "간세포 부담과 빌리루빈 배설 상태",
+  inflammation: "저등급 염증과 내장지방 상태",
+  autonomic: "혈압, HRV와 신체적 스트레스 반응",
+};
+
 const elements = {
   form: document.querySelector("#reportForm"),
   generateButton: document.querySelector("#generateButton"),
@@ -22,18 +30,25 @@ const elements = {
   printButton: document.querySelector("#printButton"),
   printStatus: document.querySelector("#printStatus"),
   patientLine: document.querySelector("#patientLine"),
+  scoreTitle: document.querySelector("#scoreTitle"),
   totalScore: document.querySelector("#totalScore"),
   gradeLabel: document.querySelector("#gradeLabel"),
   radarChart: document.querySelector("#radarChart"),
+  axisScoreLegend: document.querySelector("#axisScoreLegend"),
   priorityList: document.querySelector("#priorityList"),
+  priorityListDetail: document.querySelector("#priorityListDetail"),
+  priorityAxes: document.querySelector("#priorityAxes"),
   summaryComment: document.querySelector("#summaryComment"),
   flagArea: document.querySelector("#flagArea"),
   axisCards: document.querySelector("#axisCards"),
   detailTable: document.querySelector("#detailTable"),
-  notesList: document.querySelector("#notesList"),
+  conditionList: document.querySelector("#conditionList"),
+  limitList: document.querySelector("#limitList"),
+  commonGuideList: document.querySelector("#commonGuideList"),
   validationSummary: document.querySelector("#validationSummary"),
   primaryType: document.querySelector("#primaryType"),
   secondaryType: document.querySelector("#secondaryType"),
+  primaryTypeReason: document.querySelector("#primaryTypeReason"),
   supportTags: document.querySelector("#supportTags"),
   manualPrimaryType: document.querySelector("#manualPrimaryType"),
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
@@ -246,8 +261,8 @@ function scoreHsCrp(value) {
 
 function scoreVisceralFat(value) {
   return scoreByRanges(value, 6, [
-    { test: (v) => v >= 1 && v <= 5, score: 6, label: "매우 양호" },
-    { test: (v) => v <= 9, score: 5, label: "정상범위" },
+    { test: (v) => v >= 1 && v <= 5, score: 6, label: "양호" },
+    { test: (v) => v <= 9, score: 5, label: "권장범위 내, 증가 경향 관찰" },
     { test: (v) => v <= 12, score: 3, label: "증가" },
     { test: (v) => v <= 15, score: 1, label: "높음" },
     { test: (v) => v >= 16, score: 0, label: "매우 높음" },
@@ -387,7 +402,13 @@ function makeResults(data) {
         { label: "혈압", result: bp, value: present(data.sbp) && present(data.dbp) ? `${data.sbp}/${data.dbp}` : null },
         { label: "HRV-Index", result: hrvIndex, value: [data.hrvIndexGrade, present(data.hrvIndexValue) ? data.hrvIndexValue : ""].filter(Boolean).join(" · ") },
         { label: "Stress", result: stress, value: data.stressGrade || null },
+        { label: "SDNN", result: scored("-", 0, "참고지표"), value: present(data.sdnnValue) ? `${data.sdnnValue} ms` : null, reference: true },
+        { label: "SNS Activity", result: scored("-", 0, "참고지표"), value: data.snsActivity || null, reference: true },
+        { label: "PNS Activity", result: scored("-", 0, "참고지표"), value: data.pnsActivity || null, reference: true },
         { label: "ANS Activity", result: scored("-", 0, "참고지표"), value: data.ansActivity || null, reference: true },
+        { label: "SNS/PNS", result: scored("-", 0, "참고지표"), value: present(data.snsPnsRatio) ? data.snsPnsRatio : null, reference: true },
+        { label: "심박수", result: scored("-", 0, "참고지표"), value: present(data.heartRate) ? `${data.heartRate} bpm` : null, reference: true },
+        { label: "안정 시 심박수", result: scored("-", 0, "참고지표"), value: present(data.restingHr) ? `${data.restingHr} bpm` : null, reference: true },
       ],
       "혈압조절 상태, 옴니핏 HRV-Index, 측정 당시 신체적 스트레스 반응을 함께 평가합니다.",
       !present(data.sbp) && !present(data.dbp) && !present(data.hrvIndexGrade) && !present(data.stressGrade),
@@ -426,23 +447,29 @@ function validateInputs(data) {
 
 function makeRiskFlags(data, results, validation) {
   const flags = [];
-  const add = (type, text) => flags.push({ type, text });
+  const add = (type, title, value, description) => flags.push({ type, title, value, description, text: [title, value, description].filter(Boolean).join(" ") });
   const liverAbnormal = (results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1);
 
-  if (validation.errors.length > 0) add("warning", "입력 오류가 있어 리포트 생성을 제한했습니다.");
-  if (data.hba1c >= 6.5) add("warning", "HbA1c가 당뇨병 진단범위에 해당합니다.");
-  if (data.tg >= 500) add("warning", "TG가 500 mg/dL 이상으로 심한 고중성지방혈증 경고에 해당합니다.");
-  if (data.tg >= 440) add("caution", "비공복 중성지방이 매우 높습니다. 공복 지질검사로 재확인을 권고합니다.");
-  if (data.ldl >= 190) add("warning", "LDL-C가 190 mg/dL 이상으로 고도 지질위험 기준에 해당합니다.");
-  if (results.parts.nonHdl?.value >= 220) add("warning", "non-HDL-C가 220 mg/dL 이상으로 고도 지질위험 기준에 해당합니다.");
-  if (results.parts.alt?.ratio >= 3 || results.parts.ast?.ratio >= 3) add("warning", "ALT 또는 AST가 3 x ULN 이상입니다. 간 원인평가가 우선입니다.");
-  if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "TBIL 상승과 간수치 이상이 동반되어 추가 평가가 필요합니다.");
-  if (data.hsCrp > 10) add("warning", "hs-CRP가 10 mg/L를 초과해 급성 염증 가능성을 먼저 확인해야 합니다.");
-  if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압이 180/120 mmHg 이상입니다.");
-  if (results.hrvLimited) add("warning", "HRV 판독 제한 조건이 있어 자율신경·회복 축 판정을 보류합니다.");
-  if (flags.some((flag) => flag.type === "warning")) {
-    flags.unshift({ type: "warning", text: "우선 확인이 필요한 검사결과가 있습니다. 아래 대사건강점수보다 우선적인 의학적 확인이 필요합니다." });
+  if (validation.errors.length > 0) add("warning", "입력 오류", "", "입력 오류가 있어 리포트 생성을 제한했습니다.");
+  if (data.hba1c >= 6.5) add("warning", "HbA1c", `${data.hba1c}%`, "당뇨병 진단범위에 해당해 별도 확인이 필요합니다.");
+  if (data.tg >= 500) {
+    add("warning", "중성지방", `${data.tg} mg/dL`, "500 mg/dL 이상으로 심한 고중성지방혈증 평가가 필요합니다.");
+  } else if (data.tg >= 440) {
+    add("caution", "중성지방", `${data.tg} mg/dL`, "비공복 재검 권고 기준을 초과하여 공복 지질검사로 재확인을 권고합니다.");
   }
+  if (data.ldl >= 190) add("warning", "LDL-C", `${data.ldl} mg/dL`, "190 mg/dL 이상으로 별도의 심혈관 위험 평가가 필요합니다.");
+  if (results.parts.nonHdl?.value >= 220) add("warning", "non-HDL-C", `${results.parts.nonHdl.value} mg/dL`, "220 mg/dL 이상으로 고도 지질위험 기준에 해당합니다.");
+  if (results.parts.alt?.ratio >= 3 || results.parts.ast?.ratio >= 3) {
+    const liverValues = [
+      results.parts.alt?.ratio >= 3 && present(data.alt) ? `ALT ${data.alt} U/L (${results.parts.alt.ratio.toFixed(1)} x ULN)` : "",
+      results.parts.ast?.ratio >= 3 && present(data.ast) ? `AST ${data.ast} U/L (${results.parts.ast.ratio.toFixed(1)} x ULN)` : "",
+    ].filter(Boolean).join(", ");
+    add("warning", "간수치", liverValues, "3 x ULN 이상으로 간 원인평가가 우선입니다.");
+  }
+  if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
+  if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성을 먼저 확인해야 합니다.");
+  if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "180/120 mmHg 이상으로 우선 확인이 필요합니다.");
+  if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경·회복 축 판정을 보류합니다.");
   return flags;
 }
 
@@ -555,14 +582,107 @@ function patientLine(data) {
   ].filter(Boolean).join(" · ");
 }
 
-function makeSummary(data, results, grade, typeResult) {
+function activeAxes(axes) {
+  return axes.filter((axis) => axis.status !== "unavailable" && axis.status !== "hold" && axis.max > 0);
+}
+
+function priorityAxes(axes, count = 3) {
+  return activeAxes(axes)
+    .sort((a, b) => (a.score / a.max) - (b.score / b.max))
+    .slice(0, count);
+}
+
+function scorePhrase(results) {
+  if (!results.max) return "계산 대기";
+  return results.max === 100 ? `${results.total}점` : `${results.total}/${results.max}`;
+}
+
+function selectedPrimaryType(typeResult, data) {
+  return data.manualPrimaryType || typeResult.primary;
+}
+
+function selectedSecondaryType(typeResult, data) {
+  return data.manualSecondaryType || typeResult.secondary;
+}
+
+function joinKorean(items) {
+  if (!items.length) return "";
+  if (items.length === 1) return items[0];
+  return `${items.slice(0, -1).join(", ")}와 ${items.at(-1)}`;
+}
+
+function makeSummary(data, results, grade, typeResult, flags) {
   if (!results.max) return "입력된 핵심 검사값이 부족합니다. 판정 불가 축은 0점으로 처리하지 않습니다.";
+  const lowest = priorityAxes(results.axes, 2).map((axis) => axis.label);
   const limitedAxes = results.axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis) => axis.label);
-  const scoreText = results.max === 100 ? `${results.total}/100` : `${results.total}/${results.max}`;
-  const sorted = results.axes.filter((axis) => axis.status !== "unavailable" && axis.status !== "hold").sort((a, b) => (a.score / a.max) - (b.score / b.max));
-  const priorityText = sorted.length >= 2 ? `${sorted[0].label}와 ${sorted[1].label}` : sorted[0]?.label || "입력된 축";
-  const limitText = limitedAxes.length ? ` 전체 평가는 ${limitedAxes.join(", ")} 제한이 있습니다.` : "";
-  return `측정 완료 점수는 ${scoreText}점으로 ${grade.label}입니다. ${grade.text} ${priorityText}을 우선 확인하는 것이 좋습니다. 주타입은 ${typeResult.primary}입니다.${limitText}`;
+  const primary = selectedPrimaryType(typeResult, data);
+  const sentences = [
+    `종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`,
+    lowest.length ? `특히 ${joinKorean(lowest)} 영역을 우선 확인하는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 확인하는 것이 좋습니다.",
+    `현재의 주된 대사 패턴은 ${primary}으로 평가됩니다.`,
+  ];
+  if (flags.length) sentences.push("우선 확인이 필요한 검사결과는 종합점수보다 먼저 의학적으로 확인하는 것이 좋습니다.");
+  else if (limitedAxes.length) sentences.push(`${limitedAxes.join(", ")} 축은 입력값 부족 또는 판독 제한으로 별도 해석이 필요합니다.`);
+  return sentences.slice(0, 4).join(" ");
+}
+
+function makeTypeReason(data, results, primary) {
+  const ratio = results.parts.tgHdl?.ratio;
+  const nonHdl = results.parts.nonHdl?.value;
+  if (primary.startsWith("0.")) {
+    const values = [
+      present(data.alt) ? `ALT ${data.alt} U/L` : "",
+      present(data.ast) ? `AST ${data.ast} U/L` : "",
+      present(data.tbil) ? `총빌리루빈 ${data.tbil} mg/dL` : "",
+    ].filter(Boolean).join(", ");
+    return `${values || "간 관련 위험 신호"}가 우선 확인 기준에 해당합니다. 대사 타입보다 간 원인평가를 먼저 고려하도록 표시합니다.`;
+  }
+  if (primary.startsWith("A.")) {
+    const values = [
+      present(data.visceralFat) ? `내장지방레벨 ${data.visceralFat}` : "",
+      present(data.waist) ? `허리둘레 ${data.waist} cm` : "",
+      present(data.tg) ? `중성지방 ${data.tg} mg/dL` : "",
+    ].filter(Boolean);
+    return `${joinKorean(values) || "복부비만 관련 지표"}에서 복부 지방 축적과 관련된 신호가 관찰됩니다. 혈당 수치만이 아니라 체지방 분포를 함께 관리할 필요가 있습니다.`;
+  }
+  if (primary.startsWith("B.")) {
+    const values = [
+      present(ratio) ? `TG/HDL-C 비율 ${ratio.toFixed(2)}` : "",
+      present(data.tg) ? `중성지방 ${data.tg} mg/dL` : "",
+      present(data.hba1c) ? `HbA1c ${data.hba1c}%` : "",
+    ].filter(Boolean);
+    return `${values.join(", ")} 지표를 함께 보면 인슐린 저항성과 관련된 대사성 지질 패턴이 두드러집니다. 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
+  }
+  if (primary.startsWith("C.")) {
+    const values = [
+      present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "",
+      present(data.visceralFat) ? `내장지방레벨 ${data.visceralFat}` : "",
+    ].filter(Boolean);
+    return `${joinKorean(values) || "염증 관련 지표"}에서 저등급 염증 또는 체성분 관련 신호가 관찰됩니다. 급성 염증 가능성이 있으면 재평가가 우선입니다.`;
+  }
+  if (primary.startsWith("D.")) {
+    const values = [
+      data.hrvIndexGrade ? `HRV-Index ${data.hrvIndexGrade}` : "",
+      data.stressGrade ? `Stress ${data.stressGrade}` : "",
+      present(data.sbp) && present(data.dbp) ? `혈압 ${data.sbp}/${data.dbp}` : "",
+    ].filter(Boolean);
+    return `${joinKorean(values)} 결과에서 회복력과 신체적 스트레스 반응을 함께 살펴볼 필요가 있습니다. 측정 조건에 따라 변동될 수 있어 추적 비교가 중요합니다.`;
+  }
+  if (primary.startsWith("E.")) {
+    const values = [
+      data.muscleMassStatus ? `골격근량 ${data.muscleMassStatus}` : "",
+      data.gripStatus ? `악력 ${data.gripStatus}` : "",
+      data.chairStandStatus ? `Chair Stand ${data.chairStandStatus}` : "",
+    ].filter(Boolean);
+    return `${joinKorean(values) || "근기능 관련 문진"}에서 근감소 관련 관리 신호가 관찰됩니다. 영양, 근력, 기능 상태를 함께 확인하는 방향입니다.`;
+  }
+  if (primary.startsWith("F.")) {
+    return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 우선 관리영역과 보조 태그를 함께 보며 단계적으로 접근하는 것이 좋습니다.";
+  }
+  if (present(nonHdl) || present(ratio)) {
+    return "현재 입력된 핵심 지표에서는 특정 우세 타입보다 전반적인 균형 유지와 경계 지표 추적이 중요합니다.";
+  }
+  return "주타입 판정에 필요한 보조 정보가 제한적입니다. 추가 검사값을 입력하면 판정 근거가 더 구체화됩니다.";
 }
 
 function renderComputed(data, results) {
@@ -615,31 +735,48 @@ function renderRadar(axes) {
       ${labels}
     </svg>
   `;
+  elements.axisScoreLegend.replaceChildren(...axes.map((axis) => {
+    const item = document.createElement("li");
+    item.className = axis.status === "complete" || axis.status === "partial" ? "" : "muted";
+    item.innerHTML = `<span>${axis.label}</span><strong>${axisDisplay(axis)}</strong>`;
+    return item;
+  }));
 }
 
 function renderPriority(axes) {
-  const priorities = axes
-    .filter((axis) => axis.status !== "unavailable" && axis.status !== "hold" && axis.max > 0)
-    .sort((a, b) => (a.score / a.max) - (b.score / b.max))
-    .slice(0, 2);
-  elements.priorityList.replaceChildren(...(priorities.length ? priorities : axes.slice(0, 2)).map((axis, index) => {
+  const priorities = priorityAxes(axes, 3);
+  const items = priorities.length ? priorities : axes.slice(0, 2);
+  const renderItems = items.map((axis, index) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${axis.comment}</span></span><span>${axisDisplay(axis)}</span>`;
+    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}</span></span><span>${axisDisplay(axis)}</span>`;
     return item;
-  }));
+  });
+  elements.priorityList.replaceChildren(...renderItems.map((item) => item.cloneNode(true)));
+  elements.priorityListDetail.replaceChildren(...renderItems.map((item) => item.cloneNode(true)));
+  elements.priorityAxes.textContent = priorities.length ? priorities.slice(0, 2).map((axis) => axis.label).join(" · ") : "입력 후 표시됩니다.";
 }
 
 function renderFlags(flags) {
   if (!flags.length) {
-    elements.flagArea.innerHTML = `<div class="flag info">우선 확인이 필요한 위험 플래그는 현재 없습니다.</div>`;
+    elements.flagArea.hidden = true;
+    elements.flagArea.replaceChildren();
     return;
   }
-  elements.flagArea.replaceChildren(...flags.map((flag) => {
-    const item = document.createElement("div");
-    item.className = `flag ${flag.type}`;
-    item.textContent = flag.text;
-    return item;
-  }));
+  elements.flagArea.hidden = false;
+  const box = document.createElement("article");
+  box.className = "warning-box";
+  const items = flags.map((flag) => `
+    <li class="${flag.type}">
+      <strong>${flag.title}${flag.value ? ` <span>${flag.value}</span>` : ""}</strong>
+      <p>${flag.description}</p>
+    </li>
+  `).join("");
+  box.innerHTML = `
+    <h3>우선 확인이 필요한 검사결과</h3>
+    <ul>${items}</ul>
+    <p class="warning-tail">아래 대사건강점수보다 우선적인 의학적 확인이 필요합니다.</p>
+  `;
+  elements.flagArea.replaceChildren(box);
 }
 
 function axisTone(axis) {
@@ -657,44 +794,98 @@ function renderAxisCards(axes) {
     const card = document.createElement("article");
     card.className = `axis-card ${axis.status}`;
     const percent = axis.status === "unavailable" || axis.status === "hold" ? 0 : (axis.score / AXIS_MAX) * 100;
-    card.innerHTML = `<strong>${axis.label}</strong><div class="axis-score">${axisDisplay(axis)}</div><div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div><p>${axisTone(axis)} · ${axis.comment}</p>`;
+    const keyValues = axis.details
+      .filter((detail) => detail.value && !detail.reference)
+      .slice(0, 3)
+      .map((detail) => `<li><span>${detail.label}</span><strong>${detail.value}</strong></li>`)
+      .join("");
+    card.innerHTML = `
+      <strong>${axis.label}</strong>
+      <div class="axis-score">${axisDisplay(axis)}</div>
+      <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
+      <p>${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}</p>
+      ${keyValues ? `<ul class="axis-key-values">${keyValues}</ul>` : ""}
+    `;
     return card;
   }));
 }
 
 function renderDetails(axes) {
-  const rows = axes.flatMap((axis) => axis.details.map((detail) => {
-    const row = document.createElement("div");
-    row.className = "detail-row";
-    const result = detail.result;
-    const score = result?.missing ? "--" : result?.score;
-    const resultLabel = result?.label ? ` · ${result.label}` : "";
-    row.innerHTML = `<span>${axis.label} · ${detail.label}${detail.value ? ` (${detail.value})` : ""}</span><strong>${score}${resultLabel}</strong>`;
+  const table = document.createElement("table");
+  table.className = "result-table";
+  table.innerHTML = `
+    <thead>
+      <tr><th>평가축</th><th>검사</th><th>결과</th><th>점수</th><th>판정</th></tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const tbody = table.querySelector("tbody");
+  const rows = axes.flatMap((axis) => axis.details
+    .filter((detail) => detail.value || (!detail.reference && detail.result && !detail.result.missing))
+    .map((detail) => {
+      const row = document.createElement("tr");
+      const result = detail.result;
+      const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "보류" : `${result.score}/${result.max}`;
+      const value = detail.value || "--";
+      const label = result?.label || "";
+      row.innerHTML = `<td>${axis.label}</td><td>${detail.label}</td><td>${value}</td><td>${score}</td><td>${label}</td>`;
+      return row;
+    }));
+  tbody.replaceChildren(...rows);
+  elements.detailTable.replaceChildren(table);
+}
+
+function liverNormalMessage(data, results) {
+  const liverAxis = results.axes.find((axis) => axis.key === "liver");
+  const liverNormal =
+    liverAxis?.score >= 17 &&
+    results.parts.alt?.ratio <= 1 &&
+    results.parts.ggt?.ratio <= 1 &&
+    results.parts.tbil?.ratio <= 1;
+  if (!liverNormal) return [];
+  const messages = ["현재 측정한 간수치는 정상범위입니다."];
+  if (data.fattyLiver || data.tg >= 200 || data.visceralFat >= 10 || data.waist >= 85) {
+    messages.push("다만 정상 간수치만으로 지방간을 완전히 배제할 수는 없습니다.");
+  }
+  return messages;
+}
+
+function renderList(element, items) {
+  element.replaceChildren(...items.map((text) => {
+    const row = document.createElement("li");
+    row.textContent = text;
     return row;
   }));
-  elements.detailTable.replaceChildren(...rows);
 }
 
 function renderNotes(data, results, typeResult, validation) {
-  const notes = [
-    "입력한 정보는 서버에 저장되지 않으며 현재 브라우저에서 리포트 생성에만 사용됩니다.",
-    "본 리포트는 진단도구가 아니라 초진 상태와 치료 전후 변화를 보기 위한 임상 관리도구입니다.",
-    "자율신경·회복 축은 옴니핏 결과지의 HRV-Index 판정과 Stress 판정을 점수화합니다.",
+  const hrvCondition = results.hrvLimited ? "판독 제한 있음" : "판독 제한 없음";
+  const conditions = [
+    `채혈 상태: ${data.mealStatus || "미입력"}`,
+    `HRV 측정조건: ${hrvCondition}`,
   ];
-  if (data.mealStatus) notes.unshift(`채혈 당시 식사 상태: ${data.mealStatus}`);
-  if (data.mealStatus === "식후 4시간 미만") notes.push("최근 식사의 영향으로 TG 및 TG/HDL-C가 평소보다 높게 측정되었을 수 있습니다.");
-  if (data.mealStatus === "확인 불가") notes.push("채혈 당시 식사 상태를 확인할 수 없어 TG 및 TG/HDL-C 해석에 제한이 있습니다.");
+  const limits = [];
+  limits.push(...liverNormalMessage(data, results));
+  if (data.mealStatus === "식후 4시간 미만") limits.push("최근 식사의 영향으로 TG 및 TG/HDL-C가 평소보다 높게 측정되었을 수 있습니다.");
+  if (data.mealStatus === "식후 4~7시간") limits.push("식후 상태가 TG 및 TG/HDL-C 해석에 일부 영향을 줄 수 있습니다.");
+  if (data.mealStatus === "확인 불가") limits.push("채혈 당시 식사 상태를 확인할 수 없어 TG 및 TG/HDL-C 해석에 제한이 있습니다.");
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
-    notes.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획 및 길버트증후군 가능성을 확인하세요.");
+    limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획 및 길버트증후군 가능성을 확인하세요.");
   }
-  if (data.hsCrp > 10) notes.push("급성 염증 가능성이 있어 만성염증형 판정을 보류합니다.");
-  if (typeResult.notes.length) notes.push(...typeResult.notes);
-  if (validation.warnings.length) notes.push(...validation.warnings.map((warning) => warning.text));
-  elements.notesList.replaceChildren(...notes.map((note) => {
-    const item = document.createElement("li");
-    item.textContent = note;
-    return item;
-  }));
+  if (data.hsCrp > 10) limits.push("급성 염증 가능성이 있어 만성염증형 판정을 보류합니다.");
+  if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경·회복 축의 점수 판정을 보류합니다.");
+  if (typeResult.notes.length) limits.push(...typeResult.notes);
+  if (validation.warnings.length) limits.push(...validation.warnings.map((warning) => warning.text));
+  if (!limits.length) limits.push("이번 결과에서 별도의 해석 제한은 표시되지 않았습니다.");
+  const common = [
+    "본 리포트는 질병을 진단하거나 확진하기 위한 도구가 아니라, 초진 상태와 관리 전후 변화를 비교하기 위한 임상 관리지표입니다.",
+    "검사 결과는 증상, 병력, 복용약 및 추가검사와 함께 해석해야 합니다.",
+    "TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.",
+    "입력한 정보는 서버에 저장되지 않으며 현재 브라우저에서 리포트 생성에만 사용됩니다.",
+  ];
+  renderList(elements.conditionList, conditions);
+  renderList(elements.limitList, limits);
+  renderList(elements.commonGuideList, common);
 }
 
 function renderValidation(validation) {
@@ -710,10 +901,12 @@ function renderValidation(validation) {
     .join("");
 }
 
-function renderType(typeResult, data) {
-  elements.primaryType.textContent = data.manualPrimaryType || typeResult.primary;
-  elements.secondaryType.textContent = data.manualSecondaryType || typeResult.secondary;
+function renderType(typeResult, data, results) {
+  const primary = selectedPrimaryType(typeResult, data);
+  elements.primaryType.textContent = primary;
+  elements.secondaryType.textContent = selectedSecondaryType(typeResult, data);
   elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 보조 태그 없음";
+  elements.primaryTypeReason.textContent = makeTypeReason(data, results, primary);
 }
 
 function render() {
@@ -726,11 +919,12 @@ function render() {
 
   renderComputed(data, results);
   renderValidation(validation);
-  renderType(typeResult, data);
+  renderType(typeResult, data, results);
   elements.patientLine.textContent = patientLine(data);
-  elements.totalScore.textContent = results.max ? `${results.total}/${results.max}` : "--";
+  elements.scoreTitle.textContent = results.max === 100 ? "대사건강 종합점수" : "측정 완료 점수";
+  elements.totalScore.textContent = results.max ? scorePhrase(results) : "--";
   elements.gradeLabel.textContent = grade.label;
-  elements.summaryComment.textContent = makeSummary(data, results, grade, typeResult);
+  elements.summaryComment.textContent = makeSummary(data, results, grade, typeResult, flags);
 
   renderFlags(flags);
   renderRadar(results.axes);
@@ -841,7 +1035,7 @@ elements.sampleButton.addEventListener("click", fillSample);
 elements.resetButton.addEventListener("click", resetForm);
 elements.printButton.addEventListener("click", () => {
   render();
-  elements.printStatus.textContent = "인쇄창을 여는 중입니다. 뜨지 않으면 Cmd+P를 눌러 PDF로 저장하세요.";
+  elements.printStatus.textContent = "PDF 저장창에서 '머리글과 바닥글' 옵션을 해제해 주세요.";
   elements.printButton.textContent = "인쇄창 열기";
   setTimeout(() => window.print(), 80);
 });

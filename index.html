@@ -282,77 +282,108 @@
         </section>
 
         <section id="report" class="report-sheet" aria-labelledby="reportHeading">
-          <div id="flagArea" class="flag-area top-flags"></div>
+          <section class="report-page page-summary">
+            <div id="flagArea" class="flag-area top-flags" hidden></div>
 
-          <div class="report-header">
-            <div>
-              <p class="eyebrow">GONGDEOK KYUNGHEE</p>
-              <h2 id="reportHeading">대사건강 리포트</h2>
-              <p id="patientLine" class="patient-line">환자 정보를 입력하면 리포트에 반영됩니다.</p>
-            </div>
-            <div class="score-badge">
-              <span>측정 완료 점수</span>
-              <strong id="totalScore">--</strong>
-              <em id="gradeLabel">계산 대기</em>
-            </div>
-          </div>
-
-          <article class="type-card">
-            <div>
-              <p class="section-title">주타입</p>
-              <strong id="primaryType">대사 균형형 또는 경계 관리군</strong>
-            </div>
-            <div>
-              <p class="section-title">동반 타입</p>
-              <strong id="secondaryType">해당 없음</strong>
-            </div>
-            <div>
-              <p class="section-title">주요 보조 태그</p>
-              <p id="supportTags" class="tag-line">입력 후 표시됩니다.</p>
-            </div>
-            <details class="manual-type no-print">
-              <summary>타입 수동 수정</summary>
-              <div class="form-grid two">
-                <label><span>주타입</span><select id="manualPrimaryType"></select></label>
-                <label><span>동반 타입</span><select id="manualSecondaryType"></select></label>
+            <div class="report-header">
+              <div>
+                <p class="eyebrow">GONGDEOK KYUNGHEE</p>
+                <h2 id="reportHeading">대사건강 리포트</h2>
+                <p id="patientLine" class="patient-line">환자 정보를 입력하면 리포트에 반영됩니다.</p>
               </div>
-            </details>
-          </article>
+              <div class="score-badge">
+                <span id="scoreTitle">대사건강 종합점수</span>
+                <strong id="totalScore">--</strong>
+                <em id="gradeLabel">계산 대기</em>
+              </div>
+            </div>
 
-          <div class="summary-grid">
-            <article class="radar-card">
-              <div id="radarChart" class="radar-chart" aria-label="5개 축 오각형 그래프"></div>
+            <article class="type-card">
+              <p class="type-guide">
+                대사 타입은 주요 병태생리 패턴을, 관리 우선영역은 현재 점수가 가장 낮은 검사영역을 의미합니다.
+              </p>
+              <div>
+                <p class="section-title">주타입</p>
+                <strong id="primaryType">대사 균형형 또는 경계 관리군</strong>
+              </div>
+              <div>
+                <p class="section-title">동반 타입</p>
+                <strong id="secondaryType">해당 없음</strong>
+              </div>
+              <div>
+                <p class="section-title">우선 관리영역</p>
+                <strong id="priorityAxes">입력 후 표시됩니다.</strong>
+              </div>
+              <div>
+                <p class="section-title">주요 보조 태그</p>
+                <p id="supportTags" class="tag-line">입력 후 표시됩니다.</p>
+              </div>
+              <p id="primaryTypeReason" class="type-reason">입력 후 주타입 판정 근거가 표시됩니다.</p>
+              <details class="manual-type no-print">
+                <summary>타입 수동 수정</summary>
+                <div class="form-grid two">
+                  <label><span>주타입</span><select id="manualPrimaryType"></select></label>
+                  <label><span>동반 타입</span><select id="manualSecondaryType"></select></label>
+                </div>
+              </details>
             </article>
-            <article class="priority-card">
-              <p class="section-title">치료 우선순위</p>
-              <ol id="priorityList" class="priority-list"></ol>
+
+            <div class="summary-grid">
+              <article class="radar-card">
+                <div id="radarChart" class="radar-chart" aria-label="5개 축 오각형 그래프"></div>
+                <ul id="axisScoreLegend" class="axis-score-legend"></ul>
+              </article>
+              <article class="priority-card">
+                <p class="section-title">핵심 관리 우선순위</p>
+                <ol id="priorityList" class="priority-list"></ol>
+              </article>
+            </div>
+            <footer class="page-footer">공덕경희한의원 | 대사건강 리포트 | 1/3</footer>
+          </section>
+
+          <section class="report-page page-interpretation">
+            <article class="summary-card">
+              <p class="section-title">종합 자동 해석</p>
               <p id="summaryComment" class="summary-comment"></p>
             </article>
-          </div>
+            <article class="priority-card priority-card-wide">
+              <p class="section-title">치료·관리 우선순위</p>
+              <ol id="priorityListDetail" class="priority-list"></ol>
+            </article>
+            <div id="axisCards" class="axis-cards"></div>
+            <footer class="page-footer">공덕경희한의원 | 대사건강 리포트 | 2/3</footer>
+          </section>
 
-          <div id="axisCards" class="axis-cards"></div>
-
-          <div class="detail-section">
-            <div>
-              <p class="section-title">세부 검사 결과와 자동 해석</p>
-              <div id="detailTable" class="detail-table"></div>
+          <section class="report-page page-details">
+            <div class="detail-section">
+              <div>
+                <p class="section-title">세부 검사 결과</p>
+                <div id="detailTable" class="detail-table"></div>
+              </div>
+              <div>
+                <p class="section-title">측정조건과 판정 제한</p>
+                <div class="note-groups">
+                  <section>
+                    <h3>검사조건</h3>
+                    <ul id="conditionList" class="notes-list"></ul>
+                  </section>
+                  <section>
+                    <h3>이번 결과의 해석 제한</h3>
+                    <ul id="limitList" class="notes-list"></ul>
+                  </section>
+                  <section>
+                    <h3>공통 안내</h3>
+                    <ul id="commonGuideList" class="notes-list"></ul>
+                  </section>
+                </div>
+              </div>
             </div>
-            <div>
-              <p class="section-title">검사조건 및 판정 제한</p>
-              <ul id="notesList" class="notes-list"></ul>
-            </div>
-          </div>
-
-          <footer class="report-footer">
-            <p>
-              본 리포트는 질병 확진 목적이 아닌 초진 상태와 치료 전후 변화를 보기 위한 임상 관리도구입니다.
-              TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.
-            </p>
-          </footer>
+            <footer class="page-footer">공덕경희한의원 | 대사건강 리포트 | 3/3</footer>
+          </section>
         </section>
       </main>
     </div>
 
-    <script src="./app.js?v=4" defer></script>
+    <script src="./app.js?v=5" defer></script>
   </body>
 </html>
