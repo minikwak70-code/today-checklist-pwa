@@ -33,6 +33,7 @@ const elements = {
   scoreTitle: document.querySelector("#scoreTitle"),
   totalScore: document.querySelector("#totalScore"),
   gradeLabel: document.querySelector("#gradeLabel"),
+  gradeHelp: document.querySelector("#gradeHelp"),
   radarChart: document.querySelector("#radarChart"),
   axisScoreLegend: document.querySelector("#axisScoreLegend"),
   priorityList: document.querySelector("#priorityList"),
@@ -131,6 +132,7 @@ const allFields = [
   "sex",
   "testDate",
   "mealStatus",
+  "ldlMethod",
   "hrvIndexGrade",
   "stressGrade",
   "snsActivity",
@@ -328,10 +330,10 @@ function axisDisplay(axis) {
 function getGrade(total, max) {
   if (!max) return { label: "계산 대기", text: "입력된 핵심 검사값이 부족합니다." };
   if (max < 100) return { label: "부분 판정", text: "일부 축이 미측정이므로 측정 완료 점수로 해석합니다." };
-  if (total >= 85) return { label: "안정권", text: "전반적으로 양호한 상태입니다." };
-  if (total >= 70) return { label: "관리권", text: "일부 영역의 개선과 추적관찰이 필요합니다." };
-  if (total >= 55) return { label: "집중관리권", text: "여러 대사영역의 적극적인 관리가 필요합니다." };
-  return { label: "우선평가권", text: "원인 평가와 우선 관리가 필요합니다." };
+  if (total >= 85) return { label: "안정권", text: "전반적으로 양호한 상태입니다.", short: "전반적으로 양호한 상태" };
+  if (total >= 70) return { label: "관리권", text: "일부 영역의 개선과 추적관찰이 필요합니다.", short: "일부 영역의 개선이 필요한 상태" };
+  if (total >= 55) return { label: "집중관리권", text: "여러 대사영역의 적극적인 관리가 필요합니다.", short: "여러 영역의 집중관리가 필요한 상태" };
+  return { label: "우선평가권", text: "원인 평가와 우선 관리가 필요합니다.", short: "원인 확인과 적극적인 관리가 필요한 상태" };
 }
 
 function makeResults(data) {
@@ -440,6 +442,11 @@ function validateInputs(data) {
   }
   if (present(data.hba1c) && (data.hba1c < 3 || data.hba1c > 20)) addWarning("hba1c", "HbA1c 단위를 확인하세요.");
   if (present(data.tg) && data.tg > 2000) addWarning("tg", "TG 값이 매우 큽니다. 단위를 확인하세요.");
+  if (present(data.ldl) && present(data.totalChol) && present(data.hdl)) {
+    const nonHdl = data.totalChol - data.hdl;
+    if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값, 단위 또는 검사방법을 확인해 주세요.");
+  }
+  if (data.ldlMethod === "계산값" && data.tg >= 440) addWarning("ldlMethod", "중성지방 상승으로 계산 LDL-C의 정확도가 제한될 수 있습니다.");
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
   return { errors, warnings };
@@ -649,9 +656,16 @@ function makeTypeReason(data, results, primary) {
     const values = [
       present(ratio) ? `TG/HDL-C 비율 ${ratio.toFixed(2)}` : "",
       present(data.tg) ? `중성지방 ${data.tg} mg/dL` : "",
-      present(data.hba1c) ? `HbA1c ${data.hba1c}%` : "",
     ].filter(Boolean);
-    return `${values.join(", ")} 지표를 함께 보면 인슐린 저항성과 관련된 대사성 지질 패턴이 두드러집니다. 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
+    if (data.hba1c >= 5.7) values.push(`HbA1c ${data.hba1c}%`);
+    const hba1cNote = data.hba1c >= 6.5
+      ? "HbA1c는 당뇨병 진단범위에 해당하므로 타입 설명보다 별도 의학적 확인이 우선입니다."
+      : data.hba1c >= 5.7
+        ? "HbA1c도 당뇨병 전단계 범위에 있어 함께 추적할 필요가 있습니다."
+        : present(data.hba1c)
+          ? `현재 HbA1c ${data.hba1c}%는 당뇨병 전단계 범위에는 해당하지 않습니다.`
+          : "";
+    return `${values.join(", ")} 지표에서 인슐린 저항성과 관련된 대사성 지질 패턴이 두드러집니다. ${hba1cNote} 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
   }
   if (primary.startsWith("C.")) {
     const values = [
@@ -698,8 +712,8 @@ function renderComputed(data, results) {
 }
 
 function renderRadar(axes) {
-  const center = 180;
-  const radius = 116;
+  const center = 200;
+  const radius = 124;
   const pointsFor = (scale, inactiveAsOuter = false) =>
     axes.map((axis, index) => {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
@@ -707,17 +721,17 @@ function renderRadar(axes) {
       const axisScale = isInactive ? (inactiveAsOuter ? 1 : 0) : (axis.score / AXIS_MAX) * scale;
       return `${center + Math.cos(angle) * radius * axisScale},${center + Math.sin(angle) * radius * axisScale}`;
     }).join(" ");
-  const grid = [0.25, 0.5, 0.75, 1].map((level) => `<polygon points="${pointsFor(level, true)}" fill="none" stroke="#d9e4de" stroke-width="1" />`).join("");
+  const grid = [0.25, 0.5, 0.75, 1].map((level) => `<polygon points="${pointsFor(level, true)}" fill="none" stroke="#cbd9d2" stroke-width="1.2" />`).join("");
   const labels = axes.map((axis, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
-    const x = center + Math.cos(angle) * (radius + 42);
-    const y = center + Math.sin(angle) * (radius + 38);
+    const x = center + Math.cos(angle) * (radius + 54);
+    const y = center + Math.sin(angle) * (radius + 48);
     const label = axis.status === "unavailable" ? `${axis.label} 미측정` : axis.status === "hold" ? `${axis.label} 보류` : axis.label;
-    return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${axis.status === "complete" || axis.status === "partial" ? "#34433d" : "#9aa6a0"}" font-size="12" font-weight="800">${label}</text>`;
+    return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781"}" font-size="13.5" font-weight="850">${label}</text>`;
   }).join("");
   const spokes = axes.map((_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
-    return `<line x1="${center}" y1="${center}" x2="${center + Math.cos(angle) * radius}" y2="${center + Math.sin(angle) * radius}" stroke="#e2ebe6" />`;
+    return `<line x1="${center}" y1="${center}" x2="${center + Math.cos(angle) * radius}" y2="${center + Math.sin(angle) * radius}" stroke="#d4e0da" stroke-width="1.1" />`;
   }).join("");
   const inactive = axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis, index) => {
     const axisIndex = axes.indexOf(axis);
@@ -727,11 +741,11 @@ function renderRadar(axes) {
     return `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="#9aa6a0" stroke-dasharray="4 5" />`;
   }).join("");
   elements.radarChart.innerHTML = `
-    <svg viewBox="0 0 360 360" role="img" aria-label="5개 축 점수 레이더 차트">
+    <svg viewBox="0 0 400 400" role="img" aria-label="5개 축 점수 레이더 차트">
       ${grid}
       ${spokes}
       ${inactive}
-      <polygon points="${pointsFor(1)}" fill="rgba(35,116,90,0.24)" stroke="#23745a" stroke-width="3" />
+      <polygon points="${pointsFor(1)}" fill="rgba(35,116,90,0.24)" stroke="#23745a" stroke-width="4" />
       ${labels}
     </svg>
   `;
@@ -746,13 +760,19 @@ function renderRadar(axes) {
 function renderPriority(axes) {
   const priorities = priorityAxes(axes, 3);
   const items = priorities.length ? priorities : axes.slice(0, 2);
-  const renderItems = items.map((axis, index) => {
+  const summaryItems = items.map((axis, index) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}</span></span><span>${axisDisplay(axis)}</span>`;
+    item.className = "priority-compact";
+    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong></span><span>${axisDisplay(axis)}</span>`;
     return item;
   });
-  elements.priorityList.replaceChildren(...renderItems.map((item) => item.cloneNode(true)));
-  elements.priorityListDetail.replaceChildren(...renderItems.map((item) => item.cloneNode(true)));
+  const detailItems = items.map((axis, index) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}을 우선 확인합니다.</span></span><span>${axisDisplay(axis)}</span>`;
+    return item;
+  });
+  elements.priorityList.replaceChildren(...summaryItems);
+  elements.priorityListDetail.replaceChildren(...detailItems);
   elements.priorityAxes.textContent = priorities.length ? priorities.slice(0, 2).map((axis) => axis.label).join(" · ") : "입력 후 표시됩니다.";
 }
 
@@ -797,13 +817,19 @@ function renderAxisCards(axes) {
     const keyValues = axis.details
       .filter((detail) => detail.value && !detail.reference)
       .slice(0, 3)
-      .map((detail) => `<li><span>${detail.label}</span><strong>${detail.value}</strong></li>`)
+      .map((detail) => {
+        const label = detail.result?.label && detail.result.max > 0 ? ` · ${detail.result.label}` : "";
+        return `<li><span>${detail.label}</span><strong>${detail.value}${label}</strong></li>`;
+      })
       .join("");
+    const cardComment = axis.key === "liver" && axis.score >= 17
+      ? "현재 측정한 간수치는 대체로 양호합니다."
+      : `${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}`;
     card.innerHTML = `
       <strong>${axis.label}</strong>
       <div class="axis-score">${axisDisplay(axis)}</div>
       <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
-      <p>${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}</p>
+      <p>${cardComment}</p>
       ${keyValues ? `<ul class="axis-key-values">${keyValues}</ul>` : ""}
     `;
     return card;
@@ -814,6 +840,13 @@ function renderDetails(axes) {
   const table = document.createElement("table");
   table.className = "result-table";
   table.innerHTML = `
+    <colgroup>
+      <col class="axis-col" />
+      <col class="test-col" />
+      <col class="value-col" />
+      <col class="score-col" />
+      <col class="interpretation-col" />
+    </colgroup>
     <thead>
       <tr><th>평가축</th><th>검사</th><th>결과</th><th>점수</th><th>판정</th></tr>
     </thead>
@@ -828,7 +861,7 @@ function renderDetails(axes) {
       const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "보류" : `${result.score}/${result.max}`;
       const value = detail.value || "--";
       const label = result?.label || "";
-      row.innerHTML = `<td>${axis.label}</td><td>${detail.label}</td><td>${value}</td><td>${score}</td><td>${label}</td>`;
+      row.innerHTML = `<td class="axis">${axis.label}</td><td class="test-name">${detail.label}</td><td class="result-value">${value}</td><td class="score">${score}</td><td class="interpretation">${label}</td>`;
       return row;
     }));
   tbody.replaceChildren(...rows);
@@ -837,14 +870,9 @@ function renderDetails(axes) {
 
 function liverNormalMessage(data, results) {
   const liverAxis = results.axes.find((axis) => axis.key === "liver");
-  const liverNormal =
-    liverAxis?.score >= 17 &&
-    results.parts.alt?.ratio <= 1 &&
-    results.parts.ggt?.ratio <= 1 &&
-    results.parts.tbil?.ratio <= 1;
-  if (!liverNormal) return [];
-  const messages = ["현재 측정한 간수치는 정상범위입니다."];
-  if (data.fattyLiver || data.tg >= 200 || data.visceralFat >= 10 || data.waist >= 85) {
+  if (!liverAxis || liverAxis.score < 17) return [];
+  const messages = ["현재 측정한 간수치는 대체로 양호합니다."];
+  if (data.fattyLiver || data.tg >= 150 || results.parts.tgHdl?.ratio >= 3.5 || data.visceralFat >= 10 || data.waist >= 85) {
     messages.push("다만 정상 간수치만으로 지방간을 완전히 배제할 수는 없습니다.");
   }
   return messages;
@@ -862,6 +890,7 @@ function renderNotes(data, results, typeResult, validation) {
   const hrvCondition = results.hrvLimited ? "판독 제한 있음" : "판독 제한 없음";
   const conditions = [
     `채혈 상태: ${data.mealStatus || "미입력"}`,
+    `LDL-C 검사방식: ${data.ldlMethod || "미입력"}`,
     `HRV 측정조건: ${hrvCondition}`,
   ];
   const limits = [];
@@ -924,6 +953,7 @@ function render() {
   elements.scoreTitle.textContent = results.max === 100 ? "대사건강 종합점수" : "측정 완료 점수";
   elements.totalScore.textContent = results.max ? scorePhrase(results) : "--";
   elements.gradeLabel.textContent = grade.label;
+  elements.gradeHelp.textContent = grade.short || grade.text;
   elements.summaryComment.textContent = makeSummary(data, results, grade, typeResult, flags);
 
   renderFlags(flags);
@@ -963,6 +993,7 @@ function fillSample() {
     hdl: 40,
     totalChol: 226,
     ldl: 148,
+    ldlMethod: "검사결과지 수치",
     mealStatus: "식후 4시간 미만",
     alt: 58,
     altUln: 40,
@@ -1035,8 +1066,10 @@ elements.sampleButton.addEventListener("click", fillSample);
 elements.resetButton.addEventListener("click", resetForm);
 elements.printButton.addEventListener("click", () => {
   render();
+  const printGuide = "깔끔한 PDF 저장을 위해 인쇄 설정에서\n'머리글과 바닥글' 옵션을 해제해 주세요.\n\n용지: A4\n방향: 세로\n여백: 기본 또는 없음\n배경 그래픽: 켜기\n머리글과 바닥글: 끄기";
   elements.printStatus.textContent = "PDF 저장창에서 '머리글과 바닥글' 옵션을 해제해 주세요.";
   elements.printButton.textContent = "인쇄창 열기";
+  alert(printGuide);
   setTimeout(() => window.print(), 80);
 });
 
