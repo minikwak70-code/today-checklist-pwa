@@ -3,334 +3,276 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f4ee" />
+    <meta name="theme-color" content="#f5f7f4" />
     <meta
       name="description"
-      content="어떤 기기에서든 오늘의 할 일을 기록하고 실시간으로 확인하는 체크리스트"
+      content="5개 대사건강 축을 계산하고 출력용 환자 리포트를 생성하는 웹앱"
     />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
     <link rel="stylesheet" href="./styles.css" />
-    <title>오늘, 하나씩</title>
+    <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
-    <div class="page-shell">
-      <header class="topbar">
-        <a class="brand" href="#" aria-label="오늘, 하나씩 홈">
-          <span class="brand-mark" aria-hidden="true">✓</span>
-          <span>오늘, 하나씩</span>
+    <div class="app-shell">
+      <header class="topbar no-print">
+        <a class="brand" href="#" aria-label="공덕경희 대사건강 리포트 홈">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span>공덕경희 대사건강 리포트</span>
         </a>
-        <div class="account-area">
-          <span id="syncStatus" class="sync-status" aria-live="polite">
-            <span class="sync-dot"></span>
-            <span>로컬 저장 중</span>
-          </span>
-          <button id="searchButton" class="ghost-button search-open-button" type="button">
-            <span aria-hidden="true">⌕</span>
-            <span>검색</span>
-          </button>
-          <button id="displayButton" class="ghost-button" type="button">표시</button>
-          <button id="installButton" class="ghost-button install-button" type="button" hidden>
-            앱 설치
-          </button>
-          <button id="routineButton" class="ghost-button" type="button">루틴 설정</button>
-          <button id="accountButton" class="ghost-button" type="button">로그인</button>
+        <div class="topbar-actions">
+          <button id="sampleButton" class="ghost-button" type="button">예시값</button>
+          <button id="resetButton" class="ghost-button" type="button">초기화</button>
+          <button id="printButton" class="primary-button" type="button">PDF 출력</button>
+          <span id="printStatus" class="print-status" aria-live="polite"></span>
         </div>
       </header>
 
-      <main>
-        <section class="hero">
-          <div class="hero-row">
-            <div>
-              <p id="heroTitle" class="eyebrow">오늘 할 일</p>
-              <h1 id="dateEyebrow" class="date-heading"></h1>
-              <div id="heroMessage" class="hero-message">
-                <strong id="englishPhrase"></strong>
-                <span id="englishMeaning"></span>
-              </div>
-            </div>
-            <div class="date-controls" aria-label="날짜 이동">
-              <button id="previousDate" class="icon-button" type="button" aria-label="이전 날짜">←</button>
-              <button id="todayButton" class="today-button" type="button">오늘</button>
-              <label class="calendar-button">
-                <span class="calendar-glyph" aria-hidden="true"></span>
-                <span>날짜 선택</span>
-                <input id="datePicker" type="date" aria-label="달력에서 날짜 선택" />
-              </label>
-              <button id="nextDate" class="icon-button" type="button" aria-label="다음 날짜">→</button>
-            </div>
+      <main class="workspace">
+        <section class="input-panel no-print" aria-labelledby="inputHeading">
+          <div class="panel-head">
+            <p class="eyebrow">METABOLIC SCORE 100</p>
+            <h1 id="inputHeading">검사수치 입력</h1>
           </div>
+
+          <form id="reportForm" class="report-form">
+            <fieldset>
+              <legend>환자 기본정보</legend>
+              <div class="form-grid two">
+                <label>
+                  <span>이름</span>
+                  <input id="patientName" name="patientName" type="text" autocomplete="off" />
+                </label>
+                <label>
+                  <span>차트번호</span>
+                  <input id="chartNumber" name="chartNumber" type="text" autocomplete="off" />
+                </label>
+                <label>
+                  <span>성별</span>
+                  <select id="sex" name="sex">
+                    <option value="">선택</option>
+                    <option>남성</option>
+                    <option>여성</option>
+                  </select>
+                </label>
+                <label>
+                  <span>나이</span>
+                  <input id="age" name="age" type="number" min="0" max="120" inputmode="numeric" />
+                </label>
+                <label>
+                  <span>검사일</span>
+                  <input id="testDate" name="testDate" type="date" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>당대사 및 지질대사</legend>
+              <div class="form-grid three">
+                <label>
+                  <span>HbA1c (%)</span>
+                  <input id="hba1c" name="hba1c" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>TG (mg/dL)</span>
+                  <input id="tg" name="tg" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>HDL-C (mg/dL)</span>
+                  <input id="hdl" name="hdl" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>총콜레스테롤 (mg/dL)</span>
+                  <input id="totalChol" name="totalChol" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>LDL-C (mg/dL)</span>
+                  <input id="ldl" name="ldl" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>식후 경과시간</span>
+                  <select id="mealHours" name="mealHours">
+                    <option value="">선택</option>
+                    <option>4시간 미만</option>
+                    <option>4시간 이상</option>
+                    <option>8시간 이상</option>
+                    <option>모름</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>간대사</legend>
+              <div class="form-grid three">
+                <label>
+                  <span>ALT</span>
+                  <input id="alt" name="alt" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>ALT ULN</span>
+                  <input id="altUln" name="altUln" type="number" step="1" min="1" value="40" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>GGT</span>
+                  <input id="ggt" name="ggt" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>GGT ULN</span>
+                  <input id="ggtUln" name="ggtUln" type="number" step="1" min="1" value="60" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>TBIL</span>
+                  <input id="tbil" name="tbil" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>TBIL ULN</span>
+                  <input id="tbilUln" name="tbilUln" type="number" step="0.1" min="0.1" value="1.2" inputmode="decimal" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>만성염증</legend>
+              <div class="form-grid two">
+                <label>
+                  <span>hs-CRP (mg/L)</span>
+                  <input id="hsCrp" name="hsCrp" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>내장지방레벨</span>
+                  <input id="visceralFat" name="visceralFat" type="number" step="1" min="1" max="20" inputmode="numeric" />
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>자율신경·회복</legend>
+              <div class="form-grid three">
+                <label>
+                  <span>수축기혈압</span>
+                  <input id="sbp" name="sbp" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>이완기혈압</span>
+                  <input id="dbp" name="dbp" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>HRV-Index 원수치</span>
+                  <input id="hrvIndexValue" name="hrvIndexValue" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>HRV-Index 판정</span>
+                  <select id="hrvIndexGrade" name="hrvIndexGrade">
+                    <option value="">선택</option>
+                    <option>매우 높음</option>
+                    <option>높음</option>
+                    <option>보통</option>
+                    <option>낮음</option>
+                    <option>매우 낮음</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Stress 판정</span>
+                  <select id="stressGrade" name="stressGrade">
+                    <option value="">선택</option>
+                    <option>매우 낮음</option>
+                    <option>낮음</option>
+                    <option>보통</option>
+                    <option>높음</option>
+                    <option>매우 높음</option>
+                  </select>
+                </label>
+                <label>
+                  <span>ANS Activity</span>
+                  <select id="ansActivity" name="ansActivity">
+                    <option value="">선택</option>
+                    <option>매우 낮음</option>
+                    <option>낮음</option>
+                    <option>보통</option>
+                    <option>높음</option>
+                    <option>매우 높음</option>
+                  </select>
+                </label>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>해석 주의 및 보류 조건</legend>
+              <div class="check-grid">
+                <label><input id="hba1cCaution" type="checkbox" /> HbA1c 해석 주의 조건</label>
+                <label><input id="acuteInflammation" type="checkbox" /> 급성감염·외상·격한 운동</label>
+                <label><input id="gilbert" type="checkbox" /> 길버트증후군 보정 가능</label>
+                <label><input id="directBilirubin" type="checkbox" /> 직접빌리루빈 우세 또는 담즙정체 의심</label>
+                <label><input id="hrvInvalid" type="checkbox" /> HRV 판독 제외 조건</label>
+                <label><input id="hrvMedication" type="checkbox" /> HRV 약물 영향 가능</label>
+                <label><input id="vascularHistory" type="checkbox" /> 심혈관질환 병력</label>
+                <label><input id="diabetesHistory" type="checkbox" /> 당뇨병</label>
+                <label><input id="ckd" type="checkbox" /> 만성신장질환</label>
+                <label><input id="lipidMedication" type="checkbox" /> 지질강하제 복용</label>
+              </div>
+            </fieldset>
+
+            <div class="form-actions">
+              <button id="generateButton" class="primary-button" type="button">리포트 생성</button>
+              <p id="generateStatus" aria-live="polite">
+                입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.
+              </p>
+            </div>
+          </form>
         </section>
 
-        <section class="checklist-card" aria-labelledby="listHeading">
-          <div class="progress-head">
+        <section id="report" class="report-sheet" aria-labelledby="reportHeading">
+          <div class="report-header">
             <div>
-              <p class="section-label">DAILY CHECKLIST</p>
-              <h2 id="listHeading">나의 체크리스트</h2>
+              <p class="eyebrow">GONGDEOK KYUNGHEE</p>
+              <h2 id="reportHeading">대사건강 리포트</h2>
+              <p id="patientLine" class="patient-line">환자 정보를 입력하면 리포트에 반영됩니다.</p>
             </div>
-            <div class="progress-copy">
-              <strong id="progressCount">0 / 0</strong>
-              <span>완료</span>
+            <div class="score-badge">
+              <span>총점</span>
+              <strong id="totalScore">--</strong>
+              <em id="gradeLabel">계산 대기</em>
             </div>
           </div>
 
-          <div
-            id="progressTrack"
-            class="progress-track"
-            role="progressbar"
-            aria-label="완료 진행률"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-          >
-            <span id="progressBar"></span>
+          <div class="summary-grid">
+            <article class="radar-card">
+              <div id="radarChart" class="radar-chart" aria-label="5개 축 오각형 그래프"></div>
+            </article>
+            <article class="priority-card">
+              <p class="section-title">치료 우선순위</p>
+              <ol id="priorityList" class="priority-list"></ol>
+              <p id="summaryComment" class="summary-comment"></p>
+            </article>
           </div>
 
-          <form id="taskForm" class="task-form">
-            <label class="sr-only" for="taskInput">새로운 할 일</label>
-            <input
-              id="taskInput"
-              name="task"
-              type="text"
-              maxlength="120"
-              placeholder="새로운 할 일을 입력하세요"
-              autocomplete="off"
-              required
-            />
-            <button class="add-button" type="submit">
-              <span aria-hidden="true">＋</span>
-              추가
-            </button>
-          </form>
+          <div id="flagArea" class="flag-area"></div>
 
-          <div id="taskList" class="task-list" aria-live="polite"></div>
+          <div id="axisCards" class="axis-cards"></div>
 
-          <div id="rolloverArea" class="rollover-area" hidden>
-            <button id="rolloverButton" class="rollover-button" type="button">
-              <span aria-hidden="true">↗</span>
-              <span id="rolloverLabel">못한 일 내일로 미루기</span>
-            </button>
-            <p id="rolloverMessage" class="rollover-message" aria-live="polite"></p>
-          </div>
-
-          <div id="emptyState" class="empty-state">
-            <div class="empty-illustration" aria-hidden="true">
-              <span>✓</span>
+          <div class="detail-section">
+            <div>
+              <p class="section-title">계산 요약</p>
+              <div id="detailTable" class="detail-table"></div>
             </div>
-            <h3>아직 적어둔 일이 없어요</h3>
-            <p>오늘 꼭 하고 싶은 작은 일부터 추가해보세요.</p>
+            <div>
+              <p class="section-title">측정조건 및 제한점</p>
+              <ul id="notesList" class="notes-list"></ul>
+            </div>
           </div>
+
+          <footer class="report-footer">
+            <p>
+              본 리포트는 질병 확진 목적이 아닌 프로그램 운영용 관리 지표입니다. 총점보다 개별
+              경고 플래그와 임상 판단을 우선합니다.
+            </p>
+          </footer>
         </section>
       </main>
-
-      <footer>
-        <p>작은 완료가 하루를 바꿉니다.</p>
-      </footer>
     </div>
 
-    <dialog id="authDialog" class="auth-dialog">
-      <button id="closeDialog" class="dialog-close" type="button" aria-label="닫기">×</button>
-      <div id="signedOutView">
-        <p class="section-label">SYNC EVERYWHERE</p>
-        <h2>어디서든 이어서 하세요</h2>
-        <p class="dialog-copy">
-          이메일로 로그인하면 PC와 휴대폰의 체크리스트가 실시간으로 동기화됩니다.
-        </p>
-        <button id="googleLoginButton" class="google-login-button" type="button">
-          <span aria-hidden="true">G</span>
-          Google로 계속하기
-        </button>
-        <div class="auth-divider" aria-hidden="true">
-          <span></span>
-          <em>또는</em>
-          <span></span>
-        </div>
-        <form id="authForm" class="auth-form">
-          <label for="emailInput">이메일</label>
-          <input id="emailInput" type="email" placeholder="you@example.com" required />
-          <button class="primary-button" type="submit">로그인 링크 받기</button>
-        </form>
-        <p id="authMessage" class="auth-message" aria-live="polite"></p>
-      </div>
-      <div id="signedInView" hidden>
-        <p class="section-label">SIGNED IN</p>
-        <h2>동기화 중입니다</h2>
-        <p id="signedInEmail" class="dialog-copy"></p>
-        <button id="signOutButton" class="secondary-button" type="button">로그아웃</button>
-      </div>
-    </dialog>
-
-    <dialog id="routineDialog" class="auth-dialog routine-dialog">
-      <button id="closeRoutineDialog" class="dialog-close" type="button" aria-label="루틴 설정 닫기">×</button>
-      <p class="section-label">WEEKLY ROUTINE</p>
-      <h2>요일별 루틴</h2>
-      <p class="dialog-copy">요일을 고르고 반복할 일을 추가하세요. 해당 요일의 체크리스트에 자동으로 나타납니다.</p>
-
-      <div id="weekdayTabs" class="weekday-tabs" role="tablist" aria-label="요일 선택">
-        <button type="button" role="tab" data-weekday="1">월</button>
-        <button type="button" role="tab" data-weekday="2">화</button>
-        <button type="button" role="tab" data-weekday="3">수</button>
-        <button type="button" role="tab" data-weekday="4">목</button>
-        <button type="button" role="tab" data-weekday="5">금</button>
-        <button type="button" role="tab" data-weekday="6">토</button>
-        <button type="button" role="tab" data-weekday="0">일</button>
-      </div>
-
-      <form id="routineForm" class="task-form routine-form">
-        <label class="sr-only" for="routineInput">새 루틴</label>
-        <input
-          id="routineInput"
-          type="text"
-          maxlength="120"
-          placeholder="예: 아침 스트레칭 10분"
-          autocomplete="off"
-          required
-        />
-        <button class="add-button" type="submit"><span aria-hidden="true">＋</span> 추가</button>
-      </form>
-
-      <div id="routineList" class="routine-list" aria-live="polite"></div>
-      <div id="routineEmpty" class="routine-empty">이 요일에 등록된 루틴이 없어요.</div>
-      <p id="routineMessage" class="auth-message" aria-live="polite"></p>
-    </dialog>
-
-    <dialog id="searchDialog" class="auth-dialog search-dialog">
-      <button id="closeSearchDialog" class="dialog-close" type="button" aria-label="할 일 검색 닫기">×</button>
-      <p class="section-label">TASK HISTORY</p>
-      <h2>할 일 검색</h2>
-      <p class="dialog-copy">예전에 했던 일과 예정된 일을 모든 날짜에서 찾아보세요.</p>
-
-      <form id="searchForm" class="search-form" role="search">
-        <label class="sr-only" for="searchInput">할 일 검색어</label>
-        <span class="search-glyph" aria-hidden="true"></span>
-        <input
-          id="searchInput"
-          type="search"
-          maxlength="120"
-          placeholder="예: 유튜브 촬영"
-          autocomplete="off"
-        />
-        <button id="clearSearchButton" type="button" aria-label="검색어 지우기" hidden>×</button>
-      </form>
-
-      <p id="searchSummary" class="search-summary" aria-live="polite">
-        검색어를 입력하면 날짜별 기록을 보여드려요.
-      </p>
-      <div id="searchResults" class="search-results"></div>
-    </dialog>
-
-    <dialog id="installDialog" class="auth-dialog install-dialog">
-      <button id="closeInstallDialog" class="dialog-close" type="button" aria-label="설치 안내 닫기">×</button>
-      <p class="section-label">INSTALL APP</p>
-      <h2>홈 화면에 설치하기</h2>
-      <p class="dialog-copy">
-        갤럭시에서 Chrome 또는 Samsung Internet 메뉴를 열고
-        <strong>앱 설치</strong> 또는 <strong>홈 화면에 추가</strong>를 선택하세요.
-      </p>
-      <ul class="install-benefits">
-        <li>브라우저 주소창 없이 앱처럼 실행</li>
-        <li>홈 화면 아이콘으로 바로 접속</li>
-        <li>인터넷이 잠시 끊겨도 기본 화면 사용</li>
-      </ul>
-      <button id="installConfirmButton" class="primary-button install-confirm-button" type="button">
-        설치하기
-      </button>
-    </dialog>
-
-    <dialog id="displayDialog" class="auth-dialog display-dialog">
-      <button id="closeDisplayDialog" class="dialog-close" type="button" aria-label="표시 설정 닫기">×</button>
-      <p class="section-label">DISPLAY</p>
-      <h2>포스트잇처럼 맞추기</h2>
-      <p class="dialog-copy">작은 창에서도 보기 좋게 글자 크기와 간격을 조절하세요. 이 기기에만 저장됩니다.</p>
-
-      <fieldset class="display-option-group">
-        <legend>글자 크기</legend>
-        <label>
-          <input type="radio" name="textSize" value="compact" />
-          <span>작게</span>
-        </label>
-        <label>
-          <input type="radio" name="textSize" value="normal" />
-          <span>보통</span>
-        </label>
-        <label>
-          <input type="radio" name="textSize" value="large" />
-          <span>크게</span>
-        </label>
-      </fieldset>
-
-      <fieldset class="display-option-group">
-        <legend>화면 간격</legend>
-        <label>
-          <input type="radio" name="density" value="cozy" />
-          <span>여유</span>
-        </label>
-        <label>
-          <input type="radio" name="density" value="normal" />
-          <span>보통</span>
-        </label>
-        <label>
-          <input type="radio" name="density" value="tight" />
-          <span>촘촘</span>
-        </label>
-      </fieldset>
-
-      <label class="postit-toggle">
-        <input id="postitModeInput" type="checkbox" />
-        <span>포스트잇 모드</span>
-        <small>상단 여백과 큰 장식을 줄입니다.</small>
-      </label>
-
-      <button id="resetDisplayButton" class="secondary-button" type="button">기본값으로</button>
-    </dialog>
-
-    <div id="updateToast" class="update-toast" role="status" hidden>
-      <span>새 버전이 준비됐어요.</span>
-      <button id="updateButton" type="button">업데이트</button>
-    </div>
-
-    <template id="taskTemplate">
-      <article class="task-item">
-        <button class="drag-handle" type="button" draggable="true" aria-label="드래그하여 순서 변경" title="드래그하여 순서 변경">
-          <span></span><span></span><span></span>
-        </button>
-        <label class="task-check">
-          <input type="checkbox" />
-          <span class="custom-check" aria-hidden="true">✓</span>
-          <span class="task-title"></span>
-          <span class="routine-badge" hidden>루틴</span>
-        </label>
-        <div class="task-actions">
-          <button class="move-button move-up" type="button" aria-label="위로 이동">↑</button>
-          <button class="move-button move-down" type="button" aria-label="아래로 이동">↓</button>
-          <button class="delete-button" type="button" aria-label="할 일 삭제">×</button>
-        </div>
-      </article>
-    </template>
-
-    <template id="routineTemplate">
-      <article class="routine-item">
-        <span class="routine-item-title"></span>
-        <button class="delete-button" type="button" aria-label="루틴 삭제">×</button>
-      </article>
-    </template>
-
-    <template id="searchResultTemplate">
-      <button class="search-result" type="button">
-        <span class="search-result-main">
-          <strong class="search-result-title"></strong>
-          <span class="search-result-date"></span>
-        </span>
-        <span class="search-result-meta">
-          <span class="search-result-routine" hidden>루틴</span>
-          <span class="search-result-status"></span>
-          <span aria-hidden="true">›</span>
-        </span>
-      </button>
-    </template>
-
-    <script src="./config.js"></script>
-    <script type="module" src="./app.js"></script>
+    <script src="./app.js?v=2" defer></script>
   </body>
 </html>

@@ -1,15 +1,15 @@
 {
   "id": "./",
-  "name": "오늘, 하나씩",
-  "short_name": "오늘할일",
-  "description": "날짜별 할 일을 기록하고 완료 여부를 확인하는 체크리스트",
+  "name": "공덕경희 대사건강 리포트",
+  "short_name": "대사리포트",
+  "description": "5개 대사건강 축을 계산하고 출력용 환자 리포트를 생성하는 웹앱",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "background_color": "#f7f4ee",
-  "theme_color": "#f7f4ee",
-  "categories": ["productivity", "lifestyle"],
+  "background_color": "#f5f7f4",
+  "theme_color": "#f5f7f4",
+  "categories": ["health", "medical", "productivity"],
   "icons": [
     {
       "src": "./assets/icon-192.png",
@@ -28,13 +28,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "오늘 할 일",
-      "short_name": "오늘",
-      "url": "./"
     }
   ]
 }
