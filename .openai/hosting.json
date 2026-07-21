@@ -1,9 +1,5 @@
 {
   "project_id": "appgprj_6a5ede2647408191b06e6e8e46607d4e",
-  "d1": {
-    "DB": {
-      "description": "Patient and assessment records for the metabolic health report app"
-    }
-  },
+  "d1": "DB",
   "r2": null
 }
