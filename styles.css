@@ -258,6 +258,14 @@ input::placeholder {
   color: #a4aea8;
 }
 
+.field-help {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
 .field-invalid {
   border-color: var(--red);
   box-shadow: 0 0 0 3px rgba(185, 75, 69, 0.12);

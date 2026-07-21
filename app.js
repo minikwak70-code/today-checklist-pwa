@@ -251,13 +251,14 @@ function scoreUln(value, uln, max, scores) {
 
 function scoreHsCrp(value) {
   if (!present(value)) return missing(14);
-  if (value > 10) return hold(14, "급성 염증 가능성");
+  if (value > 10) return hold(14, "급성 염증원 확인 후 재검");
   return scoreByRanges(value, 14, [
-    { test: (v) => v < 0.5, score: 14, label: "매우 낮음" },
-    { test: (v) => v <= 0.99, score: 11, label: "낮음" },
-    { test: (v) => v <= 1.99, score: 8, label: "경도 상승" },
-    { test: (v) => v <= 2.99, score: 5, label: "의미 있는 상승" },
-    { test: (v) => v <= 10, score: 2, label: "높은 염증 신호" },
+    { test: (v) => v < 0.3, score: 14, label: "최적 수준" },
+    { test: (v) => v <= 0.49, score: 11, label: "낮은 수준" },
+    { test: (v) => v <= 0.99, score: 8, label: "저등급 염증 신호" },
+    { test: (v) => v <= 1.99, score: 5, label: "경도 상승" },
+    { test: (v) => v <= 2.99, score: 2, label: "의미 있는 지속 염증 가능성" },
+    { test: (v) => v <= 10, score: 0, label: "높은 염증 신호" },
   ]);
 }
 
@@ -474,7 +475,7 @@ function makeRiskFlags(data, results, validation) {
     add("warning", "간수치", liverValues, "3 x ULN 이상으로 간 원인평가가 우선입니다.");
   }
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
-  if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성을 먼저 확인해야 합니다.");
+  if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
   if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "180/120 mmHg 이상으로 우선 확인이 필요합니다.");
   if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경·회복 축 판정을 보류합니다.");
   return flags;
@@ -507,7 +508,7 @@ function scoreTypes(data, results) {
   if (visceralHigh) tags.push("내장지방 증가");
   if (highTg) tags.push("고중성지방");
   if (data.sbp >= 130 || data.dbp >= 80) tags.push("혈압 경계");
-  if (data.hsCrp >= 2 && data.hsCrp <= 10) tags.push("염증 신호");
+  if (data.hsCrp >= 0.5 && data.hsCrp <= 10) tags.push("염증 신호");
   if (results.parts.tbil?.ratio > 1 && !liverAbnormal) tags.push("총빌리루빈 단독 상승");
 
   if (liverPriority) {
@@ -526,11 +527,22 @@ function scoreTypes(data, results) {
   const bReasons = [tgHdlHigh, hba1cHigh, tgHdlModerate && hba1cHigh, tgHdlModerate && (visceralHigh || data.fattyLiver)].filter(Boolean);
   addCandidate("B", "B. 인슐린 저항 우세형", bReasons.length + (tgHdlHigh ? 1 : 0), bReasons);
 
-  const cReasons = [data.hsCrp >= 2 && data.hsCrp <= 10, !acuteInflammation && data.hsCrp >= 2, data.gumDisease, data.dermatitis, data.chronicPain, data.recurrentInflammation].filter(Boolean);
-  if (data.hsCrp > 10) {
-    tags.push("만성염증형 판정 보류");
+  const hsCrpElevated = data.hsCrp >= 0.5 && data.hsCrp <= 10;
+  const hsCrpOnePlus = data.hsCrp >= 1 && data.hsCrp <= 10;
+  const hsCrpTwoPlus = data.hsCrp >= 2 && data.hsCrp <= 10;
+  const inflammationCompanion = data.gumDisease || data.dermatitis || data.chronicPain || data.recurrentInflammation;
+  const inflammationHold = (data.hsCrp > 10) || (hsCrpElevated && acuteInflammation);
+  const cReasons = [
+    hsCrpOnePlus,
+    hsCrpElevated && inflammationCompanion,
+    hsCrpElevated && visceralHigh,
+    hsCrpTwoPlus && !acuteInflammation,
+    hsCrpOnePlus && data.recurrentInflammation,
+  ].filter(Boolean);
+  if (inflammationHold) {
+    tags.push("만성염증형 판정 보류 — 급성 염증 가능성 확인 후 재검");
   } else {
-    addCandidate("C", "C. 만성염증 우세형", cReasons.length, cReasons);
+    addCandidate("C", "C. 만성염증 우세형", cReasons.length + (hsCrpTwoPlus ? 1 : 0), cReasons);
   }
 
   const dReasons = [
@@ -801,6 +813,13 @@ function renderFlags(flags) {
 
 function axisTone(axis) {
   if (axis.status === "unavailable") return "입력값 부족";
+  if (axis.key === "inflammation" && axis.status === "hold") return "급성 염증 배제 후 재검";
+  if (axis.key === "inflammation") {
+    if (axis.score >= 17) return "양호";
+    if (axis.score >= 14) return "경계 관찰";
+    if (axis.score >= 10) return "개선 필요";
+    return "우선 관리";
+  }
   if (axis.status === "hold") return "해석 제한";
   if (axis.status === "partial") return "부분 판정";
   if (axis.score >= 16) return "양호";
@@ -822,7 +841,17 @@ function renderAxisCards(axes) {
         return `<li><span>${detail.label}</span><strong>${detail.value}${label}</strong></li>`;
       })
       .join("");
-    const cardComment = axis.key === "liver" && axis.score >= 17
+    const cardComment = axis.key === "inflammation" && axis.status === "hold"
+      ? "급성 염증 가능성을 먼저 확인한 뒤 재검이 필요합니다."
+      : axis.key === "inflammation" && axis.score >= 17
+        ? "양호 · 저등급 염증 신호와 내장지방 상태가 전반적으로 양호합니다."
+        : axis.key === "inflammation" && axis.score >= 14
+          ? "경계 관찰 · 저등급 염증 또는 내장지방 증가 경향을 확인합니다."
+          : axis.key === "inflammation" && axis.score >= 10
+            ? "개선 필요 · 저등급 염증 신호와 내장지방 상태를 함께 관리할 필요가 있습니다."
+            : axis.key === "inflammation"
+              ? "우선 관리 · 염증 신호가 높거나 내장지방 부담이 커 원인 평가와 적극적인 관리가 필요합니다."
+              : axis.key === "liver" && axis.score >= 17
       ? "현재 측정한 간수치는 대체로 양호합니다."
       : `${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}`;
     card.innerHTML = `
@@ -858,7 +887,7 @@ function renderDetails(axes) {
     .map((detail) => {
       const row = document.createElement("tr");
       const result = detail.result;
-      const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "보류" : `${result.score}/${result.max}`;
+      const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "판정 보류" : `${result.score}/${result.max}`;
       const value = detail.value || "--";
       const label = result?.label || "";
       row.innerHTML = `<td class="axis">${axis.label}</td><td class="test-name">${detail.label}</td><td class="result-value">${value}</td><td class="score">${score}</td><td class="interpretation">${label}</td>`;
@@ -878,6 +907,26 @@ function liverNormalMessage(data, results) {
   return messages;
 }
 
+function hsCrpInterpretationNotes(data) {
+  const notes = [];
+  if (!present(data.hsCrp)) return notes;
+  if (data.hsCrp > 10) {
+    notes.push("hs-CRP가 10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고, 급성 원인을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
+    return notes;
+  }
+  if (data.hsCrp >= 0.5 && data.hsCrp <= 0.99) {
+    notes.push("hs-CRP는 일반적인 심혈관 고위험 범위는 아니지만, 대사건강의 최적 수준보다는 높아 저등급 염증 신호를 관찰할 필요가 있습니다.");
+    if (data.visceralFat >= 6) notes.push("내장지방 상태를 함께 고려하면 생활습관과 체지방 분포를 개선하는 것이 좋습니다.");
+  } else if (data.hsCrp >= 1 && data.hsCrp <= 1.99) {
+    notes.push("hs-CRP가 경도 상승 범위입니다. 급성 염증 요인을 확인하고, 반복검사에서도 상승하는지 추적하는 것이 좋습니다.");
+  } else if (data.hsCrp >= 2 && data.hsCrp <= 2.99) {
+    notes.push("hs-CRP가 의미 있게 상승해 지속적인 저등급 염증 가능성을 확인할 필요가 있습니다. 급성 감염이나 외상 등이 없다면 일정 간격 후 재검을 권고합니다.");
+  } else if (data.hsCrp >= 3 && data.hsCrp <= 10) {
+    notes.push("hs-CRP가 높은 염증 신호 범위입니다. 급성 감염, 치주질환, 외상, 수술, 관절염 등 원인을 확인하고 재검이 필요합니다.");
+  }
+  return notes;
+}
+
 function renderList(element, items) {
   element.replaceChildren(...items.map((text) => {
     const row = document.createElement("li");
@@ -895,13 +944,14 @@ function renderNotes(data, results, typeResult, validation) {
   ];
   const limits = [];
   limits.push(...liverNormalMessage(data, results));
+  limits.push(...hsCrpInterpretationNotes(data));
   if (data.mealStatus === "식후 4시간 미만") limits.push("최근 식사의 영향으로 TG 및 TG/HDL-C가 평소보다 높게 측정되었을 수 있습니다.");
   if (data.mealStatus === "식후 4~7시간") limits.push("식후 상태가 TG 및 TG/HDL-C 해석에 일부 영향을 줄 수 있습니다.");
   if (data.mealStatus === "확인 불가") limits.push("채혈 당시 식사 상태를 확인할 수 없어 TG 및 TG/HDL-C 해석에 제한이 있습니다.");
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
     limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획 및 길버트증후군 가능성을 확인하세요.");
   }
-  if (data.hsCrp > 10) limits.push("급성 염증 가능성이 있어 만성염증형 판정을 보류합니다.");
+  if (data.hsCrp > 10) limits.push("급성 감염·외상·수술·격한 운동 등 급성 염증 원인을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
   if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경·회복 축의 점수 판정을 보류합니다.");
   if (typeResult.notes.length) limits.push(...typeResult.notes);
   if (validation.warnings.length) limits.push(...validation.warnings.map((warning) => warning.text));
