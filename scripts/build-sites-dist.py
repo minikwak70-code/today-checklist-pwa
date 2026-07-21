@@ -12,6 +12,7 @@ FILES = {
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/tracking.js": ("tracking.js", "text/javascript; charset=utf-8"),
     "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json; charset=utf-8"),
     "/service-worker.js": ("service-worker.js", "text/javascript; charset=utf-8"),
     "/assets/icon.svg": ("assets/icon.svg", "image/svg+xml"),
@@ -34,7 +35,11 @@ def main():
             "base64": b64encode(data).decode("ascii"),
         }
 
-    worker = f"""const files = {json.dumps(payload, ensure_ascii=False)};
+    api_code = (ROOT / "worker-api.js").read_text(encoding="utf-8")
+
+    worker = f"""{api_code}
+
+const files = {json.dumps(payload, ensure_ascii=False)};
 
 function decodeBase64(value) {{
   const binary = atob(value);
@@ -46,8 +51,11 @@ function decodeBase64(value) {{
 }}
 
 export default {{
-  async fetch(request) {{
+  async fetch(request, env) {{
     const url = new URL(request.url);
+    if (url.pathname.startsWith("/api/")) {{
+      return handleApi(request, env);
+    }}
     const path = url.pathname.endsWith("/") && url.pathname !== "/" ? url.pathname.slice(0, -1) : url.pathname;
     const file = files[path] || files["/"];
     return new Response(decodeBase64(file.base64), {{

@@ -18,6 +18,13 @@
           <span class="brand-mark" aria-hidden="true">M</span>
           <span>공덕경희 대사건강 리포트</span>
         </a>
+        <nav class="module-nav" aria-label="추적관리 메뉴">
+          <a href="#patientManagement">환자 관리</a>
+          <a href="#inputHeading">새 검사</a>
+          <a href="#historyPanel">검사 이력</a>
+          <a href="#trendPanel">변화 그래프</a>
+          <a href="#comparisonPanel">비교 리포트</a>
+        </nav>
         <div class="topbar-actions">
           <button id="sampleButton" class="ghost-button" type="button">예시 환자 불러오기</button>
           <button id="resetButton" class="ghost-button" type="button">전체 입력 지우기</button>
@@ -27,11 +34,118 @@
       </header>
 
       <main class="workspace">
+        <section id="patientManagement" class="tracking-panel no-print" aria-labelledby="patientManagementHeading">
+          <div class="panel-head compact">
+            <p class="eyebrow">PATIENT TRACKING</p>
+            <h1 id="patientManagementHeading">환자 관리</h1>
+            <p id="trackingSecurityNote" class="privacy-note">저장 기능은 인증된 사용자와 서버 데이터베이스가 확인된 경우에만 활성화됩니다.</p>
+          </div>
+
+          <div id="trackingAuthBanner" class="tracking-banner" role="status">
+            로그인 및 데이터베이스 연결 상태를 확인하는 중입니다.
+          </div>
+
+          <div class="tracking-grid">
+            <article class="tracking-card">
+              <div class="tracking-card-head">
+                <div>
+                  <p class="section-title">환자 검색</p>
+                  <h2>환자 목록</h2>
+                </div>
+                <button id="refreshPatientsButton" class="ghost-button" type="button">새로고침</button>
+              </div>
+              <div class="tracking-filters">
+                <label>
+                  <span>이름 또는 차트번호</span>
+                  <input id="patientSearch" type="search" autocomplete="off" />
+                </label>
+                <label>
+                  <span>주타입 필터</span>
+                  <select id="patientTypeFilter">
+                    <option value="">전체</option>
+                    <option>A. 복부비만 우세형</option>
+                    <option>B. 인슐린 저항 우세형</option>
+                    <option>C. 만성염증 우세형</option>
+                    <option>D. 자율신경 우세형</option>
+                    <option>E. 근감소 우세형</option>
+                    <option>F. 복합 대사위험형</option>
+                    <option>0. 간관리 선행형</option>
+                    <option>대사 균형형 또는 경계 관리군</option>
+                  </select>
+                </label>
+                <label>
+                  <span>정렬</span>
+                  <select id="patientSort">
+                    <option value="recent">최근 검사일</option>
+                    <option value="score">최근 총점</option>
+                    <option value="chart">차트번호</option>
+                    <option value="name">이름</option>
+                  </select>
+                </label>
+              </div>
+              <div class="table-wrap">
+                <table class="tracking-table">
+                  <thead>
+                    <tr>
+                      <th>차트번호</th>
+                      <th>이름</th>
+                      <th>성별</th>
+                      <th>나이</th>
+                      <th>최근 검사일</th>
+                      <th>최근 총점</th>
+                      <th>주타입</th>
+                      <th>열기</th>
+                    </tr>
+                  </thead>
+                  <tbody id="patientTableBody">
+                    <tr><td colspan="8">환자 목록을 불러오는 중입니다.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="tracking-card">
+              <p class="section-title">신규 환자 등록</p>
+              <form id="patientCreateForm" class="mini-form">
+                <label><span>차트번호</span><input id="newChartNumber" required autocomplete="off" /></label>
+                <label><span>이름</span><input id="newPatientName" required autocomplete="off" /></label>
+                <label>
+                  <span>성별</span>
+                  <select id="newPatientSex">
+                    <option value="">선택</option>
+                    <option>남성</option>
+                    <option>여성</option>
+                  </select>
+                </label>
+                <label><span>생년월일</span><input id="newBirthDate" type="date" /></label>
+                <label><span>메모</span><textarea id="newPatientMemo" rows="3"></textarea></label>
+                <button id="createPatientButton" class="primary-button" type="submit">환자 등록</button>
+              </form>
+            </article>
+          </div>
+
+          <article id="patientDetailPanel" class="tracking-card patient-detail-card" hidden>
+            <div class="patient-summary-head">
+              <div>
+                <p class="section-title">선택 환자</p>
+                <h2 id="selectedPatientTitle">환자를 선택하세요</h2>
+                <p id="selectedPatientMeta">환자 목록에서 열기를 누르면 검사 저장과 이력 조회가 활성화됩니다.</p>
+              </div>
+              <div class="patient-summary-metrics">
+                <span id="selectedLatestDate">최근 검사: --</span>
+                <span id="selectedLatestScore">최근 총점: --</span>
+                <span id="selectedDelta">초진 대비: --</span>
+                <span id="selectedPriority">현재 우선 관리영역: --</span>
+              </div>
+            </div>
+          </article>
+        </section>
+
         <section class="input-panel no-print" aria-labelledby="inputHeading">
           <div class="panel-head">
             <p class="eyebrow">METABOLIC SCORE 100</p>
             <h1 id="inputHeading">검사수치 입력</h1>
-            <p class="privacy-note">입력한 정보는 서버에 저장되지 않으며 현재 브라우저에서 리포트 생성에만 사용됩니다.</p>
+            <p class="privacy-note">단일 리포트 생성은 즉시 계산되며, 검사 저장을 누른 경우에만 인증된 사용자 기준으로 서버 데이터베이스에 기록됩니다.</p>
           </div>
 
           <form id="reportForm" class="report-form">
@@ -59,8 +173,28 @@
                   <input id="age" name="age" type="number" min="0" max="120" inputmode="numeric" />
                 </label>
                 <label>
+                  <span>생년월일</span>
+                  <input id="birthDate" name="birthDate" type="date" />
+                </label>
+                <label>
                   <span>검사일</span>
                   <input id="testDate" name="testDate" type="date" />
+                </label>
+                <label>
+                  <span>검사 단계</span>
+                  <select id="assessmentStage" name="assessmentStage">
+                    <option value="">선택</option>
+                    <option>초진</option>
+                    <option>치료 전</option>
+                    <option>4주 평가</option>
+                    <option>8주 평가</option>
+                    <option>12주 평가</option>
+                    <option>중간평가</option>
+                    <option>종결평가</option>
+                    <option>유지관리</option>
+                    <option>재평가</option>
+                    <option>사용자 지정</option>
+                  </select>
                 </label>
               </div>
             </fieldset>
@@ -298,11 +432,96 @@
             </fieldset>
 
             <div id="validationSummary" class="validation-summary" aria-live="polite"></div>
+            <label class="clinician-note">
+              <span>의료진 메모</span>
+              <textarea id="clinicianNote" name="clinicianNote" rows="3" placeholder="검사 조건, 복약, 상담 메모 등을 필요한 만큼만 기록하세요."></textarea>
+            </label>
             <div class="form-actions">
               <button id="generateButton" class="primary-button" type="button">리포트 생성</button>
+              <button id="saveAssessmentButton" class="ghost-button" type="button">검사 저장</button>
               <p id="generateStatus" aria-live="polite">입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.</p>
             </div>
           </form>
+        </section>
+
+        <section id="historyPanel" class="tracking-panel no-print" aria-labelledby="historyHeading">
+          <div class="tracking-card">
+            <div class="tracking-card-head">
+              <div>
+                <p class="section-title">검사 이력</p>
+                <h2 id="historyHeading">환자별 검사기록</h2>
+              </div>
+              <select id="historySort">
+                <option value="desc">최신순</option>
+                <option value="asc">과거순</option>
+              </select>
+            </div>
+            <div class="table-wrap">
+              <table class="tracking-table">
+                <thead>
+                  <tr>
+                    <th>검사일</th>
+                    <th>단계</th>
+                    <th>총점</th>
+                    <th>당대사</th>
+                    <th>지질대사</th>
+                    <th>간대사</th>
+                    <th>만성염증</th>
+                    <th>자율신경</th>
+                    <th>주타입</th>
+                    <th>리포트</th>
+                  </tr>
+                </thead>
+                <tbody id="assessmentTableBody">
+                  <tr><td colspan="10">환자를 선택하면 검사 이력이 표시됩니다.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="trendPanel" class="tracking-panel no-print" aria-labelledby="trendHeading">
+          <div class="tracking-card">
+            <div class="tracking-card-head">
+              <div>
+                <p class="section-title">변화 그래프</p>
+                <h2 id="trendHeading">장기 추이</h2>
+              </div>
+              <label class="inline-select">
+                <span>축 선택</span>
+                <select id="trendAxisSelect">
+                  <option value="totalScore">총점</option>
+                  <option value="glucoseScore">당대사</option>
+                  <option value="lipidScore">지질대사</option>
+                  <option value="liverScore">간대사</option>
+                  <option value="inflammationScore">만성염증</option>
+                  <option value="autonomicScore">자율신경·회복</option>
+                </select>
+              </label>
+            </div>
+            <canvas id="trendCanvas" class="trend-canvas" width="920" height="320" aria-label="검사 점수 추이 그래프"></canvas>
+            <p id="trendSummary" class="trend-summary">검사가 2회 이상이면 추이 그래프가 표시됩니다.</p>
+          </div>
+        </section>
+
+        <section id="comparisonPanel" class="tracking-panel no-print" aria-labelledby="comparisonHeading">
+          <div class="tracking-card">
+            <div class="tracking-card-head">
+              <div>
+                <p class="section-title">비교 리포트</p>
+                <h2 id="comparisonHeading">두 시점 비교</h2>
+              </div>
+              <button id="comparisonPrintButton" class="primary-button" type="button">비교 PDF 생성</button>
+            </div>
+            <div class="compare-controls">
+              <label><span>기준 검사</span><select id="baselineAssessmentSelect"></select></label>
+              <label><span>비교 검사</span><select id="comparisonAssessmentSelect"></select></label>
+              <button id="compareButton" class="ghost-button" type="button">두 검사 비교</button>
+            </div>
+            <div id="comparisonReport" class="comparison-report" aria-live="polite">
+              <p>검사 이력에서 두 회차를 선택하면 비교 결과가 표시됩니다.</p>
+            </div>
+          </div>
         </section>
 
         <section id="report" class="report-sheet" aria-labelledby="reportHeading">
@@ -413,6 +632,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=8" defer></script>
+    <script src="./app.js?v=9" defer></script>
+    <script src="./tracking.js?v=1" defer></script>
   </body>
 </html>

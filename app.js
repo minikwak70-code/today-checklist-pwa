@@ -1,4 +1,5 @@
 const AXIS_MAX = 20;
+const SCORE_RULE_VERSION = "metabolic-score-v3.0";
 
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
@@ -132,7 +133,9 @@ const allFields = [
   "patientName",
   "chartNumber",
   "sex",
+  "birthDate",
   "testDate",
+  "assessmentStage",
   "mealStatus",
   "ldlMethod",
   "hrvIndexGrade",
@@ -145,6 +148,7 @@ const allFields = [
   "functionalDeclineStatus",
   "manualPrimaryType",
   "manualSecondaryType",
+  "clinicianNote",
   ...numberFields,
   ...checkboxFields,
 ];
@@ -1082,7 +1086,7 @@ function renderNotes(data, results, typeResult, validation) {
     "본 리포트는 질병을 진단하거나 확진하기 위한 도구가 아니라, 초진 상태와 관리 전후 변화를 비교하기 위한 임상 관리지표입니다.",
     "검사 결과는 증상, 병력, 복용약 및 추가검사와 함께 해석해야 합니다.",
     "TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.",
-    "입력한 정보는 서버에 저장되지 않으며 현재 브라우저에서 리포트 생성에만 사용됩니다.",
+    "검사 저장을 실행한 환자정보와 검사결과는 인증된 사용자만 접근할 수 있는 서버 데이터베이스에 기록됩니다.",
   ];
   renderList(elements.conditionList, conditions);
   renderList(elements.limitList, limits);
@@ -1140,6 +1144,59 @@ function render() {
   renderSarcopeniaReport(data);
   renderNotes(data, results, typeResult, validation);
   return { data, results, flags, typeResult, validation };
+}
+
+function axisScoreMap(axes) {
+  return Object.fromEntries(axes.map((axis) => [axis.key, axis.status === "unavailable" || axis.status === "hold" ? null : axis.score]));
+}
+
+function itemScoreMap(axes) {
+  const itemScores = {};
+  axes.forEach((axis) => {
+    axis.details.forEach((detail) => {
+      const key = `${axis.key}:${detail.label}`;
+      itemScores[key] = typeof detail.result.score === "number" ? detail.result.score : null;
+    });
+  });
+  return itemScores;
+}
+
+function currentReportSnapshot() {
+  const rendered = render();
+  const primaryType = selectedPrimaryType(rendered.typeResult, rendered.data);
+  const secondaryType = selectedSecondaryType(rendered.typeResult, rendered.data);
+  const axes = axisScoreMap(rendered.results.axes);
+  const calculatedScores = {
+    totalScore: rendered.results.total,
+    maxScore: rendered.results.max,
+    glucoseScore: axes.glucose,
+    lipidScore: axes.lipid,
+    liverScore: axes.liver,
+    inflammationScore: axes.inflammation,
+    autonomicScore: axes.autonomic,
+    itemScores: itemScoreMap(rendered.results.axes),
+  };
+  return {
+    ...rendered,
+    primaryType,
+    secondaryType,
+    scoreRuleVersion: SCORE_RULE_VERSION,
+    calculatedScores,
+    reportSnapshot: {
+      patientLine: elements.patientLine.textContent,
+      summaryComment: elements.summaryComment.textContent,
+      priorityAxes: elements.priorityAxes.textContent,
+      grade: elements.gradeLabel.textContent,
+      gradeHelp: elements.gradeHelp.textContent,
+      axisScores: rendered.results.axes.map((axis) => ({
+        key: axis.key,
+        label: axis.label,
+        score: axis.score,
+        max: axis.max,
+        status: axis.status,
+      })),
+    },
+  };
 }
 
 function setValues(values) {
@@ -1259,4 +1316,13 @@ setValues({
   astUln: 40,
   alpUln: 120,
 });
+window.metabolicReportApp = {
+  render,
+  readForm,
+  setValues,
+  localDateKey,
+  generateReport,
+  snapshot: currentReportSnapshot,
+  scoreRuleVersion: SCORE_RULE_VERSION,
+};
 window.__metabolicReportReady = true;
