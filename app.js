@@ -43,6 +43,8 @@ const elements = {
   flagArea: document.querySelector("#flagArea"),
   axisCards: document.querySelector("#axisCards"),
   detailTable: document.querySelector("#detailTable"),
+  sarcopeniaReport: document.querySelector("#sarcopeniaReport"),
+  sarcopeniaBody: document.querySelector("#sarcopeniaBody"),
   conditionList: document.querySelector("#conditionList"),
   limitList: document.querySelector("#limitList"),
   commonGuideList: document.querySelector("#commonGuideList"),
@@ -87,6 +89,9 @@ const numberFields = new Set([
   "alpUln",
   "waist",
   "restingHr",
+  "smi",
+  "gripStrength",
+  "chairStandSeconds",
 ]);
 
 const checkboxFields = new Set([
@@ -121,9 +126,6 @@ const checkboxFields = new Set([
   "chronicFatigue",
   "palpitation",
   "tensionAnxiety",
-  "lowProtein",
-  "weightLoss",
-  "functionalDecline",
 ]);
 
 const allFields = [
@@ -138,9 +140,9 @@ const allFields = [
   "snsActivity",
   "pnsActivity",
   "ansActivity",
-  "muscleMassStatus",
-  "gripStatus",
-  "chairStandStatus",
+  "lowProteinStatus",
+  "weightLossStatus",
+  "functionalDeclineStatus",
   "manualPrimaryType",
   "manualSecondaryType",
   ...numberFields,
@@ -168,6 +170,46 @@ function readForm() {
 
 function present(value) {
   return value !== null && value !== undefined && value !== "";
+}
+
+function formatDecimal(value, digits = 2) {
+  if (!present(value)) return "";
+  return Number(value).toFixed(digits).replace(/\.?0+$/, "");
+}
+
+function assessSmi(data) {
+  if (!present(data.smi)) return { status: "missing", label: "미측정", valueText: "SMI 미측정", low: false, borderline: false, normal: false };
+  if (data.smi <= 0) return { status: "invalid", label: "입력 오류", valueText: `SMI ${formatDecimal(data.smi)} kg/m²`, low: false, borderline: false, normal: false };
+  if (!data.sex) return { status: "unknown-sex", label: "성별 정보가 없어 SMI 기준을 적용할 수 없습니다.", valueText: `SMI ${formatDecimal(data.smi)} kg/m²`, low: false, borderline: false, normal: false };
+  const value = data.smi;
+  const male = data.sex === "남성";
+  const lowCut = male ? 7.0 : 5.7;
+  const borderCut = male ? 7.5 : 6.0;
+  if (value < lowCut) return { status: "low", label: "낮은 근육량 기준에 해당", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: true, borderline: false, normal: false };
+  if (value < borderCut) return { status: "borderline", label: "근육량 기준 이상 · 경계 관찰", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: false, borderline: true, normal: false };
+  return { status: "normal", label: "근육량 기준 이상", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: false, borderline: false, normal: true };
+}
+
+function assessGrip(data) {
+  if (!present(data.gripStrength)) return { status: "missing", label: "미측정", low: false, valueText: "" };
+  if (!data.sex) return { status: "unknown-sex", label: "성별 정보가 없어 악력 기준을 적용할 수 없습니다.", low: false, valueText: `악력 ${formatDecimal(data.gripStrength, 1)} kg` };
+  const low = data.sex === "남성" ? data.gripStrength < 28 : data.gripStrength < 18;
+  return { status: low ? "low" : "normal", label: low ? "근력 저하" : "근력 기준 이상", low, valueText: `악력 ${formatDecimal(data.gripStrength, 1)} kg` };
+}
+
+function assessChairStand(data) {
+  if (!present(data.chairStandSeconds)) return { status: "missing", label: "미측정", low: false, valueText: "" };
+  const low = data.chairStandSeconds >= 12;
+  return { status: low ? "low" : "normal", label: low ? "신체기능 저하" : "신체기능 기준 이상", low, valueText: `5회 Chair Stand ${formatDecimal(data.chairStandSeconds, 1)}초` };
+}
+
+function sarcopeniaInputsPresent(data) {
+  return present(data.smi) ||
+    present(data.gripStrength) ||
+    present(data.chairStandSeconds) ||
+    present(data.lowProteinStatus) ||
+    present(data.weightLossStatus) ||
+    present(data.functionalDeclineStatus);
 }
 
 function scored(score, max, label, extra = {}) {
@@ -438,6 +480,7 @@ function validateInputs(data) {
   if (present(data.hdl) && data.hdl <= 0) addError("hdl", "HDL-C가 0 이하이면 TG/HDL-C를 계산할 수 없습니다.");
   if (present(data.totalChol) && present(data.hdl) && data.totalChol < data.hdl) addError("totalChol", "총콜레스테롤이 HDL-C보다 낮습니다.");
   if (present(data.sbp) && present(data.dbp) && data.dbp > data.sbp) addError("dbp", "이완기혈압이 수축기혈압보다 높습니다.");
+  if (present(data.smi) && data.smi <= 0) addError("smi", "SMI는 0보다 큰 kg/m² 값을 입력해야 합니다.");
   for (const id of ["altUln", "ggtUln", "tbilUln", "astUln", "alpUln"]) {
     if (present(data[id]) && data[id] <= 0) addError(id, "ULN은 0보다 커야 합니다.");
   }
@@ -448,6 +491,7 @@ function validateInputs(data) {
     if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값, 단위 또는 검사방법을 확인해 주세요.");
   }
   if (data.ldlMethod === "계산값" && data.tg >= 440) addWarning("ldlMethod", "중성지방 상승으로 계산 LDL-C의 정확도가 제한될 수 있습니다.");
+  if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
   return { errors, warnings };
@@ -559,15 +603,30 @@ function scoreTypes(data, results) {
   addCandidate("D", "D. 자율신경 우세형", dReasons.length, dReasons);
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압관리 필요");
 
-  const eReasons = [
-    data.muscleMassStatus === "저하",
-    data.gripStatus === "저하",
-    data.chairStandStatus === "저하",
-    data.lowProtein,
-    data.weightLoss,
-    data.functionalDecline,
-  ].filter(Boolean);
-  addCandidate("E", "E. 근감소 우세형", eReasons.length + (data.muscleMassStatus === "저하" && (data.gripStatus === "저하" || data.chairStandStatus === "저하") ? 1 : 0), eReasons);
+  const smi = assessSmi(data);
+  const grip = assessGrip(data);
+  const chair = assessChairStand(data);
+  const lowProtein = data.lowProteinStatus === "있음";
+  const weightLoss = data.weightLossStatus === "있음";
+  const functionalDecline = data.functionalDeclineStatus === "있음";
+  if (smi.low) tags.push("낮은 근육량");
+  if (smi.borderline) tags.push("근육량 경계");
+  if (grip.low) tags.push("근력 저하");
+  if (chair.low) tags.push("신체기능 저하");
+  if (smi.low && grip.low) tags.push("근육량·근력 동반 저하");
+  const eRawStrength =
+    (smi.low ? 2 : 0) +
+    (smi.borderline ? 1 : 0) +
+    (grip.low ? 2 : 0) +
+    (chair.low ? 2 : 0) +
+    (lowProtein ? 1 : 0) +
+    (weightLoss ? 1 : 0) +
+    (functionalDecline ? 1 : 0);
+  const eCandidateAllowed =
+    (smi.low && (grip.low || chair.low || functionalDecline || lowProtein || weightLoss)) ||
+    (smi.borderline && (grip.low || chair.low) && (functionalDecline || weightLoss || lowProtein)) ||
+    (!smi.low && !smi.borderline && (grip.low || chair.low) && functionalDecline);
+  addCandidate("E", "E. 근감소 우세형", eCandidateAllowed ? eRawStrength : 0, [smi.low, smi.borderline, grip.low, chair.low, lowProtein, weightLoss, functionalDecline].filter(Boolean));
 
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
@@ -695,12 +754,7 @@ function makeTypeReason(data, results, primary) {
     return `${joinKorean(values)} 결과에서 회복력과 신체적 스트레스 반응을 함께 살펴볼 필요가 있습니다. 측정 조건에 따라 변동될 수 있어 추적 비교가 중요합니다.`;
   }
   if (primary.startsWith("E.")) {
-    const values = [
-      data.muscleMassStatus ? `골격근량 ${data.muscleMassStatus}` : "",
-      data.gripStatus ? `악력 ${data.gripStatus}` : "",
-      data.chairStandStatus ? `Chair Stand ${data.chairStandStatus}` : "",
-    ].filter(Boolean);
-    return `${joinKorean(values) || "근기능 관련 문진"}에서 근감소 관련 관리 신호가 관찰됩니다. 영양, 근력, 기능 상태를 함께 확인하는 방향입니다.`;
+    return makeSarcopeniaTypeSentence(data);
   }
   if (primary.startsWith("F.")) {
     return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 우선 관리영역과 보조 태그를 함께 보며 단계적으로 접근하는 것이 좋습니다.";
@@ -709,6 +763,20 @@ function makeTypeReason(data, results, primary) {
     return "현재 입력된 핵심 지표에서는 특정 우세 타입보다 전반적인 균형 유지와 경계 지표 추적이 중요합니다.";
   }
   return "주타입 판정에 필요한 보조 정보가 제한적입니다. 추가 검사값을 입력하면 판정 근거가 더 구체화됩니다.";
+}
+
+function makeSarcopeniaTypeSentence(data) {
+  const smi = assessSmi(data);
+  const grip = assessGrip(data);
+  const chair = assessChairStand(data);
+  if (smi.low && grip.low && chair.low) {
+    return `${smi.valueText}로 낮은 근육량 기준에 해당하며, 악력과 Chair Stand도 저하되어 근육량·근력·신체기능 저하가 함께 확인됩니다. 근감소 우세형 가능성을 고려하되 진료와 추가 평가가 필요합니다.`;
+  }
+  if (smi.low && grip.low) return `${smi.valueText}로 낮은 근육량 기준에 해당하며, ${grip.valueText}로 근력 저하가 함께 관찰됩니다. 근감소 우세형 가능성이 높아 추가 평가가 필요합니다.`;
+  if (smi.low && chair.low) return `${smi.valueText}로 낮은 근육량 기준에 해당하며, ${chair.valueText}로 신체기능 저하가 함께 관찰됩니다. 근감소 우세형 가능성이 높아 추가 평가가 필요합니다.`;
+  if (smi.low) return `${smi.valueText}로 낮은 근육량 기준에 해당합니다. 다만 근감소 여부를 종합적으로 판단하려면 악력 또는 신체기능 평가가 필요합니다.`;
+  if (smi.normal && (grip.low || chair.low)) return `SMI는 기준 이상이지만 근력 또는 신체기능 저하가 관찰됩니다. 통증, 관절질환, 신경학적 문제와 활동량을 함께 확인할 필요가 있습니다.`;
+  return "근육량, 근력 또는 신체기능 관련 관리 신호가 관찰됩니다. 영양, 근력, 기능 상태를 함께 확인하는 방향입니다.";
 }
 
 function renderComputed(data, results) {
@@ -897,6 +965,60 @@ function renderDetails(axes) {
   elements.detailTable.replaceChildren(table);
 }
 
+function sarcopeniaNarrative(data) {
+  const smi = assessSmi(data);
+  const grip = assessGrip(data);
+  const chair = assessChairStand(data);
+  const notes = [];
+  if (smi.status === "missing") return notes;
+  if (smi.status === "unknown-sex") notes.push("성별을 선택하면 남성·여성 기준으로 SMI 자동 판정을 표시합니다.");
+  if (smi.low && grip.status === "missing" && chair.status === "missing") {
+    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 근감소 위험을 더 정확히 평가하려면 악력 또는 5회 Chair Stand 검사가 필요합니다.");
+  } else if (smi.normal && grip.status === "missing" && chair.status === "missing") {
+    notes.push("SMI는 기준 이상입니다. 악력과 신체기능은 측정되지 않아 근감소 위험에 대한 종합판정에는 제한이 있습니다.");
+  } else if (smi.low && grip.low && chair.low) {
+    notes.push("근육량·근력·신체기능 저하가 함께 확인됩니다.");
+  } else if (smi.low && (grip.low || chair.low)) {
+    notes.push("근육량 저하와 근력 또는 신체기능 저하가 함께 확인되어 근감소 우세형 가능성이 높습니다.");
+  } else if (smi.normal && (grip.low || chair.low)) {
+    notes.push("근육량은 기준 이상이지만 근력 또는 신체기능 저하가 관찰됩니다. 통증, 관절질환, 신경학적 문제와 활동량을 함께 확인할 필요가 있습니다.");
+  } else if (smi.borderline) {
+    notes.push("낮은 근육량 기준에는 해당하지 않지만 경계구간으로 추적관찰이 필요합니다.");
+  }
+  return notes;
+}
+
+function renderSarcopeniaReport(data) {
+  if (!sarcopeniaInputsPresent(data)) {
+    elements.sarcopeniaReport.hidden = true;
+    elements.sarcopeniaBody.replaceChildren();
+    return;
+  }
+  const smi = assessSmi(data);
+  const grip = assessGrip(data);
+  const chair = assessChairStand(data);
+  const rows = [];
+  if (present(data.smi)) rows.push([smi.valueText, smi.label]);
+  if (present(data.gripStrength)) rows.push([grip.valueText, grip.label]);
+  if (present(data.chairStandSeconds)) rows.push([chair.valueText, chair.label]);
+  if (present(data.lowProteinStatus)) rows.push(["단백질 섭취 부족", data.lowProteinStatus]);
+  if (present(data.weightLossStatus)) rows.push(["최근 비의도적 체중감소", data.weightLossStatus]);
+  if (present(data.functionalDeclineStatus)) rows.push(["계단·보행·일상기능 저하", data.functionalDeclineStatus]);
+  const list = document.createElement("ul");
+  list.className = "sarcopenia-list";
+  list.replaceChildren(...rows.map(([label, value]) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    return item;
+  }));
+  const notes = sarcopeniaNarrative(data);
+  const noteBox = document.createElement("p");
+  noteBox.className = "sarcopenia-note";
+  noteBox.textContent = notes.length ? notes.join(" ") : "근감소 평가 입력값은 대사건강 총점에는 반영되지 않으며, 타입 판정과 관리 방향 설정에 참고합니다.";
+  elements.sarcopeniaBody.replaceChildren(list, noteBox);
+  elements.sarcopeniaReport.hidden = false;
+}
+
 function liverNormalMessage(data, results) {
   const liverAxis = results.axes.find((axis) => axis.key === "liver");
   if (!liverAxis || liverAxis.score < 17) return [];
@@ -982,10 +1104,14 @@ function renderValidation(validation) {
 
 function renderType(typeResult, data, results) {
   const primary = selectedPrimaryType(typeResult, data);
+  const secondary = selectedSecondaryType(typeResult, data);
   elements.primaryType.textContent = primary;
-  elements.secondaryType.textContent = selectedSecondaryType(typeResult, data);
+  elements.secondaryType.textContent = secondary;
   elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 보조 태그 없음";
-  elements.primaryTypeReason.textContent = makeTypeReason(data, results, primary);
+  const baseReason = makeTypeReason(data, results, primary);
+  elements.primaryTypeReason.textContent = !primary.startsWith("E.") && secondary.includes("E. 근감소")
+    ? `${baseReason} ${makeSarcopeniaTypeSentence(data)}`
+    : baseReason;
 }
 
 function render() {
@@ -1011,6 +1137,7 @@ function render() {
   renderPriority(results.axes);
   renderAxisCards(results.axes);
   renderDetails(results.axes);
+  renderSarcopeniaReport(data);
   renderNotes(data, results, typeResult, validation);
   return { data, results, flags, typeResult, validation };
 }

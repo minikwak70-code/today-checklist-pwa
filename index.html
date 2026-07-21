@@ -232,9 +232,25 @@
                   <label><span>ALP ULN (U/L)</span><input id="alpUln" type="number" step="1" min="0.1" value="120" inputmode="decimal" /></label>
                   <label><span>허리둘레 (cm)</span><input id="waist" type="number" step="0.1" min="0" inputmode="decimal" /></label>
                   <label><span>안정 시 심박수 (bpm)</span><input id="restingHr" type="number" step="1" min="0" inputmode="decimal" /></label>
-                  <label><span>골격근량 또는 SMI</span><select id="muscleMassStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
-                  <label><span>악력</span><select id="gripStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
-                  <label><span>5회 Chair Stand</span><select id="chairStandStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
+                </div>
+                <p class="subsection-label">근감소 평가</p>
+                <div class="form-grid three">
+                  <label>
+                    <span>SMI (kg/m²)</span>
+                    <input id="smi" type="number" step="0.01" min="0" inputmode="decimal" />
+                    <small class="field-help">SMI는 키를 보정한 골격근량 지표입니다. 근감소 위험 판단에 참고하며 대사건강 총점에는 반영되지 않습니다.</small>
+                  </label>
+                  <label>
+                    <span>악력 최고값 (kg)</span>
+                    <input id="gripStrength" type="number" step="0.1" min="0" inputmode="decimal" />
+                  </label>
+                  <label>
+                    <span>5회 Chair Stand (초)</span>
+                    <input id="chairStandSeconds" type="number" step="0.1" min="0" inputmode="decimal" />
+                  </label>
+                  <label><span>단백질 섭취 부족</span><select id="lowProteinStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
+                  <label><span>최근 비의도적 체중감소</span><select id="weightLossStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
+                  <label><span>계단·보행·일상기능 저하</span><select id="functionalDeclineStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
                 </div>
                 <div class="check-grid">
                   <label><input id="jaundice" type="checkbox" /> 황달 여부</label>
@@ -254,9 +270,6 @@
                   <label><input id="chronicFatigue" type="checkbox" /> 만성 피로</label>
                   <label><input id="palpitation" type="checkbox" /> 두근거림</label>
                   <label><input id="tensionAnxiety" type="checkbox" /> 긴장·불안</label>
-                  <label><input id="lowProtein" type="checkbox" /> 단백질 섭취 부족</label>
-                  <label><input id="weightLoss" type="checkbox" /> 최근 비의도적 체중감소</label>
-                  <label><input id="functionalDecline" type="checkbox" /> 계단·보행·일상기능 저하</label>
                 </div>
               </fieldset>
             </details>
@@ -390,12 +403,16 @@
                 </div>
               </div>
             </div>
+            <article id="sarcopeniaReport" class="sarcopenia-report" hidden>
+              <p class="section-title">근감소 평가</p>
+              <div id="sarcopeniaBody"></div>
+            </article>
             <footer class="page-footer">공덕경희한의원 | 대사건강 리포트 | 3/3</footer>
           </section>
         </section>
       </main>
     </div>
 
-    <script src="./app.js?v=7" defer></script>
+    <script src="./app.js?v=8" defer></script>
   </body>
 </html>

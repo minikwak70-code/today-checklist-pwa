@@ -965,6 +965,48 @@ button:disabled {
   font-size: 13px;
 }
 
+.sarcopenia-report {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfdfb;
+}
+
+.sarcopenia-report[hidden] {
+  display: none;
+}
+
+.sarcopenia-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sarcopenia-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4ebe6;
+  color: var(--muted);
+  font-size: 13px;
+  word-break: keep-all;
+}
+
+.sarcopenia-list strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.sarcopenia-note {
+  margin: 12px 0 0;
+  color: #34433d;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 .notes-list {
   display: grid;
   gap: 9px;
@@ -1201,6 +1243,7 @@ button:disabled {
   .type-card,
   .warning-box,
   .summary-card,
+  .sarcopenia-report,
   .priority-card,
   .axis-card,
   table,
@@ -1248,6 +1291,7 @@ button:disabled {
   .priority-card,
   .axis-card,
   .detail-section > div,
+  .sarcopenia-report,
   .summary-card,
   .type-card {
     box-shadow: none !important;
