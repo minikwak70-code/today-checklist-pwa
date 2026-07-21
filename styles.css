@@ -153,6 +153,13 @@ select:focus-visible {
   margin-bottom: 18px;
 }
 
+.privacy-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .eyebrow {
   margin: 0 0 9px;
   color: var(--green-dark);
@@ -207,6 +214,25 @@ legend {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.computed-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.computed-grid p {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #dde8e2;
+  border-radius: 8px;
+  background: #f1f7f4;
+  color: #315248;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
 label {
   min-width: 0;
   display: grid;
@@ -230,6 +256,58 @@ select {
 
 input::placeholder {
   color: #a4aea8;
+}
+
+.field-invalid {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(185, 75, 69, 0.12);
+}
+
+.inline-details,
+.fieldset-details {
+  margin-top: 13px;
+}
+
+.fieldset-details {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfdfb;
+  padding: 0;
+}
+
+.inline-details summary,
+.fieldset-details summary {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.inline-details[open],
+.fieldset-details[open] {
+  border-color: rgba(35, 116, 90, 0.25);
+}
+
+.inline-details[open] summary,
+.fieldset-details[open] summary {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 13px;
+}
+
+.fieldset-details fieldset {
+  border: 0;
+  background: transparent;
+}
+
+.subsection-label {
+  margin: 16px 0 9px;
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .check-grid {
@@ -256,6 +334,32 @@ input::placeholder {
   height: 16px;
   flex: 0 0 auto;
   accent-color: var(--green);
+}
+
+.validation-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.validation-summary:empty {
+  display: none;
+}
+
+.validation-summary p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(185, 75, 69, 0.22);
+  border-radius: 8px;
+  background: #fff4f3;
+  color: #8d2f2b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
 }
 
 .form-actions {
@@ -316,6 +420,42 @@ input::placeholder {
   gap: 28px;
   padding-bottom: 22px;
   border-bottom: 2px solid #dfe8e2;
+}
+
+.type-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f6faf8;
+}
+
+.type-card strong {
+  display: block;
+  font-size: 17px;
+  line-height: 1.45;
+}
+
+.tag-line {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.manual-type {
+  grid-column: 1 / -1;
+}
+
+.manual-type summary {
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
 }
 
 .report-header h2 {
@@ -461,6 +601,10 @@ input::placeholder {
   margin-top: 18px;
 }
 
+.top-flags {
+  margin: 0 0 18px;
+}
+
 .flag {
   padding: 12px 14px;
   border-radius: 9px;
@@ -499,6 +643,16 @@ input::placeholder {
   padding: 14px;
 }
 
+.axis-card.partial {
+  background: #fffdf7;
+}
+
+.axis-card.hold,
+.axis-card.unavailable {
+  background: #f7f8f7;
+  color: #75817b;
+}
+
 .axis-card strong {
   display: block;
   font-size: 15px;
@@ -508,6 +662,7 @@ input::placeholder {
   margin: 10px 0;
   font-size: 24px;
   font-weight: 900;
+  line-height: 1.15;
 }
 
 .score-bar {
@@ -625,6 +780,8 @@ input::placeholder {
 
   .form-grid.two,
   .form-grid.three,
+  .computed-grid,
+  .type-card,
   .check-grid,
   .axis-cards {
     grid-template-columns: 1fr;

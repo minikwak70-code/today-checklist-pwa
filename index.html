@@ -4,10 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f7f4" />
-    <meta
-      name="description"
-      content="5개 대사건강 축을 계산하고 출력용 환자 리포트를 생성하는 웹앱"
-    />
+    <meta name="description" content="5개 대사건강 축을 계산하고 출력용 환자 리포트를 생성하는 웹앱" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
@@ -22,9 +19,9 @@
           <span>공덕경희 대사건강 리포트</span>
         </a>
         <div class="topbar-actions">
-          <button id="sampleButton" class="ghost-button" type="button">예시값</button>
-          <button id="resetButton" class="ghost-button" type="button">초기화</button>
-          <button id="printButton" class="primary-button" type="button">PDF 출력</button>
+          <button id="sampleButton" class="ghost-button" type="button">예시 환자 불러오기</button>
+          <button id="resetButton" class="ghost-button" type="button">전체 입력 지우기</button>
+          <button id="printButton" class="primary-button" type="button">PDF 저장</button>
           <span id="printStatus" class="print-status" aria-live="polite"></span>
         </div>
       </header>
@@ -34,11 +31,12 @@
           <div class="panel-head">
             <p class="eyebrow">METABOLIC SCORE 100</p>
             <h1 id="inputHeading">검사수치 입력</h1>
+            <p class="privacy-note">입력한 정보는 서버에 저장되지 않으며 현재 브라우저에서 리포트 생성에만 사용됩니다.</p>
           </div>
 
           <form id="reportForm" class="report-form">
             <fieldset>
-              <legend>환자 기본정보</legend>
+              <legend>기본정보</legend>
               <div class="form-grid two">
                 <label>
                   <span>이름</span>
@@ -68,7 +66,7 @@
             </fieldset>
 
             <fieldset>
-              <legend>당대사 및 지질대사</legend>
+              <legend>당·지질 검사</legend>
               <div class="form-grid three">
                 <label>
                   <span>HbA1c (%)</span>
@@ -91,50 +89,64 @@
                   <input id="ldl" name="ldl" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>식후 경과시간</span>
-                  <select id="mealHours" name="mealHours">
+                  <span>채혈 당시 식사 상태</span>
+                  <select id="mealStatus" name="mealStatus">
                     <option value="">선택</option>
-                    <option>4시간 미만</option>
-                    <option>4시간 이상</option>
-                    <option>8시간 이상</option>
-                    <option>모름</option>
+                    <option>식후 4시간 미만</option>
+                    <option>식후 4~7시간</option>
+                    <option>8시간 이상 금식</option>
+                    <option>확인 불가</option>
                   </select>
                 </label>
               </div>
-            </fieldset>
-
-            <fieldset>
-              <legend>간대사</legend>
-              <div class="form-grid three">
-                <label>
-                  <span>ALT</span>
-                  <input id="alt" name="alt" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>ALT ULN</span>
-                  <input id="altUln" name="altUln" type="number" step="1" min="1" value="40" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>GGT</span>
-                  <input id="ggt" name="ggt" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>GGT ULN</span>
-                  <input id="ggtUln" name="ggtUln" type="number" step="1" min="1" value="60" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>TBIL</span>
-                  <input id="tbil" name="tbil" type="number" step="0.1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>TBIL ULN</span>
-                  <input id="tbilUln" name="tbilUln" type="number" step="0.1" min="0.1" value="1.2" inputmode="decimal" />
-                </label>
+              <div class="computed-grid">
+                <p id="tgHdlCalc">TG/HDL-C: --</p>
+                <p id="nonHdlCalc">non-HDL-C: --</p>
               </div>
             </fieldset>
 
             <fieldset>
-              <legend>만성염증</legend>
+              <legend>간대사 검사</legend>
+              <div class="form-grid three">
+                <label>
+                  <span>ALT (U/L)</span>
+                  <input id="alt" name="alt" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>GGT (U/L)</span>
+                  <input id="ggt" name="ggt" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>TBIL (mg/dL)</span>
+                  <input id="tbil" name="tbil" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+              </div>
+              <div class="computed-grid">
+                <p id="altCalc">ALT: --</p>
+                <p id="ggtCalc">GGT: --</p>
+                <p id="tbilCalc">TBIL: --</p>
+              </div>
+              <details class="inline-details">
+                <summary>검사실 정상범위 변경</summary>
+                <div class="form-grid three">
+                  <label>
+                    <span>ALT ULN (U/L)</span>
+                    <input id="altUln" name="altUln" type="number" step="1" min="0.1" value="40" inputmode="decimal" />
+                  </label>
+                  <label>
+                    <span>GGT ULN (U/L)</span>
+                    <input id="ggtUln" name="ggtUln" type="number" step="1" min="0.1" value="60" inputmode="decimal" />
+                  </label>
+                  <label>
+                    <span>TBIL ULN (mg/dL)</span>
+                    <input id="tbilUln" name="tbilUln" type="number" step="0.1" min="0.1" value="1.2" inputmode="decimal" />
+                  </label>
+                </div>
+              </details>
+            </fieldset>
+
+            <fieldset>
+              <legend>염증·체성분</legend>
               <div class="form-grid two">
                 <label>
                   <span>hs-CRP (mg/L)</span>
@@ -148,14 +160,14 @@
             </fieldset>
 
             <fieldset>
-              <legend>자율신경·회복</legend>
+              <legend>혈압·HRV</legend>
               <div class="form-grid three">
                 <label>
-                  <span>수축기혈압</span>
+                  <span>수축기혈압 (mmHg)</span>
                   <input id="sbp" name="sbp" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>이완기혈압</span>
+                  <span>이완기혈압 (mmHg)</span>
                   <input id="dbp" name="dbp" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
@@ -184,46 +196,94 @@
                     <option>매우 높음</option>
                   </select>
                 </label>
-                <label>
-                  <span>ANS Activity</span>
-                  <select id="ansActivity" name="ansActivity">
-                    <option value="">선택</option>
-                    <option>매우 낮음</option>
-                    <option>낮음</option>
-                    <option>보통</option>
-                    <option>높음</option>
-                    <option>매우 높음</option>
-                  </select>
-                </label>
               </div>
+              <details class="inline-details">
+                <summary>상세 HRV 참고정보</summary>
+                <div class="form-grid three">
+                  <label><span>SDNN (ms)</span><input id="sdnnValue" type="number" step="0.001" min="0" inputmode="decimal" /></label>
+                  <label><span>SNS Activity</span><select id="snsActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
+                  <label><span>PNS Activity</span><select id="pnsActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
+                  <label><span>ANS Activity</span><select id="ansActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
+                  <label><span>SNS/PNS</span><input id="snsPnsRatio" type="number" step="0.01" min="0" inputmode="decimal" /></label>
+                  <label><span>심박수 (bpm)</span><input id="heartRate" type="number" step="1" min="0" inputmode="decimal" /></label>
+                </div>
+              </details>
             </fieldset>
 
+            <details class="fieldset-details">
+              <summary>추가 타입 평가</summary>
+              <fieldset>
+                <legend>추가 검사 및 문진</legend>
+                <div class="form-grid three">
+                  <label><span>AST (U/L)</span><input id="ast" type="number" step="1" min="0" inputmode="decimal" /></label>
+                  <label><span>AST ULN (U/L)</span><input id="astUln" type="number" step="1" min="0.1" value="40" inputmode="decimal" /></label>
+                  <label><span>ALP (U/L)</span><input id="alp" type="number" step="1" min="0" inputmode="decimal" /></label>
+                  <label><span>ALP ULN (U/L)</span><input id="alpUln" type="number" step="1" min="0.1" value="120" inputmode="decimal" /></label>
+                  <label><span>허리둘레 (cm)</span><input id="waist" type="number" step="0.1" min="0" inputmode="decimal" /></label>
+                  <label><span>안정 시 심박수 (bpm)</span><input id="restingHr" type="number" step="1" min="0" inputmode="decimal" /></label>
+                  <label><span>골격근량 또는 SMI</span><select id="muscleMassStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
+                  <label><span>악력</span><select id="gripStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
+                  <label><span>5회 Chair Stand</span><select id="chairStandStatus"><option value="">선택</option><option>정상</option><option>저하</option></select></label>
+                </div>
+                <div class="check-grid">
+                  <label><input id="jaundice" type="checkbox" /> 황달 여부</label>
+                  <label><input id="darkUrine" type="checkbox" /> 진한 소변 여부</label>
+                  <label><input id="ruqPain" type="checkbox" /> 우상복부 통증 여부</label>
+                  <label><input id="knownLiverDisease" type="checkbox" /> 기존 간질환 여부</label>
+                  <label><input id="severeLiverDisease" type="checkbox" /> 기존 중증 간질환</label>
+                  <label><input id="fattyLiver" type="checkbox" /> 지방간 병력 또는 소견</label>
+                  <label><input id="gumDisease" type="checkbox" /> 잇몸질환</label>
+                  <label><input id="dermatitis" type="checkbox" /> 피부염</label>
+                  <label><input id="chronicPain" type="checkbox" /> 만성 통증</label>
+                  <label><input id="recurrentInflammation" type="checkbox" /> 반복되는 염증 증상</label>
+                  <label><input id="recentInfection" type="checkbox" /> 최근 급성감염 또는 발열</label>
+                  <label><input id="recentTraumaSurgery" type="checkbox" /> 최근 외상·수술</label>
+                  <label><input id="recentHardExercise" type="checkbox" /> 최근 고강도 운동</label>
+                  <label><input id="sleepProblem" type="checkbox" /> 수면장애</label>
+                  <label><input id="chronicFatigue" type="checkbox" /> 만성 피로</label>
+                  <label><input id="palpitation" type="checkbox" /> 두근거림</label>
+                  <label><input id="tensionAnxiety" type="checkbox" /> 긴장·불안</label>
+                  <label><input id="lowProtein" type="checkbox" /> 단백질 섭취 부족</label>
+                  <label><input id="weightLoss" type="checkbox" /> 최근 비의도적 체중감소</label>
+                  <label><input id="functionalDecline" type="checkbox" /> 계단·보행·일상기능 저하</label>
+                </div>
+              </fieldset>
+            </details>
+
             <fieldset>
-              <legend>해석 주의 및 보류 조건</legend>
+              <legend>검사조건 및 해석 제한</legend>
               <div class="check-grid">
                 <label><input id="hba1cCaution" type="checkbox" /> HbA1c 해석 주의 조건</label>
                 <label><input id="acuteInflammation" type="checkbox" /> 급성감염·외상·격한 운동</label>
                 <label><input id="gilbert" type="checkbox" /> 길버트증후군 보정 가능</label>
                 <label><input id="directBilirubin" type="checkbox" /> 직접빌리루빈 우세 또는 담즙정체 의심</label>
-                <label><input id="hrvInvalid" type="checkbox" /> HRV 판독 제외 조건</label>
-                <label><input id="hrvMedication" type="checkbox" /> HRV 약물 영향 가능</label>
                 <label><input id="vascularHistory" type="checkbox" /> 심혈관질환 병력</label>
                 <label><input id="diabetesHistory" type="checkbox" /> 당뇨병</label>
                 <label><input id="ckd" type="checkbox" /> 만성신장질환</label>
                 <label><input id="lipidMedication" type="checkbox" /> 지질강하제 복용</label>
               </div>
+              <p class="subsection-label">HRV 판독 제한</p>
+              <div class="check-grid">
+                <label><input id="hrvAtrialFib" type="checkbox" /> 심방세동 또는 심한 부정맥</label>
+                <label><input id="hrvWaveError" type="checkbox" /> 측정 오류 또는 파형 불량</label>
+                <label><input id="hrvAcuteDisease" type="checkbox" /> 급성질환</label>
+                <label><input id="hrvStimulant" type="checkbox" /> 측정 직전 운동·흡연·카페인</label>
+                <label><input id="hrvOtherLimit" type="checkbox" /> 기타</label>
+                <label><input id="hrvMedication" type="checkbox" /> HRV 약물 영향 가능</label>
+              </div>
             </fieldset>
 
+            <div id="validationSummary" class="validation-summary" aria-live="polite"></div>
             <div class="form-actions">
               <button id="generateButton" class="primary-button" type="button">리포트 생성</button>
-              <p id="generateStatus" aria-live="polite">
-                입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.
-              </p>
+              <p id="generateStatus" aria-live="polite">입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.</p>
             </div>
           </form>
         </section>
 
         <section id="report" class="report-sheet" aria-labelledby="reportHeading">
+          <div id="flagArea" class="flag-area top-flags"></div>
+
           <div class="report-header">
             <div>
               <p class="eyebrow">GONGDEOK KYUNGHEE</p>
@@ -231,11 +291,33 @@
               <p id="patientLine" class="patient-line">환자 정보를 입력하면 리포트에 반영됩니다.</p>
             </div>
             <div class="score-badge">
-              <span>총점</span>
+              <span>측정 완료 점수</span>
               <strong id="totalScore">--</strong>
               <em id="gradeLabel">계산 대기</em>
             </div>
           </div>
+
+          <article class="type-card">
+            <div>
+              <p class="section-title">주타입</p>
+              <strong id="primaryType">대사 균형형 또는 경계 관리군</strong>
+            </div>
+            <div>
+              <p class="section-title">동반 타입</p>
+              <strong id="secondaryType">해당 없음</strong>
+            </div>
+            <div>
+              <p class="section-title">주요 보조 태그</p>
+              <p id="supportTags" class="tag-line">입력 후 표시됩니다.</p>
+            </div>
+            <details class="manual-type no-print">
+              <summary>타입 수동 수정</summary>
+              <div class="form-grid two">
+                <label><span>주타입</span><select id="manualPrimaryType"></select></label>
+                <label><span>동반 타입</span><select id="manualSecondaryType"></select></label>
+              </div>
+            </details>
+          </article>
 
           <div class="summary-grid">
             <article class="radar-card">
@@ -248,31 +330,29 @@
             </article>
           </div>
 
-          <div id="flagArea" class="flag-area"></div>
-
           <div id="axisCards" class="axis-cards"></div>
 
           <div class="detail-section">
             <div>
-              <p class="section-title">계산 요약</p>
+              <p class="section-title">세부 검사 결과와 자동 해석</p>
               <div id="detailTable" class="detail-table"></div>
             </div>
             <div>
-              <p class="section-title">측정조건 및 제한점</p>
+              <p class="section-title">검사조건 및 판정 제한</p>
               <ul id="notesList" class="notes-list"></ul>
             </div>
           </div>
 
           <footer class="report-footer">
             <p>
-              본 리포트는 질병 확진 목적이 아닌 프로그램 운영용 관리 지표입니다. 총점보다 개별
-              경고 플래그와 임상 판단을 우선합니다.
+              본 리포트는 질병 확진 목적이 아닌 초진 상태와 치료 전후 변화를 보기 위한 임상 관리도구입니다.
+              TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.
             </p>
           </footer>
         </section>
       </main>
     </div>
 
-    <script src="./app.js?v=2" defer></script>
+    <script src="./app.js?v=4" defer></script>
   </body>
 </html>
