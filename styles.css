@@ -203,10 +203,9 @@ textarea:focus-visible {
 }
 
 .input-panel {
-  position: sticky;
-  top: 18px;
-  max-height: calc(100vh - 36px);
-  overflow: auto;
+  position: static;
+  max-height: none;
+  overflow: visible;
   padding: 26px;
   border-radius: 12px;
 }
@@ -1408,7 +1407,6 @@ button:disabled {
   }
 
   .input-panel {
-    position: static;
     max-height: none;
   }
 }
