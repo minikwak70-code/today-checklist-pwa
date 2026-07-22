@@ -7,7 +7,7 @@ const TYPE_OPTIONS = [
   ["A. 복부비만 우세형", "A. 복부비만 우세형"],
   ["B. 인슐린 저항 우세형", "B. 인슐린 저항 우세형"],
   ["C. 만성염증 우세형", "C. 만성염증 우세형"],
-  ["D. 자율신경 우세형", "D. 자율신경 우세형"],
+  ["D. 자율신경(스트레스) 우세형", "D. 자율신경(스트레스) 우세형"],
   ["E. 근감소 우세형", "E. 근감소 우세형"],
   ["F. 복합 대사위험형", "F. 복합 대사위험형"],
   ["대사 균형형 또는 경계 관리군", "대사 균형형 또는 경계 관리군"],
@@ -446,7 +446,7 @@ function makeResults(data) {
     ),
     makeAxis(
       "autonomic",
-      "자율신경·회복",
+      "자율신경(스트레스)",
       [
         { label: "혈압", result: bp, value: present(data.sbp) && present(data.dbp) ? `${data.sbp}/${data.dbp}` : null },
         { label: "HRV-Index", result: hrvIndex, value: [data.hrvIndexGrade, present(data.hrvIndexValue) ? data.hrvIndexValue : ""].filter(Boolean).join(" · ") },
@@ -525,7 +525,7 @@ function makeRiskFlags(data, results, validation) {
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
   if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
   if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "180/120 mmHg 이상으로 우선 확인이 필요합니다.");
-  if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경·회복 축 판정을 보류합니다.");
+  if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경(스트레스) 축 판정을 보류합니다.");
   return flags;
 }
 
@@ -604,7 +604,7 @@ function scoreTypes(data, results) {
     data.palpitation,
     data.tensionAnxiety,
   ].filter(Boolean);
-  addCandidate("D", "D. 자율신경 우세형", dReasons.length, dReasons);
+  addCandidate("D", "D. 자율신경(스트레스) 우세형", dReasons.length, dReasons);
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압관리 필요");
 
   const smi = assessSmi(data);
@@ -1091,7 +1091,7 @@ function renderNotes(data, results, typeResult, validation) {
     limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획 및 길버트증후군 가능성을 확인하세요.");
   }
   if (data.hsCrp > 10) limits.push("급성 감염·외상·수술·격한 운동 등 급성 염증 원인을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
-  if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경·회복 축의 점수 판정을 보류합니다.");
+  if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경(스트레스) 축의 점수 판정을 보류합니다.");
   if (typeResult.notes.length) limits.push(...typeResult.notes);
   if (validation.warnings.length) limits.push(...validation.warnings.map((warning) => warning.text));
   if (!limits.length) limits.push("이번 결과에서 별도의 해석 제한은 표시되지 않았습니다.");

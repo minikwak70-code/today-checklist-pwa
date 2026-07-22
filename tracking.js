@@ -51,7 +51,7 @@ const axisMeta = [
   ["lipidScore", "지질대사"],
   ["liverScore", "간대사"],
   ["inflammationScore", "만성염증"],
-  ["autonomicScore", "자율신경·회복"],
+  ["autonomicScore", "자율신경(스트레스)"],
 ];
 
 const metricMeta = [

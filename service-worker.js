@@ -1,10 +1,10 @@
-const CACHE_NAME = "metabolic-report-v18";
+const CACHE_NAME = "metabolic-report-v19";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css?v=15",
-  "./app.js?v=15",
-  "./tracking.js?v=2",
+  "./app.js?v=16",
+  "./tracking.js?v=3",
   "./manifest.webmanifest",
   "./assets/icon.svg",
   "./assets/icon-192.png",
