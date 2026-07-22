@@ -940,7 +940,7 @@ button:disabled {
 }
 
 .radar-card {
-  min-height: 430px;
+  min-height: 390px;
   display: grid;
   grid-template-columns: 1fr;
   align-items: center;
@@ -950,7 +950,7 @@ button:disabled {
 }
 
 .radar-chart {
-  width: min(100%, 525px);
+  width: min(100%, 368px);
   aspect-ratio: 1;
 }
 
@@ -1627,13 +1627,13 @@ button:disabled {
   }
 
   .radar-card {
-    min-height: 330px;
+    min-height: 292px;
     grid-template-columns: 1fr;
     padding: 12px;
   }
 
   .radar-chart {
-    width: min(100%, 378px);
+    width: min(100%, 265px);
   }
 
   .axis-score-legend {
