@@ -925,7 +925,7 @@ button:disabled {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.95fr) minmax(300px, 1.05fr);
+  grid-template-columns: minmax(0, 1.45fr) minmax(200px, 0.55fr);
   gap: 18px;
   margin-top: 22px;
 }
@@ -940,16 +940,17 @@ button:disabled {
 }
 
 .radar-card {
-  min-height: 350px;
+  min-height: 430px;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(190px, 0.82fr);
+  grid-template-columns: 1fr;
   align-items: center;
+  justify-items: center;
   gap: 12px;
   padding: 18px;
 }
 
 .radar-chart {
-  width: min(100%, 350px);
+  width: min(100%, 525px);
   aspect-ratio: 1;
 }
 
@@ -960,7 +961,9 @@ button:disabled {
 }
 
 .axis-score-legend {
+  width: 100%;
   display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -968,15 +971,23 @@ button:disabled {
 }
 
 .axis-score-legend li {
-  display: flex;
-  justify-content: space-between;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
   gap: 12px;
   padding: 8px 10px;
   border-radius: 8px;
   background: #eef4f1;
   color: #34433d;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
+  text-align: center;
+}
+
+.axis-score-legend li span,
+.axis-score-legend li strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .axis-score-legend li.muted {
@@ -1007,9 +1018,9 @@ button:disabled {
 .priority-list li {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  padding: 14px;
+  padding: 12px;
   border-radius: 9px;
   background: #eef4f1;
 }
@@ -1032,7 +1043,16 @@ button:disabled {
 
 .priority-list strong {
   display: block;
-  font-size: 16px;
+  font-size: 15px;
+}
+
+.summary-grid .priority-list li {
+  grid-template-columns: auto 1fr;
+}
+
+.summary-grid .priority-list span:last-child {
+  grid-column: 2;
+  margin-top: -6px;
 }
 
 .priority-list span:last-child {
@@ -1601,19 +1621,38 @@ button:disabled {
   }
 
   .summary-grid {
-    grid-template-columns: 1.08fr 0.92fr;
+    grid-template-columns: 1.36fr 0.64fr;
     gap: 12px;
     margin-top: 0;
   }
 
   .radar-card {
-    min-height: 258px;
-    grid-template-columns: 1fr 0.8fr;
+    min-height: 330px;
+    grid-template-columns: 1fr;
     padding: 12px;
   }
 
   .radar-chart {
-    width: min(100%, 252px);
+    width: min(100%, 378px);
+  }
+
+  .axis-score-legend {
+    gap: 6px;
+  }
+
+  .axis-score-legend li {
+    gap: 6px;
+    padding: 7px 8px;
+    font-size: 9.5px;
+  }
+
+  .priority-list li {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .priority-list strong {
+    font-size: 14px;
   }
 
   .priority-card,

@@ -796,8 +796,8 @@ function renderComputed(data, results) {
 }
 
 function renderRadar(axes) {
-  const center = 200;
-  const radius = 124;
+  const center = 230;
+  const radius = 150;
   const pointsFor = (scale, inactiveAsOuter = false) =>
     axes.map((axis, index) => {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
@@ -808,10 +808,10 @@ function renderRadar(axes) {
   const grid = [0.25, 0.5, 0.75, 1].map((level) => `<polygon points="${pointsFor(level, true)}" fill="none" stroke="#cbd9d2" stroke-width="1.2" />`).join("");
   const labels = axes.map((axis, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
-    const x = center + Math.cos(angle) * (radius + 54);
-    const y = center + Math.sin(angle) * (radius + 48);
+    const x = center + Math.cos(angle) * (radius + 70);
+    const y = center + Math.sin(angle) * (radius + 62);
     const label = axis.status === "unavailable" ? `${axis.label} 미측정` : axis.status === "hold" ? `${axis.label} 보류` : axis.label;
-    return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781"}" font-size="13.5" font-weight="850">${label}</text>`;
+    return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781"}" font-size="18" font-weight="850">${label}</text>`;
   }).join("");
   const spokes = axes.map((_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
@@ -825,7 +825,7 @@ function renderRadar(axes) {
     return `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="#9aa6a0" stroke-dasharray="4 5" />`;
   }).join("");
   elements.radarChart.innerHTML = `
-    <svg viewBox="0 0 400 400" role="img" aria-label="5개 축 점수 레이더 차트">
+    <svg viewBox="0 0 460 460" role="img" aria-label="5개 축 점수 레이더 차트">
       ${grid}
       ${spokes}
       ${inactive}
