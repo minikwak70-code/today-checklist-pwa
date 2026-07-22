@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=15" />
+    <link rel="stylesheet" href="./styles.css?v=16" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -74,7 +74,8 @@
                     <option>E. 근감소 우세형</option>
                     <option>F. 복합 대사위험형</option>
                     <option>0. 간관리 선행형</option>
-                    <option>대사 균형형 또는 경계 관리군</option>
+                    <option>대사 균형형</option>
+                    <option>특정 우세형 없음</option>
                   </select>
                 </label>
                 <label>
@@ -605,7 +606,7 @@
               </p>
               <div>
                 <p class="section-title">주타입</p>
-                <strong id="primaryType">대사 균형형 또는 경계 관리군</strong>
+                <strong id="primaryType">입력 후 표시됩니다.</strong>
               </div>
               <div>
                 <p class="section-title">동반 타입</p>
@@ -620,6 +621,19 @@
                 <p id="supportTags" class="tag-line">입력 후 표시됩니다.</p>
               </div>
               <p id="primaryTypeReason" class="type-reason">입력 후 주타입 판정 근거가 표시됩니다.</p>
+              <div class="type-overview" aria-label="대사 타입 설명">
+                <p class="section-title">타입 안내</p>
+                <dl>
+                  <div><dt>대사 균형형</dt><dd>5개 축이 모두 15점 이상으로 전반적인 균형이 좋은 상태</dd></div>
+                  <div><dt>A. 복부비만</dt><dd>내장지방, 허리둘레, 중성지방 신호가 중심인 타입</dd></div>
+                  <div><dt>B. 인슐린 저항</dt><dd>TG/HDL-C, HbA1c 등 혈당·지질 대사 패턴이 중심인 타입</dd></div>
+                  <div><dt>C. 만성염증</dt><dd>hs-CRP와 내장지방을 함께 보며 염증 신호를 확인하는 타입</dd></div>
+                  <div><dt>D. 자율신경(스트레스)</dt><dd>HRV-Index, Stress, 혈압 등 스트레스 반응이 중심인 타입</dd></div>
+                  <div><dt>E. 근감소</dt><dd>근육량, 악력, 신체기능 저하 신호를 함께 보는 타입</dd></div>
+                  <div><dt>F. 복합 대사위험</dt><dd>여러 대사 패턴이 동시에 겹쳐 단계적 관리가 필요한 타입</dd></div>
+                  <div><dt>0. 간관리 선행형</dt><dd>간수치나 빌리루빈 신호가 있어 간 평가를 먼저 보는 타입</dd></div>
+                </dl>
+              </div>
               <details class="manual-type no-print">
                 <summary>타입 수동 수정</summary>
                 <div class="form-grid two">
@@ -689,7 +703,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=16" defer></script>
+    <script src="./app.js?v=17" defer></script>
     <script src="./tracking.js?v=3" defer></script>
   </body>
 </html>

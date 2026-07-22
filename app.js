@@ -10,7 +10,8 @@ const TYPE_OPTIONS = [
   ["D. 자율신경(스트레스) 우세형", "D. 자율신경(스트레스) 우세형"],
   ["E. 근감소 우세형", "E. 근감소 우세형"],
   ["F. 복합 대사위험형", "F. 복합 대사위험형"],
-  ["대사 균형형 또는 경계 관리군", "대사 균형형 또는 경계 관리군"],
+  ["대사 균형형", "대사 균형형"],
+  ["특정 우세형 없음", "특정 우세형 없음"],
   ["해당 없음", "해당 없음"],
 ];
 
@@ -569,6 +570,16 @@ function scoreTypes(data, results) {
     };
   }
 
+  if (results.max === 100 && results.axes.every((axis) => axis.score >= 15)) {
+    return {
+      primary: "대사 균형형",
+      secondary: "해당 없음",
+      tags,
+      notes: [],
+      candidates: [],
+    };
+  }
+
   const aReasons = [visceralHigh, waistHigh, highTg, lowHdl, data.fattyLiver].filter(Boolean);
   addCandidate("A", "A. 복부비만 우세형", aReasons.length + (aReasons.length >= 2 && !hba1cHigh ? 1 : 0), aReasons);
 
@@ -643,7 +654,7 @@ function scoreTypes(data, results) {
     };
   }
   if (strong.length === 0) {
-    return { primary: "대사 균형형 또는 경계 관리군", secondary: "해당 없음", tags, notes: [], candidates };
+    return { primary: "특정 우세형 없음", secondary: "해당 없음", tags, notes: [], candidates };
   }
   return {
     primary: strong[0].name,
@@ -763,8 +774,14 @@ function makeTypeReason(data, results, primary) {
   if (primary.startsWith("F.")) {
     return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 우선 관리영역과 보조 태그를 함께 보며 단계적으로 접근하는 것이 좋습니다.";
   }
+  if (primary === "대사 균형형") {
+    return "5개 대사축이 모두 15점 이상으로 확인되어 특정 위험 패턴보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
+  }
+  if (primary === "특정 우세형 없음") {
+    return "현재 입력된 검사 조합에서는 한 가지 타입으로 뚜렷하게 묶이는 패턴이 두드러지지 않습니다. 낮은 점수의 개별 영역을 중심으로 관리 방향을 정합니다.";
+  }
   if (present(nonHdl) || present(ratio)) {
-    return "현재 입력된 핵심 지표에서는 특정 우세 타입보다 전반적인 균형 유지와 경계 지표 추적이 중요합니다.";
+    return "현재 입력된 핵심 지표에서는 특정 우세 타입보다 전반적인 균형 유지와 개별 지표 추적이 중요합니다.";
   }
   return "주타입 판정에 필요한 보조 정보가 제한적입니다. 추가 검사값을 입력하면 판정 근거가 더 구체화됩니다.";
 }
