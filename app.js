@@ -1092,6 +1092,7 @@ function hsCrpInterpretationNotes(data) {
 }
 
 function renderList(element, items) {
+  if (!element) return;
   element.replaceChildren(...items.map((text) => {
     const row = document.createElement("li");
     row.textContent = text;

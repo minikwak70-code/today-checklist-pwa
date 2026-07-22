@@ -1394,6 +1394,11 @@ button:disabled {
   gap: 14px;
 }
 
+.note-groups section {
+  padding: 16px 18px;
+  border-radius: 8px;
+}
+
 .note-groups h3 {
   margin: 0 0 7px;
   color: var(--green-dark);
@@ -1445,7 +1450,7 @@ button:disabled {
 .notes-list {
   display: grid;
   gap: 9px;
-  margin: 0;
+  margin: 8px 0 0;
   padding-left: 18px;
   color: var(--muted);
   font-size: 13px;
