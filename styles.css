@@ -1882,6 +1882,25 @@ button:disabled {
     box-shadow: none !important;
   }
 
+  .radar-card,
+  .priority-card,
+  .axis-card,
+  .detail-section > div,
+  .sarcopenia-report,
+  .summary-card,
+  .type-card,
+  .note-groups section {
+    border: 0;
+    box-shadow: inset 0 0 0 1.35px var(--line) !important;
+    background-clip: padding-box;
+  }
+
+  .warning-box {
+    border: 0;
+    box-shadow: inset 0 0 0 1.5px rgba(185, 75, 69, 0.34) !important;
+    background-clip: padding-box;
+  }
+
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
