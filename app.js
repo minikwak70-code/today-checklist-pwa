@@ -17,9 +17,9 @@ const TYPE_OPTIONS = [
 
 const AXIS_SHORT_COMMENTS = {
   glucose: "혈당 상태와 인슐린 저항성 관련 패턴",
-  lipid: "중성지방과 동맥경화성 지질 부담",
-  liver: "간세포 부담과 빌리루빈 배설 상태",
-  inflammation: "저등급 염증과 내장지방 상태",
+  lipid: "중성지방과 HDL-C 균형",
+  liver: "간수치와 빌리루빈 상태",
+  inflammation: "저강도 염증과 내장지방 상태",
   autonomic: "혈압, HRV와 신체적 스트레스 반응",
 };
 
@@ -238,9 +238,9 @@ function scoreByRanges(value, max, ranges) {
 function scoreHba1c(value) {
   return scoreByRanges(value, 10, [
     { test: (v) => v < 5.4, score: 10, label: "양호" },
-    { test: (v) => v <= 5.6, score: 8, label: "정상 상단" },
+    { test: (v) => v <= 5.6, score: 8, label: "정상범위 상단" },
     { test: (v) => v <= 5.9, score: 6, label: "당뇨병 전단계 범위" },
-    { test: (v) => v <= 6.4, score: 3, label: "고위험 전단계" },
+    { test: (v) => v <= 6.4, score: 3, label: "혈당 관리 필요" },
     { test: (v) => v >= 6.5, score: 0, label: "당뇨병 진단범위" },
   ]);
 }
@@ -249,11 +249,11 @@ function scoreTgHdl(tg, hdl) {
   if (!present(tg) || !present(hdl) || hdl <= 0) return missing(10);
   const ratio = tg / hdl;
   const result = scoreByRanges(ratio, 10, [
-    { test: (v) => v <= 2, score: 10, label: "양호한 대사성 지질 패턴" },
-    { test: (v) => v <= 2.49, score: 8, label: "경계 변화" },
-    { test: (v) => v <= 2.99, score: 6, label: "인슐린 저항성 가능성 증가" },
-    { test: (v) => v <= 3.49, score: 3, label: "불리한 대사성 지질 패턴" },
-    { test: (v) => v >= 3.5, score: 0, label: "매우 불리한 대사성 지질 패턴" },
+    { test: (v) => v <= 2, score: 10, label: "지질대사 균형 양호" },
+    { test: (v) => v <= 2.49, score: 8, label: "지질대사 균형 관찰" },
+    { test: (v) => v <= 2.99, score: 6, label: "인슐린 저항 관련 지표 관찰" },
+    { test: (v) => v <= 3.49, score: 3, label: "지질대사 관리 필요" },
+    { test: (v) => v >= 3.5, score: 0, label: "지질대사 집중 관리 필요" },
   ]);
   return { ...result, ratio };
 }
@@ -261,9 +261,9 @@ function scoreTgHdl(tg, hdl) {
 function scoreTg(value) {
   return scoreByRanges(value, 10, [
     { test: (v) => v < 100, score: 10, label: "양호" },
-    { test: (v) => v <= 149, score: 8, label: "정상 상단" },
+    { test: (v) => v <= 149, score: 8, label: "정상범위 상단" },
     { test: (v) => v <= 174, score: 6, label: "경계" },
-    { test: (v) => v <= 199, score: 4, label: "비공복 상승" },
+    { test: (v) => v <= 199, score: 4, label: "식사 영향 가능" },
     { test: (v) => v <= 439, score: 2, label: "높음" },
     { test: (v) => v >= 440, score: 0, label: "공복 재검 또는 별도 평가" },
   ]);
@@ -274,10 +274,10 @@ function scoreNonHdl(totalChol, hdl) {
   const value = totalChol - hdl;
   const result = scoreByRanges(value, 10, [
     { test: (v) => v < 130, score: 10, label: "양호" },
-    { test: (v) => v <= 154, score: 8, label: "정상 상단" },
+    { test: (v) => v <= 154, score: 8, label: "권장범위 상단" },
     { test: (v) => v <= 184, score: 6, label: "상승" },
     { test: (v) => v <= 219, score: 3, label: "높음" },
-    { test: (v) => v >= 220, score: 0, label: "매우 높음" },
+    { test: (v) => v >= 220, score: 0, label: "상당히 높음" },
   ]);
   return { ...result, value };
 }
@@ -291,7 +291,7 @@ function scoreUln(value, uln, max, scores) {
     { test: (v) => v <= 1.5, score: scores[1], label: "경도 상승" },
     { test: (v) => v <= 2, score: scores[2], label: "상승" },
     { test: (v) => v <= 3, score: scores[3], label: "추가 평가" },
-    { test: (v) => v > 3, score: 0, label: "원인 평가 우선" },
+    { test: (v) => v > 3, score: 0, label: "원인 확인 우선" },
   ]);
   return { ...result, ratio };
 }
@@ -302,10 +302,10 @@ function scoreHsCrp(value) {
   return scoreByRanges(value, 14, [
     { test: (v) => v < 0.3, score: 14, label: "최적 수준" },
     { test: (v) => v <= 0.49, score: 11, label: "낮은 수준" },
-    { test: (v) => v <= 0.99, score: 8, label: "저등급 염증 신호" },
+    { test: (v) => v <= 0.99, score: 8, label: "저강도 염증 관찰" },
     { test: (v) => v <= 1.99, score: 5, label: "경도 상승" },
-    { test: (v) => v <= 2.99, score: 2, label: "의미 있는 지속 염증 가능성" },
-    { test: (v) => v <= 10, score: 0, label: "높은 염증 신호" },
+    { test: (v) => v <= 2.99, score: 2, label: "지속 염증 확인 필요" },
+    { test: (v) => v <= 10, score: 0, label: "염증 수치 상승" },
   ]);
 }
 
@@ -325,7 +325,7 @@ function scoreBloodPressure(sbp, dbp) {
   if (sbp <= 129 && dbp < 80) return scored(5, 6, "주의혈압");
   if ((sbp >= 130 && sbp <= 139) || (dbp >= 80 && dbp <= 89)) return scored(3, 6, "고혈압 전단계");
   if ((sbp >= 140 && sbp <= 159) || (dbp >= 90 && dbp <= 99)) return scored(1, 6, "고혈압 범위");
-  return scored(0, 6, "고도 상승");
+  return scored(0, 6, "매우 높은 범위");
 }
 
 function scoreHrvIndex(grade, invalid) {
@@ -334,8 +334,8 @@ function scoreHrvIndex(grade, invalid) {
     "매우 높음": [10, "심박변이도 매우 양호"],
     "높음": [8, "심박변이도 양호"],
     "보통": [5, "평균 범위"],
-    "낮음": [2, "회복력 저하 가능"],
-    "매우 낮음": [0, "회복력 매우 낮음"],
+    "낮음": [2, "회복력 관리 필요"],
+    "매우 낮음": [0, "회복력 집중 관리 필요"],
   };
   return map[grade] ? scored(map[grade][0], 10, map[grade][1]) : missing(10);
 }
@@ -410,7 +410,7 @@ function makeResults(data) {
         { label: "HbA1c", result: hba1c, value: present(data.hba1c) ? `${data.hba1c}%` : null },
         { label: "TG/HDL-C", result: tgHdl, value: present(tgHdl.ratio) ? tgHdl.ratio.toFixed(2) : null },
       ],
-      "혈당 조절 상태와 인슐린 저항성 관련 지질 패턴을 함께 평가합니다.",
+      "혈당 조절 상태와 인슐린 저항 관련 지표를 함께 평가합니다.",
       !present(data.hba1c) && !(present(data.tg) && present(data.hdl)),
     ),
     makeAxis(
@@ -420,7 +420,7 @@ function makeResults(data) {
         { label: "TG", result: tg, value: present(data.tg) ? `${data.tg} mg/dL` : null },
         { label: "non-HDL-C", result: nonHdl, value: present(nonHdl.value) ? `${nonHdl.value} mg/dL` : null },
       ],
-      "중성지방의 절대 상승 정도와 동맥경화성 지질 부담을 함께 봅니다.",
+      "중성지방과 HDL-C 균형을 함께 살펴봅니다.",
       !present(data.tg) && !(present(data.totalChol) && present(data.hdl)),
     ),
     makeAxis(
@@ -431,7 +431,7 @@ function makeResults(data) {
         { label: "GGT", result: ggt, value: present(ggt.ratio) ? `${ggt.ratio.toFixed(2)} x ULN` : null },
         { label: "TBIL", result: tbil, value: present(tbil.ratio) ? `${tbil.ratio.toFixed(2)} x ULN` : null },
       ],
-      "간세포 손상, 담도 관련 신호, 빌리루빈 이상 여부를 통합합니다.",
+      "간수치, 담도 관련 지표, 빌리루빈 상태를 함께 평가합니다.",
       !present(data.alt) && !present(data.ggt) && !present(data.tbil),
     ),
     makeAxis(
@@ -441,7 +441,7 @@ function makeResults(data) {
         { label: "hs-CRP", result: hsCrp, value: present(data.hsCrp) ? `${data.hsCrp} mg/L` : null },
         { label: "내장지방레벨", result: visceralFat, value: present(data.visceralFat) ? `${data.visceralFat}` : null },
       ],
-      "저강도 염증 신호와 내장지방 축적 정도를 함께 반영합니다.",
+      "저강도 염증과 내장지방 상태를 함께 반영합니다.",
       !present(data.hsCrp) && !present(data.visceralFat),
       hsCrp.hold,
     ),
@@ -510,22 +510,22 @@ function makeRiskFlags(data, results, validation) {
   if (validation.errors.length > 0) add("warning", "입력 오류", "", "입력 오류가 있어 리포트 생성을 제한했습니다.");
   if (data.hba1c >= 6.5) add("warning", "HbA1c", `${data.hba1c}%`, "당뇨병 진단범위에 해당해 별도 확인이 필요합니다.");
   if (data.tg >= 500) {
-    add("warning", "중성지방", `${data.tg} mg/dL`, "500 mg/dL 이상으로 심한 고중성지방혈증 평가가 필요합니다.");
+    add("warning", "중성지방", `${data.tg} mg/dL`, "500 mg/dL 이상으로 중성지방 관련 별도 평가가 필요합니다.");
   } else if (data.tg >= 440) {
     add("caution", "중성지방", `${data.tg} mg/dL`, "비공복 재검 권고 기준을 초과하여 공복 지질검사로 재확인을 권고합니다.");
   }
   if (data.ldl >= 190) add("warning", "LDL-C", `${data.ldl} mg/dL`, "190 mg/dL 이상으로 별도의 심혈관 위험 평가가 필요합니다.");
-  if (results.parts.nonHdl?.value >= 220) add("warning", "non-HDL-C", `${results.parts.nonHdl.value} mg/dL`, "220 mg/dL 이상으로 고도 지질위험 기준에 해당합니다.");
+  if (results.parts.nonHdl?.value >= 220) add("warning", "non-HDL-C", `${results.parts.nonHdl.value} mg/dL`, "220 mg/dL 이상으로 지질 관련 위험이 높은 기준에 해당합니다.");
   if (results.parts.alt?.ratio >= 3 || results.parts.ast?.ratio >= 3) {
     const liverValues = [
       results.parts.alt?.ratio >= 3 && present(data.alt) ? `ALT ${data.alt} U/L (${results.parts.alt.ratio.toFixed(1)} x ULN)` : "",
       results.parts.ast?.ratio >= 3 && present(data.ast) ? `AST ${data.ast} U/L (${results.parts.ast.ratio.toFixed(1)} x ULN)` : "",
     ].filter(Boolean).join(", ");
-    add("warning", "간수치", liverValues, "3 x ULN 이상으로 간 원인평가가 우선입니다.");
+    add("warning", "간수치", liverValues, "3 x ULN 이상으로 간 관련 원인 확인이 우선입니다.");
   }
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
   if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
-  if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "180/120 mmHg 이상으로 우선 확인이 필요합니다.");
+  if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "180/120 mmHg 이상으로 재확인과 진료 상담이 필요합니다.");
   if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경(스트레스) 축 판정을 보류합니다.");
   return flags;
 }
@@ -557,7 +557,7 @@ function scoreTypes(data, results) {
   if (visceralHigh) tags.push("내장지방 증가");
   if (highTg) tags.push("고중성지방");
   if (data.sbp >= 130 || data.dbp >= 80) tags.push("혈압 경계");
-  if (data.hsCrp >= 0.5 && data.hsCrp <= 10) tags.push("염증 신호");
+  if (data.hsCrp >= 0.5 && data.hsCrp <= 10) tags.push("염증 관찰");
   if (results.parts.tbil?.ratio > 1 && !liverAbnormal) tags.push("총빌리루빈 단독 상승");
 
   if (liverPriority) {
@@ -616,7 +616,7 @@ function scoreTypes(data, results) {
     data.tensionAnxiety,
   ].filter(Boolean);
   addCandidate("D", "D. 자율신경(스트레스) 우세형", dReasons.length, dReasons);
-  if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압관리 필요");
+  if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
 
   const smi = assessSmi(data);
   const grip = assessGrip(data);
@@ -624,11 +624,11 @@ function scoreTypes(data, results) {
   const lowProtein = data.lowProteinStatus === "있음";
   const weightLoss = data.weightLossStatus === "있음";
   const functionalDecline = data.functionalDeclineStatus === "있음";
-  if (smi.low) tags.push("낮은 근육량");
+  if (smi.low) tags.push("근육량 관리 필요");
   if (smi.borderline) tags.push("근육량 경계");
   if (grip.low) tags.push("근력 저하");
   if (chair.low) tags.push("신체기능 저하");
-  if (smi.low && grip.low) tags.push("근육량·근력 동반 저하");
+  if (smi.low && grip.low) tags.push("근육량·근력 함께 낮음");
   const eRawStrength =
     (smi.low ? 2 : 0) +
     (smi.borderline ? 1 : 0) +
@@ -711,7 +711,7 @@ function makeSummary(data, results, grade, typeResult, flags) {
   const primary = selectedPrimaryType(typeResult, data);
   const sentences = [
     `종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`,
-    lowest.length ? `특히 ${joinKorean(lowest)} 영역을 우선 확인하는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 확인하는 것이 좋습니다.",
+    lowest.length ? `특히 ${joinKorean(lowest)} 영역부터 살펴보는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 살펴보는 것이 좋습니다.",
     `현재의 주된 대사 패턴은 ${primary}으로 평가됩니다.`,
   ];
   if (flags.length) sentences.push("우선 확인이 필요한 검사결과는 종합점수보다 먼저 의학적으로 확인하는 것이 좋습니다.");
@@ -728,7 +728,7 @@ function makeTypeReason(data, results, primary) {
       present(data.ast) ? `AST ${data.ast} U/L` : "",
       present(data.tbil) ? `총빌리루빈 ${data.tbil} mg/dL` : "",
     ].filter(Boolean).join(", ");
-    return `${values || "간 관련 위험 신호"}가 우선 확인 기준에 해당합니다. 대사 타입보다 간 원인평가를 먼저 고려하도록 표시합니다.`;
+    return `${values || "간 관련 지표"}가 우선 확인 기준에 해당합니다. 대사 타입보다 간 관련 원인 확인을 먼저 고려하도록 표시합니다.`;
   }
   if (primary.startsWith("A.")) {
     const values = [
@@ -736,7 +736,7 @@ function makeTypeReason(data, results, primary) {
       present(data.waist) ? `허리둘레 ${data.waist} cm` : "",
       present(data.tg) ? `중성지방 ${data.tg} mg/dL` : "",
     ].filter(Boolean);
-    return `${joinKorean(values) || "복부비만 관련 지표"}에서 복부 지방 축적과 관련된 신호가 관찰됩니다. 혈당 수치만이 아니라 체지방 분포를 함께 관리할 필요가 있습니다.`;
+    return `${joinKorean(values) || "복부비만 관련 지표"}에서 복부 지방 축적과 관련된 관리 필요 소견이 관찰됩니다. 혈당 수치만이 아니라 체지방 분포를 함께 관리할 필요가 있습니다.`;
   }
   if (primary.startsWith("B.")) {
     const values = [
@@ -751,14 +751,14 @@ function makeTypeReason(data, results, primary) {
         : present(data.hba1c)
           ? `현재 HbA1c ${data.hba1c}%는 당뇨병 전단계 범위에는 해당하지 않습니다.`
           : "";
-    return `${values.join(", ")} 지표에서 인슐린 저항성과 관련된 대사성 지질 패턴이 두드러집니다. ${hba1cNote} 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
+    return `${values.join(", ")} 지표에서 인슐린 저항과 관련된 지질대사 불균형이 관찰됩니다. ${hba1cNote} 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
   }
   if (primary.startsWith("C.")) {
     const values = [
       present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "",
       present(data.visceralFat) ? `내장지방레벨 ${data.visceralFat}` : "",
     ].filter(Boolean);
-    return `${joinKorean(values) || "염증 관련 지표"}에서 저등급 염증 또는 체성분 관련 신호가 관찰됩니다. 급성 염증 가능성이 있으면 재평가가 우선입니다.`;
+    return `${joinKorean(values) || "염증 관련 지표"}에서 저강도 염증 또는 체성분 관련 관리 필요 소견이 관찰됩니다. 급성 염증 가능성이 있으면 재평가가 우선입니다.`;
   }
   if (primary.startsWith("D.")) {
     const values = [
@@ -775,7 +775,7 @@ function makeTypeReason(data, results, primary) {
     return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 우선 관리영역과 보조 태그를 함께 보며 단계적으로 접근하는 것이 좋습니다.";
   }
   if (primary === "대사 균형형") {
-    return "5개 대사축이 모두 15점 이상으로 확인되어 특정 위험 패턴보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
+    return "5개 대사축이 모두 15점 이상으로 확인되어 특정 관리 유형보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
   }
   if (primary === "특정 우세형 없음") {
     return "현재 입력된 검사 조합에서는 한 가지 타입으로 뚜렷하게 묶이는 패턴이 두드러지지 않습니다. 낮은 점수의 개별 영역을 중심으로 관리 방향을 정합니다.";
@@ -882,7 +882,7 @@ function renderPriority(axes) {
   });
   const detailItems = items.map((axis, index) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}을 우선 확인합니다.</span></span><span>${axisDisplay(axis)}</span>`;
+    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}을 먼저 살펴봅니다.</span></span><span>${axisDisplay(axis)}</span>`;
     return item;
   });
   elements.priorityList.replaceChildren(...summaryItems);
@@ -946,13 +946,13 @@ function renderAxisCards(axes) {
     const cardComment = axis.key === "inflammation" && axis.status === "hold"
       ? "급성 염증 가능성을 먼저 확인한 뒤 재검이 필요합니다."
       : axis.key === "inflammation" && axis.score >= 17
-        ? "양호 · 저등급 염증 신호와 내장지방 상태가 전반적으로 양호합니다."
+        ? "양호 · 저강도 염증과 내장지방 상태가 전반적으로 양호합니다."
         : axis.key === "inflammation" && axis.score >= 14
-          ? "경계 관찰 · 저등급 염증 또는 내장지방 증가 경향을 확인합니다."
+          ? "경계 관찰 · 저강도 염증 또는 내장지방 증가 경향을 확인합니다."
           : axis.key === "inflammation" && axis.score >= 10
-            ? "개선 필요 · 저등급 염증 신호와 내장지방 상태를 함께 관리할 필요가 있습니다."
+            ? "개선 필요 · 저강도 염증과 내장지방 상태를 함께 관리할 필요가 있습니다."
             : axis.key === "inflammation"
-              ? "우선 관리 · 염증 신호가 높거나 내장지방 부담이 커 원인 평가와 적극적인 관리가 필요합니다."
+              ? "우선 관리 · 염증 수치가 높거나 내장지방 관리가 필요해 원인 확인과 적극적인 관리가 필요합니다."
               : axis.key === "liver" && axis.score >= 17
       ? "현재 측정한 간수치는 대체로 양호합니다."
       : `${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}`;
@@ -1071,14 +1071,14 @@ function hsCrpInterpretationNotes(data) {
     return notes;
   }
   if (data.hsCrp >= 0.5 && data.hsCrp <= 0.99) {
-    notes.push("hs-CRP는 일반적인 심혈관 고위험 범위는 아니지만, 대사건강의 최적 수준보다는 높아 저등급 염증 신호를 관찰할 필요가 있습니다.");
+    notes.push("hs-CRP는 일반적인 심혈관 위험 기준에서는 높은 범위가 아니지만, 대사건강의 최적 수준보다는 높아 저강도 염증 여부를 관찰할 필요가 있습니다.");
     if (data.visceralFat >= 6) notes.push("내장지방 상태를 함께 고려하면 생활습관과 체지방 분포를 개선하는 것이 좋습니다.");
   } else if (data.hsCrp >= 1 && data.hsCrp <= 1.99) {
     notes.push("hs-CRP가 경도 상승 범위입니다. 급성 염증 요인을 확인하고, 반복검사에서도 상승하는지 추적하는 것이 좋습니다.");
   } else if (data.hsCrp >= 2 && data.hsCrp <= 2.99) {
     notes.push("hs-CRP가 의미 있게 상승해 지속적인 저등급 염증 가능성을 확인할 필요가 있습니다. 급성 감염이나 외상 등이 없다면 일정 간격 후 재검을 권고합니다.");
   } else if (data.hsCrp >= 3 && data.hsCrp <= 10) {
-    notes.push("hs-CRP가 높은 염증 신호 범위입니다. 급성 감염, 치주질환, 외상, 수술, 관절염 등 원인을 확인하고 재검이 필요합니다.");
+    notes.push("hs-CRP가 염증 수치 상승 범위입니다. 급성 감염, 치주질환, 외상, 수술, 관절염 등 원인을 확인하고 재검이 필요합니다.");
   }
   return notes;
 }
