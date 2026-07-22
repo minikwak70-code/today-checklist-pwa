@@ -798,6 +798,7 @@ function renderComputed(data, results) {
 function renderRadar(axes) {
   const center = 230;
   const radius = 140;
+  const labelLines = (label) => label.includes("·") ? label.split("·").map((part, index) => index === 0 ? part : `·${part}`) : [label];
   const pointsFor = (scale, inactiveAsOuter = false) =>
     axes.map((axis, index) => {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
@@ -808,10 +809,19 @@ function renderRadar(axes) {
   const grid = [0.25, 0.5, 0.75, 1].map((level) => `<polygon points="${pointsFor(level, true)}" fill="none" stroke="#cbd9d2" stroke-width="1.2" />`).join("");
   const labels = axes.map((axis, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
-    const x = center + Math.cos(angle) * (radius + 48);
+    const side = Math.cos(angle);
+    const rawX = center + side * (radius + 44);
+    const x = side < -0.35 ? 70 : side > 0.35 ? 390 : rawX;
     const y = center + Math.sin(angle) * (radius + 48);
-    const label = axis.status === "unavailable" ? `${axis.label} 미측정` : axis.status === "hold" ? `${axis.label} 보류` : axis.label;
-    return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" fill="${axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781"}" font-size="16" font-weight="850">${label}</text>`;
+    const anchor = side < -0.35 ? "start" : side > 0.35 ? "end" : "middle";
+    const statusLabel = axis.status === "unavailable" ? "미측정" : axis.status === "hold" ? "보류" : "";
+    const fill = axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781";
+    const lines = statusLabel ? [...labelLines(axis.label), statusLabel] : labelLines(axis.label);
+    const firstDy = lines.length === 1 ? "0" : `${-0.55 * (lines.length - 1)}em`;
+    const tspans = lines.map((line, lineIndex) => (
+      `<tspan x="${x}" dy="${lineIndex === 0 ? firstDy : "1.15em"}">${line}</tspan>`
+    )).join("");
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" font-size="16" font-weight="850">${tspans}</text>`;
   }).join("");
   const spokes = axes.map((_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
