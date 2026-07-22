@@ -816,6 +816,10 @@ button:disabled {
   border-bottom: 2px solid #dfe8e2;
 }
 
+.report-header > div:first-child {
+  min-width: 0;
+}
+
 .type-card {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -950,8 +954,8 @@ button:disabled {
 }
 
 .radar-chart {
-  width: min(100%, 368px);
-  aspect-ratio: 1;
+  width: min(100%, 448px);
+  aspect-ratio: 560 / 460;
 }
 
 .radar-chart svg {
@@ -1596,17 +1600,21 @@ button:disabled {
   }
 
   .report-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 128px;
+    align-items: start;
     padding-bottom: 14px;
     gap: 18px;
   }
 
   .report-header h2 {
-    font-size: 34px;
+    font-size: 32px;
   }
 
   .score-badge {
     width: 128px;
     min-height: 118px;
+    justify-self: end;
     box-shadow: none;
   }
 
@@ -1633,7 +1641,7 @@ button:disabled {
   }
 
   .radar-chart {
-    width: min(100%, 265px);
+    width: min(100%, 324px);
   }
 
   .axis-score-legend {

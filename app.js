@@ -796,7 +796,10 @@ function renderComputed(data, results) {
 }
 
 function renderRadar(axes) {
-  const center = 230;
+  const viewWidth = 560;
+  const viewHeight = 460;
+  const centerX = viewWidth / 2;
+  const centerY = viewHeight / 2;
   const radius = 140;
   const labelLines = (label) => label.includes("·") ? label.split("·").map((part, index) => index === 0 ? part : `·${part}`) : [label];
   const pointsFor = (scale, inactiveAsOuter = false) =>
@@ -804,15 +807,15 @@ function renderRadar(axes) {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
       const isInactive = axis.status === "unavailable" || axis.status === "hold";
       const axisScale = isInactive ? (inactiveAsOuter ? 1 : 0) : (axis.score / AXIS_MAX) * scale;
-      return `${center + Math.cos(angle) * radius * axisScale},${center + Math.sin(angle) * radius * axisScale}`;
+      return `${centerX + Math.cos(angle) * radius * axisScale},${centerY + Math.sin(angle) * radius * axisScale}`;
     }).join(" ");
   const grid = [0.25, 0.5, 0.75, 1].map((level) => `<polygon points="${pointsFor(level, true)}" fill="none" stroke="#cbd9d2" stroke-width="1.2" />`).join("");
   const labels = axes.map((axis, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
     const side = Math.cos(angle);
-    const rawX = center + side * (radius + 44);
-    const x = side < -0.35 ? 70 : side > 0.35 ? 390 : rawX;
-    const y = center + Math.sin(angle) * (radius + 48);
+    const rawX = centerX + side * (radius + 58);
+    const x = side < -0.35 ? 56 : side > 0.35 ? viewWidth - 56 : rawX;
+    const y = centerY + Math.sin(angle) * (radius + 48);
     const anchor = side < -0.35 ? "start" : side > 0.35 ? "end" : "middle";
     const statusLabel = axis.status === "unavailable" ? "미측정" : axis.status === "hold" ? "보류" : "";
     const fill = axis.status === "complete" || axis.status === "partial" ? "#24372f" : "#7b8781";
@@ -825,17 +828,17 @@ function renderRadar(axes) {
   }).join("");
   const spokes = axes.map((_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
-    return `<line x1="${center}" y1="${center}" x2="${center + Math.cos(angle) * radius}" y2="${center + Math.sin(angle) * radius}" stroke="#d4e0da" stroke-width="1.1" />`;
+    return `<line x1="${centerX}" y1="${centerY}" x2="${centerX + Math.cos(angle) * radius}" y2="${centerY + Math.sin(angle) * radius}" stroke="#d4e0da" stroke-width="1.1" />`;
   }).join("");
   const inactive = axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis, index) => {
     const axisIndex = axes.indexOf(axis);
     const angle = -Math.PI / 2 + (axisIndex * Math.PI * 2) / axes.length;
-    const x = center + Math.cos(angle) * radius;
-    const y = center + Math.sin(angle) * radius;
-    return `<line x1="${center}" y1="${center}" x2="${x}" y2="${y}" stroke="#9aa6a0" stroke-dasharray="4 5" />`;
+    const x = centerX + Math.cos(angle) * radius;
+    const y = centerY + Math.sin(angle) * radius;
+    return `<line x1="${centerX}" y1="${centerY}" x2="${x}" y2="${y}" stroke="#9aa6a0" stroke-dasharray="4 5" />`;
   }).join("");
   elements.radarChart.innerHTML = `
-    <svg viewBox="0 0 460 460" role="img" aria-label="5개 축 점수 레이더 차트">
+    <svg viewBox="0 0 ${viewWidth} ${viewHeight}" role="img" aria-label="5개 축 점수 레이더 차트">
       ${grid}
       ${spokes}
       ${inactive}
