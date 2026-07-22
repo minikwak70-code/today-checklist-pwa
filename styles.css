@@ -1578,7 +1578,7 @@ button:disabled {
 @media print {
   @page {
     size: A4;
-    margin: 10mm;
+    margin: 8mm;
   }
 
   html,
@@ -1620,7 +1620,7 @@ button:disabled {
   }
 
   .report-page {
-    min-height: 276mm;
+    min-height: 0;
     break-after: page;
     page-break-after: always;
     gap: 12px;
@@ -1639,83 +1639,113 @@ button:disabled {
 
   .report-header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 128px;
+    grid-template-columns: minmax(0, 1fr) 116px;
     align-items: start;
-    padding-bottom: 14px;
-    gap: 18px;
+    padding-bottom: 10px;
+    gap: 14px;
   }
 
   .report-header h2 {
-    font-size: 32px;
+    font-size: 30px;
+  }
+
+  .patient-line {
+    margin-top: 8px;
+    font-size: 12.5px;
   }
 
   .score-badge {
-    width: 128px;
-    min-height: 118px;
+    width: 116px;
+    min-height: 106px;
     justify-self: end;
     box-shadow: none;
   }
 
   .score-badge strong {
-    font-size: 38px;
+    font-size: 34px;
+  }
+
+  .score-badge small {
+    max-width: 98px;
+    font-size: 9.8px;
   }
 
   .type-card {
     grid-template-columns: repeat(4, 1fr);
     margin-top: 0;
-    padding: 14px;
+    padding: 10px;
   }
 
   .type-card {
-    gap: 10px;
+    gap: 7px;
   }
 
   .type-guide,
   .type-reason {
-    font-size: 11px;
-    line-height: 1.42;
+    font-size: 9.7px;
+    line-height: 1.34;
   }
 
-  .type-reason {
-    padding: 9px 11px;
+  .type-guide {
+    padding-bottom: 7px;
   }
 
-  .type-overview {
-    gap: 6px;
-  }
-
-  .type-overview dl {
-    gap: 6px;
-  }
-
-  .type-overview dl > div {
-    padding: 7px 8px;
-  }
-
-  .type-overview dt {
-    font-size: 9.6px;
+  .type-card .section-title {
+    font-size: 9.5px;
     margin-bottom: 3px;
   }
 
-  .type-overview dd {
-    font-size: 8.5px;
+  .type-card strong {
+    font-size: 13px;
     line-height: 1.28;
   }
 
+  .tag-line {
+    font-size: 10.2px;
+    line-height: 1.28;
+  }
+
+  .type-reason {
+    padding: 7px 9px;
+  }
+
+  .type-overview {
+    gap: 4px;
+  }
+
+  .type-overview dl {
+    gap: 5px;
+  }
+
+  .type-overview dl > div {
+    padding: 5px 6px;
+  }
+
+  .type-overview dt {
+    font-size: 8.8px;
+    margin-bottom: 2px;
+  }
+
+  .type-overview dd {
+    font-size: 7.7px;
+    line-height: 1.2;
+  }
+
   .summary-grid {
-    grid-template-columns: 1.36fr 0.64fr;
-    gap: 12px;
+    grid-template-columns: minmax(0, 1.42fr) minmax(168px, 0.58fr);
+    gap: 10px;
     margin-top: 0;
   }
 
   .radar-card {
-    min-height: 292px;
+    min-height: 254px;
     grid-template-columns: 1fr;
-    padding: 12px;
+    gap: 7px;
+    padding: 10px;
   }
 
   .radar-chart {
-    width: min(100%, 324px);
+    width: min(100%, 292px);
   }
 
   .axis-score-legend {
@@ -1723,24 +1753,32 @@ button:disabled {
   }
 
   .axis-score-legend li {
-    gap: 6px;
-    padding: 7px 5px;
-    font-size: 8.6px;
+    gap: 4px;
+    padding: 5px 4px;
+    font-size: 7.6px;
   }
 
   .priority-list li {
-    gap: 8px;
-    padding: 10px;
+    gap: 7px;
+    padding: 8px;
   }
 
   .priority-list strong {
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .priority-card,
   .summary-card,
   .detail-section > div {
-    padding: 14px;
+    padding: 12px;
+  }
+
+  .page-summary {
+    gap: 9px;
+  }
+
+  .page-summary .page-footer {
+    margin-top: 2px;
   }
 
   .axis-cards {
@@ -1816,7 +1854,6 @@ button:disabled {
     display: none !important;
   }
 
-  .summary-grid,
   .detail-section {
     break-inside: avoid;
     page-break-inside: avoid;
