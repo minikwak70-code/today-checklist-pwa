@@ -1602,7 +1602,8 @@ button:disabled {
   }
 
   .app-shell {
-    width: 100%;
+    width: calc(100% - 2mm);
+    margin: 0 auto;
   }
 
   .workspace {
@@ -1617,6 +1618,7 @@ button:disabled {
     box-shadow: none;
     padding: 0;
     background: white;
+    overflow: visible;
   }
 
   .report-page {
@@ -1624,6 +1626,7 @@ button:disabled {
     break-after: page;
     page-break-after: always;
     gap: 12px;
+    overflow: visible;
   }
 
   .report-page:last-child {
