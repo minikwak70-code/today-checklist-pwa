@@ -23,6 +23,14 @@ const AXIS_SHORT_COMMENTS = {
   autonomic: "혈압, HRV와 신체적 스트레스 반응",
 };
 
+const PRIORITY_REASON_COMMENTS = {
+  glucose: "인슐린 저항성과 혈당 조절 능력 상실은 만성염증을 악화시킵니다.",
+  lipid: "과도한 지질은 동맥경화 및 심근경색을 일으킬 수 있습니다.",
+  liver: "간이 좋아져야 대사기능이 좋아집니다.",
+  inflammation: "만성염증은 몸이 회복하는 것을 방해합니다.",
+  autonomic: "스트레스와 자율신경 불균형은 몸을 계속 각성시켜 부담을 줍니다.",
+};
+
 const elements = {
   form: document.querySelector("#reportForm"),
   generateButton: document.querySelector("#generateButton"),
@@ -882,7 +890,7 @@ function renderPriority(axes) {
   });
   const detailItems = items.map((axis, index) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}을 먼저 살펴봅니다.</span></span><span>${axisDisplay(axis)}</span>`;
+    item.innerHTML = `<span class="rank">${index + 1}</span><span><strong>${axis.label}</strong><span>${PRIORITY_REASON_COMMENTS[axis.key] || axis.comment}</span></span><span>${axisDisplay(axis)}</span>`;
     return item;
   });
   elements.priorityList.replaceChildren(...summaryItems);
