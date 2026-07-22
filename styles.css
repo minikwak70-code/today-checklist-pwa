@@ -1016,11 +1016,11 @@ button:disabled {
   display: grid;
   justify-items: center;
   gap: 12px;
-  padding: 8px 10px;
+  padding: 8px;
   border-radius: 8px;
   background: #eef4f1;
   color: #34433d;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   text-align: center;
 }
@@ -1028,7 +1028,7 @@ button:disabled {
 .axis-score-legend li span,
 .axis-score-legend li strong {
   min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .axis-score-legend li.muted {
@@ -1724,8 +1724,8 @@ button:disabled {
 
   .axis-score-legend li {
     gap: 6px;
-    padding: 7px 8px;
-    font-size: 9.5px;
+    padding: 7px 5px;
+    font-size: 8.6px;
   }
 
   .priority-list li {

@@ -831,7 +831,7 @@ function renderRadar(axes) {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
     const side = Math.cos(angle);
     const rawX = centerX + side * (radius + 58);
-    const x = side < -0.35 ? 56 : side > 0.35 ? viewWidth - 56 : rawX;
+    const x = side < -0.35 ? 8 : side > 0.35 ? viewWidth - 56 : rawX;
     const y = centerY + Math.sin(angle) * (radius + 48);
     const anchor = side < -0.35 ? "start" : side > 0.35 ? "end" : "middle";
     const statusLabel = axis.status === "unavailable" ? "미측정" : axis.status === "hold" ? "보류" : "";
