@@ -1735,6 +1735,7 @@ button:disabled {
   }
 
   .type-overview dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 5px;
   }
 
