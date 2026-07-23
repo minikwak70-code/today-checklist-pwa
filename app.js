@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v3.0";
+const SCORE_RULE_VERSION = "metabolic-score-v3.1";
 
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
@@ -90,6 +90,8 @@ const numberFields = new Set([
   "sbp",
   "dbp",
   "hrvIndexValue",
+  "snsPercent",
+  "pnsPercent",
   "sdnnValue",
   "snsPnsRatio",
   "heartRate",
@@ -149,9 +151,9 @@ const allFields = [
   "ldlMethod",
   "hrvIndexGrade",
   "stressGrade",
+  "ansActivity",
   "snsActivity",
   "pnsActivity",
-  "ansActivity",
   "lowProteinStatus",
   "weightLossStatus",
   "functionalDeclineStatus",
@@ -336,28 +338,134 @@ function scoreBloodPressure(sbp, dbp) {
   return scored(0, 6, "매우 높은 범위");
 }
 
+function normalizeGrade(grade) {
+  return String(grade || "").replace(/\s+/g, "");
+}
+
+function gradeAtLeastNormal(grade) {
+  return ["보통", "높음", "매우높음"].includes(normalizeGrade(grade));
+}
+
+function gradeLowOrVeryLow(grade) {
+  return ["낮음", "매우낮음"].includes(normalizeGrade(grade));
+}
+
+function gradeHighOrVeryHigh(grade) {
+  return ["높음", "매우높음"].includes(normalizeGrade(grade));
+}
+
 function scoreHrvIndex(grade, invalid) {
-  if (invalid) return hold(10, "판정 보류");
+  if (invalid) return hold(5, "판정 보류");
   const map = {
-    "매우 높음": [10, "심박변이도 매우 양호"],
-    "높음": [8, "심박변이도 양호"],
-    "보통": [5, "평균 범위"],
-    "낮음": [2, "회복력 관리 필요"],
-    "매우 낮음": [0, "회복력 집중 관리 필요"],
+    매우높음: [5, "매우 양호"],
+    높음: [4, "양호"],
+    보통: [3, "보통"],
+    낮음: [2, "낮음"],
+    매우낮음: [1, "매우 낮음"],
   };
-  return map[grade] ? scored(map[grade][0], 10, map[grade][1]) : missing(10);
+  const normalized = normalizeGrade(grade);
+  return map[normalized] ? scored(map[normalized][0], 5, map[normalized][1]) : missing(5);
+}
+
+function scoreAnsActivity(grade, invalid) {
+  if (invalid) return hold(5, "판정 보류");
+  const map = {
+    매우높음: [5, "매우 양호"],
+    높음: [4, "양호"],
+    보통: [3, "보통"],
+    낮음: [2, "낮음"],
+    매우낮음: [1, "매우 낮음"],
+  };
+  const normalized = normalizeGrade(grade);
+  return map[normalized] ? scored(map[normalized][0], 5, map[normalized][1]) : missing(5);
 }
 
 function scoreStress(grade, invalid) {
-  if (invalid) return hold(4, "판정 보류");
+  if (invalid) return hold(5, "판정 보류");
   const map = {
-    "매우 낮음": [4, "신체적 스트레스 반응 매우 낮음"],
-    "낮음": [3, "신체적 스트레스 반응 낮음"],
-    "보통": [2, "평균 범위"],
-    "높음": [1, "신체적 스트레스 반응 높음"],
-    "매우 높음": [0, "신체적 스트레스 반응 매우 높음"],
+    매우낮음: [5, "매우 낮음"],
+    낮음: [4, "낮음"],
+    보통: [3, "보통"],
+    높음: [2, "높음"],
+    매우높음: [1, "매우 높음"],
   };
-  return map[grade] ? scored(map[grade][0], 4, map[grade][1]) : missing(4);
+  const normalized = normalizeGrade(grade);
+  return map[normalized] ? scored(map[normalized][0], 5, map[normalized][1]) : missing(5);
+}
+
+function scoreSnsPnsBalance(snsPercent, invalid) {
+  if (invalid) return hold(5, "판정 보류");
+  if (!present(snsPercent)) return missing(5);
+  const difference = Math.abs(snsPercent - 50);
+  if (difference <= 2) return scored(5, 5, "균형 양호");
+  if (difference <= 4) return scored(4, 5, "가벼운 치우침");
+  if (difference <= 6) return scored(3, 5, "치우침 관찰");
+  if (difference <= 8) return scored(2, 5, "균형 관리 필요");
+  return scored(1, 5, "뚜렷한 치우침");
+}
+
+function autonomicGrade(score) {
+  if (score >= 18) return "매우 양호";
+  if (score >= 15) return "양호";
+  if (score >= 11) return "관리 필요";
+  if (score >= 8) return "저하";
+  return "뚜렷한 저하";
+}
+
+function autonomicPatientComment(score) {
+  if (score >= 18) return "자율신경 균형이 양호합니다.";
+  if (score >= 15) return "자율신경의 전체적인 활동과 회복력이 비교적 안정적입니다.";
+  if (score >= 11) return "스트레스와 회복 상태에 대한 관리가 필요합니다.";
+  if (score >= 8) return "검사상 자율신경 균형이 뚜렷하게 치우쳐 있습니다.";
+  return "수면, 스트레스, 피로 상태를 함께 관리할 필요가 있습니다.";
+}
+
+function autonomicPatternTags(data) {
+  if (!present(data.snsPercent)) return [];
+  const tags = [];
+  if (data.snsPercent >= 48 && data.snsPercent <= 52 && gradeAtLeastNormal(data.hrvIndexGrade) && gradeAtLeastNormal(data.ansActivity)) {
+    tags.push({ label: "균형 양호형", text: "교감신경과 부교감신경의 균형이 비교적 안정적입니다." });
+  }
+  if (data.snsPercent >= 53) {
+    tags.push({ label: "교감신경 우세형", text: "검사 당시 교감신경 쪽으로 균형이 치우쳐 있습니다. 스트레스, 긴장, 통증, 수면 부족 등의 영향을 함께 확인해야 합니다." });
+  }
+  if (data.snsPercent <= 47) {
+    tags.push({ label: "부교감신경 우세형", text: "검사 당시 부교감신경 쪽으로 균형이 치우쳐 있습니다. 전체 자율신경 활성도와 피로 상태를 함께 확인해야 합니다." });
+  }
+  if (gradeLowOrVeryLow(data.ansActivity)) {
+    tags.push({ label: "자율신경 활동 저하형", text: "교감신경과 부교감신경의 전체적인 활동 수준이 낮게 측정되었습니다. 수면, 영양, 활동량 및 만성 피로 상태를 함께 살펴볼 필요가 있습니다." });
+  }
+  if (gradeHighOrVeryHigh(data.stressGrade)) {
+    tags.push({ label: "스트레스 과부하형", text: "검사 당시 신체적 스트레스가 높게 측정되었습니다. 수면 부족, 통증, 긴장, 카페인, 직전 운동 등의 영향을 함께 확인해야 합니다." });
+  }
+  return tags;
+}
+
+function autonomicCarePriorities(data) {
+  const items = [];
+  const add = (text) => {
+    if (!items.includes(text)) items.push(text);
+  };
+  if (gradeHighOrVeryHigh(data.stressGrade)) {
+    add("스트레스와 긴장 완화");
+    add("호흡훈련과 스트레칭");
+    add("카페인과 음주 조절");
+  }
+  if (data.snsPercent >= 53) {
+    add("규칙적인 수면시간 유지");
+    add("과로와 고강도 운동 조절");
+    add("걷기와 가벼운 유산소운동");
+  }
+  if (data.snsPercent <= 47 || gradeLowOrVeryLow(data.ansActivity)) {
+    add("수면의 질 개선");
+    add("걷기와 가벼운 유산소운동");
+    add("통증 및 피로 원인 관리");
+  }
+  if (!items.length) {
+    add("규칙적인 수면시간 유지");
+    add("걷기와 가벼운 유산소운동");
+  }
+  return items.slice(0, 4);
 }
 
 function hasHrvLimit(data) {
@@ -406,9 +514,15 @@ function makeResults(data) {
   const alp = scoreUln(data.alp, data.alpUln, 0, [0, 0, 0, 0]);
   const hsCrp = scoreHsCrp(data.hsCrp);
   const visceralFat = scoreVisceralFat(data.visceralFat);
-  const bp = scoreBloodPressure(data.sbp, data.dbp);
+  const snsPercent = present(data.snsPercent) ? data.snsPercent : data.snsPnsRatio;
+  const pnsPercent = present(snsPercent) ? 100 - snsPercent : null;
   const hrvIndex = scoreHrvIndex(data.hrvIndexGrade, hrvLimited);
+  const ansActivity = scoreAnsActivity(data.ansActivity, hrvLimited);
   const stress = scoreStress(data.stressGrade, hrvLimited);
+  const snsInvalid = present(snsPercent) && (snsPercent < 0 || snsPercent > 100);
+  const snsPnsBalance = scoreSnsPnsBalance(snsPercent, hrvLimited || snsInvalid);
+  const autonomicMissing = !present(data.hrvIndexGrade) || !present(data.ansActivity) || !present(data.stressGrade) || !present(snsPercent) || snsInvalid;
+  const autonomicPatterns = autonomicPatternTags({ ...data, snsPercent });
 
   const axes = [
     makeAxis(
@@ -457,19 +571,13 @@ function makeResults(data) {
       "autonomic",
       "자율신경(스트레스)",
       [
-        { label: "혈압", result: bp, value: present(data.sbp) && present(data.dbp) ? `${data.sbp}/${data.dbp}` : null },
-        { label: "HRV-Index", result: hrvIndex, value: [data.hrvIndexGrade, present(data.hrvIndexValue) ? data.hrvIndexValue : ""].filter(Boolean).join(" · ") },
+        { label: "HRV-Index", result: hrvIndex, value: data.hrvIndexGrade || null },
+        { label: "ANS Activity", result: ansActivity, value: data.ansActivity || null },
         { label: "Stress", result: stress, value: data.stressGrade || null },
-        { label: "SDNN", result: scored("-", 0, "참고지표"), value: present(data.sdnnValue) ? `${data.sdnnValue} ms` : null, reference: true },
-        { label: "SNS Activity", result: scored("-", 0, "참고지표"), value: data.snsActivity || null, reference: true },
-        { label: "PNS Activity", result: scored("-", 0, "참고지표"), value: data.pnsActivity || null, reference: true },
-        { label: "ANS Activity", result: scored("-", 0, "참고지표"), value: data.ansActivity || null, reference: true },
-        { label: "SNS/PNS", result: scored("-", 0, "참고지표"), value: present(data.snsPnsRatio) ? data.snsPnsRatio : null, reference: true },
-        { label: "심박수", result: scored("-", 0, "참고지표"), value: present(data.heartRate) ? `${data.heartRate} bpm` : null, reference: true },
-        { label: "안정 시 심박수", result: scored("-", 0, "참고지표"), value: present(data.restingHr) ? `${data.restingHr} bpm` : null, reference: true },
+        { label: "SNS:PNS 균형", result: snsPnsBalance, value: present(snsPercent) ? `SNS ${formatDecimal(snsPercent, 1)}% : PNS ${formatDecimal(pnsPercent, 1)}%` : null },
       ],
-      "혈압조절 상태, 옴니핏 HRV-Index, 측정 당시 신체적 스트레스 반응을 함께 평가합니다.",
-      !present(data.sbp) && !present(data.dbp) && !present(data.hrvIndexGrade) && !present(data.stressGrade),
+      "옴니핏 자율신경 측정 결과를 HRV-Index, ANS Activity, Stress, SNS:PNS 균형으로 평가합니다.",
+      autonomicMissing,
       hrvLimited,
     ),
   ];
@@ -478,7 +586,20 @@ function makeResults(data) {
   const total = measuredAxes.reduce((sum, axis) => sum + axis.score, 0);
   const max = measuredAxes.reduce((sum, axis) => sum + axis.max, 0);
 
-  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, hsCrp, visceralFat, bp, hrvIndex, stress }, hrvLimited };
+  const autonomicAxis = axes.find((axis) => axis.key === "autonomic");
+  if (autonomicAxis) {
+    autonomicAxis.autonomic = {
+      grade: autonomicAxis.status === "complete" || autonomicAxis.status === "partial" ? autonomicGrade(autonomicAxis.score) : "판정 불가",
+      comment: autonomicPatientComment(autonomicAxis.score),
+      patterns: autonomicPatterns,
+      priorities: autonomicCarePriorities({ ...data, snsPercent }),
+      snsPercent,
+      pnsPercent,
+      notice: "본 점수는 옴니핏 자율신경 측정 결과를 공덕경희한의원의 대사건강 관리 목적으로 환산한 자체 평가점수입니다. 검사 당시의 긴장, 통증, 수면 상태, 카페인, 흡연, 음주, 운동 및 측정 환경에 따라 결과가 달라질 수 있습니다. 자율신경계 질환을 진단하는 검사는 아니며, 동일한 조건에서의 치료 전후 변화를 중심으로 평가합니다.",
+    };
+  }
+
+  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, hsCrp, visceralFat, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
 }
 
 function validateInputs(data) {
@@ -488,9 +609,11 @@ function validateInputs(data) {
   const addWarning = (fieldId, text) => warnings.push({ fieldId, text });
 
   for (const id of numberFields) {
+    if (id === "snsPercent") continue;
     if (present(data[id]) && data[id] < 0) addError(id, "음수 검사값은 입력할 수 없습니다.");
   }
   if (present(data.hdl) && data.hdl <= 0) addError("hdl", "HDL-C가 0 이하이면 TG/HDL-C를 계산할 수 없습니다.");
+  if (present(data.snsPercent) && (data.snsPercent < 0 || data.snsPercent > 100)) addError("snsPercent", "SNS 비율은 0~100 사이의 숫자로 입력해주세요.");
   if (present(data.totalChol) && present(data.hdl) && data.totalChol < data.hdl) addError("totalChol", "총콜레스테롤이 HDL-C보다 낮습니다.");
   if (present(data.sbp) && present(data.dbp) && data.dbp > data.sbp) addError("dbp", "이완기혈압이 수축기혈압보다 높습니다.");
   if (present(data.smi) && data.smi <= 0) addError("smi", "SMI는 0보다 큰 kg/m² 값을 입력해야 합니다.");
@@ -613,12 +736,12 @@ function scoreTypes(data, results) {
   }
 
   const dReasons = [
-    data.hrvIndexGrade === "낮음" || data.hrvIndexGrade === "매우 낮음",
-    data.stressGrade === "높음" || data.stressGrade === "매우 높음",
+    gradeLowOrVeryLow(data.hrvIndexGrade),
+    gradeLowOrVeryLow(data.ansActivity),
+    gradeHighOrVeryHigh(data.stressGrade),
+    present(data.snsPercent) && Math.abs(data.snsPercent - 50) > 6,
     data.sleepProblem,
     data.chronicFatigue,
-    data.snsActivity === "높음" || data.snsActivity === "매우 높음",
-    data.pnsActivity === "낮음" || data.pnsActivity === "매우 낮음",
     data.restingHr >= 90 || data.heartRate >= 90,
     data.palpitation,
     data.tensionAnxiety,
@@ -771,8 +894,9 @@ function makeTypeReason(data, results, primary) {
   if (primary.startsWith("D.")) {
     const values = [
       data.hrvIndexGrade ? `HRV-Index ${data.hrvIndexGrade}` : "",
+      data.ansActivity ? `ANS Activity ${data.ansActivity}` : "",
       data.stressGrade ? `Stress ${data.stressGrade}` : "",
-      present(data.sbp) && present(data.dbp) ? `혈압 ${data.sbp}/${data.dbp}` : "",
+      present(data.snsPercent) ? `SNS:PNS ${formatDecimal(data.snsPercent, 1)}:${formatDecimal(100 - data.snsPercent, 1)}` : "",
     ].filter(Boolean);
     return `${joinKorean(values)} 결과에서 회복력과 신체적 스트레스 반응을 함께 살펴볼 필요가 있습니다. 측정 조건에 따라 변동될 수 있어 추적 비교가 중요합니다.`;
   }
@@ -809,6 +933,10 @@ function makeSarcopeniaTypeSentence(data) {
 }
 
 function renderComputed(data, results) {
+  const pnsInput = field("pnsPercent");
+  if (pnsInput) {
+    pnsInput.value = present(data.snsPercent) && data.snsPercent >= 0 && data.snsPercent <= 100 ? formatDecimal(100 - data.snsPercent, 1) : "";
+  }
   elements.tgHdlCalc.textContent = present(results.parts.tgHdl?.ratio)
     ? `TG/HDL-C: ${results.parts.tgHdl.ratio.toFixed(2)} — ${results.parts.tgHdl.label}`
     : "TG/HDL-C: TG와 HDL-C 입력 후 계산";
@@ -945,6 +1073,36 @@ function renderAxisCards(axes) {
     const card = document.createElement("article");
     card.className = `axis-card ${axis.status}`;
     const percent = axis.status === "unavailable" || axis.status === "hold" ? 0 : (axis.score / AXIS_MAX) * 100;
+    if (axis.key === "autonomic") {
+      const detailRows = axis.details
+        .filter((detail) => !detail.reference)
+        .map((detail) => `<li><span>${detail.label}</span><strong>${axis.status === "unavailable" || axis.status === "hold" ? "판정 불가" : `${detail.result.score}/${detail.result.max}점`}${detail.value ? ` · ${detail.value}` : ""}</strong></li>`)
+        .join("");
+      const patterns = axis.autonomic?.patterns?.length
+        ? axis.autonomic.patterns.map((pattern) => `<li><strong>${pattern.label}</strong><span>${pattern.text}</span></li>`).join("")
+        : "<li><strong>패턴 태그</strong><span>입력 후 표시됩니다.</span></li>";
+      const priorities = axis.autonomic?.priorities?.length
+        ? axis.autonomic.priorities.map((item) => `<li>${item}</li>`).join("")
+        : "<li>입력 후 표시됩니다.</li>";
+      const comment = axis.status === "unavailable"
+        ? "HRV-Index, ANS Activity, Stress, SNS 비율을 모두 입력하면 자율신경·회복 점수가 계산됩니다."
+        : axis.status === "hold"
+          ? "HRV 판독 제한 조건이 있어 자율신경 결과는 참고용으로만 확인합니다."
+          : axis.autonomic.comment;
+      card.innerHTML = `
+        <strong>자율신경·회복 점수</strong>
+        <div class="axis-score">${axisDisplay(axis)}${axis.status === "complete" || axis.status === "partial" ? ` · ${axis.autonomic.grade}` : ""}</div>
+        <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
+        <p>${comment}</p>
+        <ul class="axis-key-values">${detailRows}</ul>
+        <p class="subsection-label">패턴 태그</p>
+        <ul class="axis-key-values autonomic-patterns">${patterns}</ul>
+        <p class="subsection-label">관리 우선순위</p>
+        <ul class="axis-key-values autonomic-priorities">${priorities}</ul>
+        <small class="field-help">${axis.autonomic?.notice || ""}</small>
+      `;
+      return card;
+    }
     const keyValues = axis.details
       .filter((detail) => detail.value && !detail.reference)
       .slice(0, 3)
@@ -1207,6 +1365,7 @@ function currentReportSnapshot() {
   const primaryType = selectedPrimaryType(rendered.typeResult, rendered.data);
   const secondaryType = selectedSecondaryType(rendered.typeResult, rendered.data);
   const axes = axisScoreMap(rendered.results.axes);
+  const itemScores = itemScoreMap(rendered.results.axes);
   const calculatedScores = {
     totalScore: rendered.results.total,
     maxScore: rendered.results.max,
@@ -1215,7 +1374,13 @@ function currentReportSnapshot() {
     liverScore: axes.liver,
     inflammationScore: axes.inflammation,
     autonomicScore: axes.autonomic,
-    itemScores: itemScoreMap(rendered.results.axes),
+    hrvIndexScore: itemScores["autonomic:HRV-Index"],
+    ansActivityScore: itemScores["autonomic:ANS Activity"],
+    stressScore: itemScores["autonomic:Stress"],
+    snsPnsBalanceScore: itemScores["autonomic:SNS:PNS 균형"],
+    snsPercent: rendered.data.snsPercent,
+    pnsPercent: present(rendered.data.snsPercent) ? 100 - rendered.data.snsPercent : null,
+    itemScores,
   };
   return {
     ...rendered,
@@ -1245,6 +1410,7 @@ function setValues(values) {
     const input = field(id);
     if (!input) continue;
     if (checkboxFields.has(id)) input.checked = Boolean(value);
+    else if (["hrvIndexGrade", "ansActivity", "stressGrade"].includes(id)) input.value = normalizeGrade(value);
     else input.value = value ?? "";
   }
   render();
@@ -1282,7 +1448,9 @@ function fillSample() {
     dbp: 86,
     hrvIndexValue: 18.6,
     hrvIndexGrade: "보통",
+    ansActivity: "높음",
     stressGrade: "높음",
+    snsPercent: 59,
     fattyLiver: true,
   });
 }

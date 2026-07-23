@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=23" />
+    <link rel="stylesheet" href="./styles.css?v=24" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -363,54 +363,50 @@
             </fieldset>
 
             <fieldset>
-              <legend>혈압·HRV</legend>
+              <legend>자율신경·회복</legend>
               <div class="form-grid three">
                 <label>
-                  <span>수축기혈압 (mmHg)</span>
-                  <input id="sbp" name="sbp" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>이완기혈압 (mmHg)</span>
-                  <input id="dbp" name="dbp" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>HRV-Index 원수치</span>
-                  <input id="hrvIndexValue" name="hrvIndexValue" type="number" step="0.1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>HRV-Index 판정</span>
+                  <span>HRV-Index</span>
                   <select id="hrvIndexGrade" name="hrvIndexGrade">
                     <option value="">선택</option>
-                    <option>매우 높음</option>
+                    <option>매우높음</option>
                     <option>높음</option>
                     <option>보통</option>
                     <option>낮음</option>
-                    <option>매우 낮음</option>
+                    <option>매우낮음</option>
                   </select>
                 </label>
                 <label>
-                  <span>Stress 판정</span>
+                  <span>ANS Activity</span>
+                  <select id="ansActivity" name="ansActivity">
+                    <option value="">선택</option>
+                    <option>매우높음</option>
+                    <option>높음</option>
+                    <option>보통</option>
+                    <option>낮음</option>
+                    <option>매우낮음</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Stress</span>
                   <select id="stressGrade" name="stressGrade">
                     <option value="">선택</option>
-                    <option>매우 낮음</option>
+                    <option>매우낮음</option>
                     <option>낮음</option>
                     <option>보통</option>
                     <option>높음</option>
-                    <option>매우 높음</option>
+                    <option>매우높음</option>
                   </select>
                 </label>
+                <label>
+                  <span>SNS 비율 (%)</span>
+                  <input id="snsPercent" name="snsPercent" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="예: 59" />
+                </label>
+                <label>
+                  <span>PNS 비율 (%)</span>
+                  <input id="pnsPercent" name="pnsPercent" type="number" step="0.1" min="0" max="100" inputmode="decimal" readonly />
+                </label>
               </div>
-              <details class="inline-details">
-                <summary>상세 HRV 참고정보</summary>
-                <div class="form-grid three">
-                  <label><span>SDNN (ms)</span><input id="sdnnValue" type="number" step="0.001" min="0" inputmode="decimal" /></label>
-                  <label><span>SNS Activity</span><select id="snsActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
-                  <label><span>PNS Activity</span><select id="pnsActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
-                  <label><span>ANS Activity</span><select id="ansActivity"><option value="">선택</option><option>매우 낮음</option><option>낮음</option><option>보통</option><option>높음</option><option>매우 높음</option></select></label>
-                  <label><span>SNS/PNS</span><input id="snsPnsRatio" type="number" step="0.01" min="0" inputmode="decimal" /></label>
-                  <label><span>심박수 (bpm)</span><input id="heartRate" type="number" step="1" min="0" inputmode="decimal" /></label>
-                </div>
-              </details>
             </fieldset>
 
             <details class="fieldset-details">
@@ -554,6 +550,11 @@
                   <option value="liverScore">간대사</option>
                   <option value="inflammationScore">만성염증</option>
                   <option value="autonomicScore">자율신경(스트레스)</option>
+                  <option value="hrvIndexScore">HRV-Index 점수</option>
+                  <option value="ansActivityScore">ANS Activity 점수</option>
+                  <option value="stressScore">Stress 점수</option>
+                  <option value="snsPnsBalanceScore">SNS:PNS 균형 점수</option>
+                  <option value="snsPnsPercent">SNS/PNS 비율</option>
                 </select>
               </label>
             </div>
@@ -699,7 +700,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=22" defer></script>
-    <script src="./tracking.js?v=3" defer></script>
+    <script src="./app.js?v=23" defer></script>
+    <script src="./tracking.js?v=4" defer></script>
   </body>
 </html>

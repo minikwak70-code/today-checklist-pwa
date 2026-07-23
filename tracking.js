@@ -61,9 +61,11 @@ const metricMeta = [
   { key: "nonHdl", label: "non-HDL-C", unit: "mg/dL", direction: "down", value: (raw) => raw.totalChol && raw.hdl ? raw.totalChol - raw.hdl : null },
   { key: "hsCrp", label: "hs-CRP", unit: "mg/L", direction: "down", value: (raw) => raw.hsCrp },
   { key: "visceralFat", label: "내장지방레벨", unit: "", direction: "down", value: (raw) => raw.visceralFat },
-  { key: "sbp", label: "수축기혈압", unit: "mmHg", direction: "down", value: (raw) => raw.sbp },
-  { key: "dbp", label: "이완기혈압", unit: "mmHg", direction: "down", value: (raw) => raw.dbp },
-  { key: "hrvIndexValue", label: "HRV-Index", unit: "", direction: "up", value: (raw) => raw.hrvIndexValue },
+  { key: "hrvIndexScore", label: "HRV-Index 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "hrvIndexScore", "autonomic:HRV-Index") },
+  { key: "ansActivityScore", label: "ANS Activity 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "ansActivityScore", "autonomic:ANS Activity") },
+  { key: "stressScore", label: "Stress 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "stressScore", "autonomic:Stress") },
+  { key: "snsPercent", label: "SNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.snsPercent ?? calculatedValue(assessment, "snsPercent") },
+  { key: "pnsPercent", label: "PNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.pnsPercent ?? calculatedValue(assessment, "pnsPercent") },
   { key: "smi", label: "SMI", unit: "kg/m²", direction: "up", value: (raw) => raw.smi },
   { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
   { key: "chairStandSeconds", label: "Chair Stand", unit: "초", direction: "down", value: (raw) => raw.chairStandSeconds },
@@ -163,6 +165,28 @@ function numberText(value, digits = 0) {
 
 function scoreText(value) {
   return value === null || value === undefined ? "--" : `${numberText(value)}점`;
+}
+
+function calculatedValue(assessment, key, itemKey = "") {
+  const scores = assessment?.calculatedScores || {};
+  if (scores[key] !== null && scores[key] !== undefined) return scores[key];
+  if (itemKey && scores.itemScores && scores.itemScores[itemKey] !== null && scores.itemScores[itemKey] !== undefined) return scores.itemScores[itemKey];
+  if (assessment?.[key] !== null && assessment?.[key] !== undefined) return assessment[key];
+  return null;
+}
+
+function trendValue(assessment, key) {
+  if (key === "snsPnsPercent") return assessment?.rawValues?.snsPercent ?? calculatedValue(assessment, "snsPercent");
+  if (["hrvIndexScore", "ansActivityScore", "stressScore", "snsPnsBalanceScore", "snsPercent", "pnsPercent"].includes(key)) {
+    const itemMap = {
+      hrvIndexScore: "autonomic:HRV-Index",
+      ansActivityScore: "autonomic:ANS Activity",
+      stressScore: "autonomic:Stress",
+      snsPnsBalanceScore: "autonomic:SNS:PNS 균형",
+    };
+    return calculatedValue(assessment, key, itemMap[key]);
+  }
+  return assessment?.[key];
 }
 
 function ageAt(birthDate, atDate = new Date().toISOString().slice(0, 10)) {
@@ -500,13 +524,14 @@ function improvementLabel(meta, before, after) {
   if (Math.abs(diff) < 0.01) return "유지";
   if (meta.direction === "up") return diff > 0 ? "개선" : "악화";
   if (meta.direction === "down") return diff < 0 ? "개선" : "악화";
+  if (meta.direction === "center50") return Math.abs(after - 50) < Math.abs(before - 50) ? "개선" : "맥락 확인";
   return "맥락 확인";
 }
 
 function metricRows(base, compare) {
   return metricMeta.map((meta) => {
-    const before = meta.value(base.rawValues);
-    const after = meta.value(compare.rawValues);
+    const before = meta.value(base.rawValues || {}, base);
+    const after = meta.value(compare.rawValues || {}, compare);
     if (before === null || before === undefined || after === null || after === undefined) return null;
     const diff = after - before;
     return {
@@ -524,9 +549,27 @@ function metricRows(base, compare) {
 function makeComparisonSummary(base, compare, improvedAxis, lowAxis, rows) {
   const totalDiff = compare.totalScore - base.totalScore;
   const majorMetric = rows.find((row) => row.evaluation === "개선");
+  const autonomicBefore = calculatedValue(base, "autonomicScore") ?? base.autonomicScore;
+  const autonomicAfter = calculatedValue(compare, "autonomicScore") ?? compare.autonomicScore;
+  const snsBefore = base.rawValues?.snsPercent ?? calculatedValue(base, "snsPercent");
+  const snsAfter = compare.rawValues?.snsPercent ?? calculatedValue(compare, "snsPercent");
+  const stressBefore = base.rawValues?.stressGrade;
+  const stressAfter = compare.rawValues?.stressGrade;
+  const autonomicSentence = autonomicBefore !== null && autonomicBefore !== undefined && autonomicAfter !== null && autonomicAfter !== undefined
+    ? `자율신경 총점이 ${numberText(autonomicBefore)}점에서 ${numberText(autonomicAfter)}점으로 ${autonomicAfter >= autonomicBefore ? "개선" : "변화"}되었습니다.`
+    : "";
+  const balanceSentence = snsBefore !== null && snsBefore !== undefined && snsAfter !== null && snsAfter !== undefined
+    ? `SNS:PNS 균형이 ${numberText(snsBefore, 1)}:${numberText(100 - snsBefore, 1)}에서 ${numberText(snsAfter, 1)}:${numberText(100 - snsAfter, 1)}로 ${Math.abs(snsAfter - 50) < Math.abs(snsBefore - 50) ? "균형점에 가까워졌습니다" : "변화했습니다"}.`
+    : "";
+  const stressSentence = stressBefore && stressAfter && stressBefore !== stressAfter
+    ? `스트레스 단계가 ${escapeHtml(stressBefore)}에서 ${escapeHtml(stressAfter)}로 변화했습니다.`
+    : "";
   const parts = [
     `대사건강 종합점수는 ${numberText(base.totalScore)}점에서 ${numberText(compare.totalScore)}점으로 ${totalDiff >= 0 ? "+" : ""}${numberText(totalDiff)}점 변화했습니다.`,
     improvedAxis ? `가장 큰 변화는 ${improvedAxis.label} 영역에서 확인되었습니다.` : "",
+    autonomicSentence,
+    balanceSentence,
+    stressSentence,
     majorMetric ? `${majorMetric.metricLabel} 지표는 ${numberText(majorMetric.before, 1)}에서 ${numberText(majorMetric.after, 1)}${majorMetric.unit ? ` ${majorMetric.unit}` : ""}로 변화했습니다.` : "",
     lowAxis ? `비교 시점에서 아직 우선 관리가 필요한 영역은 ${lowAxis.label}입니다.` : "",
   ].filter(Boolean);
@@ -625,10 +668,11 @@ function drawTrend(canvas, assessments, key) {
   const width = canvas.width;
   const height = canvas.height;
   ctx.clearRect(0, 0, width, height);
-  const values = assessments.map((assessment) => ({ assessment, value: assessment[key] })).filter((item) => item.value !== null && item.value !== undefined);
+  if (key === "snsPnsPercent") return drawSnsPnsTrend(ctx, width, height, assessments);
+  const values = assessments.map((assessment) => ({ assessment, value: trendValue(assessment, key) })).filter((item) => item.value !== null && item.value !== undefined);
   if (values.length < 2) return false;
   const padding = 46;
-  const max = key === "totalScore" ? 100 : 20;
+  const max = key === "totalScore" ? 100 : key.includes("Percent") ? 100 : 20;
   ctx.strokeStyle = "#d5ddd4";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -660,6 +704,65 @@ function drawTrend(canvas, assessments, key) {
   return true;
 }
 
+function drawSnsPnsTrend(ctx, width, height, assessments) {
+  const values = assessments.map((assessment) => {
+    const sns = trendValue(assessment, "snsPercent");
+    const pns = trendValue(assessment, "pnsPercent") ?? (sns !== null && sns !== undefined ? 100 - sns : null);
+    return { assessment, sns, pns };
+  }).filter((item) => item.sns !== null && item.sns !== undefined && item.pns !== null && item.pns !== undefined);
+  if (values.length < 2) return false;
+  const padding = 46;
+  const point = (value, index) => ({
+    x: padding + ((width - padding * 2) * index) / (values.length - 1),
+    y: height - padding - ((height - padding * 2) * value) / 100,
+  });
+  ctx.strokeStyle = "#d5ddd4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, height - padding);
+  ctx.lineTo(width - padding, height - padding);
+  ctx.stroke();
+  const baseY = point(50, 0).y;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = "#9aa9a2";
+  ctx.beginPath();
+  ctx.moveTo(padding, baseY);
+  ctx.lineTo(width - padding, baseY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  [
+    { key: "sns", color: "#23745a", label: "SNS" },
+    { key: "pns", color: "#ec6d51", label: "PNS" },
+  ].forEach((line) => {
+    ctx.strokeStyle = line.color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    values.forEach((item, index) => {
+      const p = point(item[line.key], index);
+      if (index === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+    ctx.fillStyle = line.color;
+    values.forEach((item, index) => {
+      const p = point(item[line.key], index);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillText(`${line.label} ${numberText(item[line.key], 1)}%`, p.x - 28, p.y + (line.key === "sns" ? -10 : 18));
+    });
+  });
+  ctx.fillStyle = "#25312f";
+  ctx.font = "13px sans-serif";
+  ctx.fillText("50% 균형선", width - padding - 80, baseY - 8);
+  values.forEach((item, index) => {
+    const p = point(0, index);
+    ctx.fillText(item.assessment.assessmentStage || item.assessment.assessmentDate.slice(5), p.x - 22, height - 18);
+  });
+  return true;
+}
+
 function renderTrend() {
   const ordered = sortedAssessmentsAsc();
   const key = t.trendAxis.value || "totalScore";
@@ -672,8 +775,17 @@ function renderTrend() {
   }
   const first = ordered[0];
   const latest = ordered[ordered.length - 1];
-  const diff = latest[key] - first[key];
-  t.trendSummary.textContent = `${first.assessmentStage || "초기"} ${numberText(first[key])}점 · 최근 ${numberText(latest[key])}점 · 총 ${diff >= 0 ? "+" : ""}${numberText(diff)}점`;
+  if (key === "snsPnsPercent") {
+    const firstSns = trendValue(first, "snsPercent");
+    const latestSns = trendValue(latest, "snsPercent");
+    const direction = Math.abs(latestSns - 50) < Math.abs(firstSns - 50) ? "균형점에 가까워졌습니다" : "균형 변화를 함께 확인해 주세요";
+    t.trendSummary.textContent = `SNS:PNS 균형이 ${numberText(firstSns, 1)}:${numberText(100 - firstSns, 1)}에서 ${numberText(latestSns, 1)}:${numberText(100 - latestSns, 1)}로 변화해 ${direction}.`;
+    return;
+  }
+  const firstValue = trendValue(first, key);
+  const latestValue = trendValue(latest, key);
+  const diff = latestValue - firstValue;
+  t.trendSummary.textContent = `${first.assessmentStage || "초기"} ${numberText(firstValue)}점 · 최근 ${numberText(latestValue)}점 · 총 ${diff >= 0 ? "+" : ""}${numberText(diff)}점`;
 }
 
 function printComparison() {
