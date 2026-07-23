@@ -3,13 +3,13 @@ const SCORE_RULE_VERSION = "metabolic-score-v3.1";
 
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
-  ["0. 간관리 선행형", "0. 간관리 선행형"],
-  ["A. 복부비만 우세형", "A. 복부비만 우세형"],
-  ["B. 인슐린 저항 우세형", "B. 인슐린 저항 우세형"],
-  ["C. 만성염증 우세형", "C. 만성염증 우세형"],
-  ["D. 자율신경(스트레스) 우세형", "D. 자율신경(스트레스) 우세형"],
-  ["E. 근감소 우세형", "E. 근감소 우세형"],
-  ["F. 복합 대사위험형", "F. 복합 대사위험형"],
+  ["0. 간관리 선행형", "간관리 선행형"],
+  ["A. 복부비만 우세형", "복부비만 우세형"],
+  ["B. 인슐린 저항 우세형", "인슐린 저항 우세형"],
+  ["C. 만성염증 우세형", "만성염증 우세형"],
+  ["D. 자율신경(스트레스) 우세형", "자율신경(스트레스) 우세형"],
+  ["E. 근감소 우세형", "근감소 우세형"],
+  ["F. 복합 대사위험형", "복합 대사위험형"],
   ["대사 균형형", "대사 균형형"],
   ["특정 우세형 없음", "특정 우세형 없음"],
   ["해당 없음", "해당 없음"],
@@ -812,8 +812,13 @@ function activeAxes(axes) {
 
 function priorityAxes(axes, count = 3) {
   return activeAxes(axes)
+    .filter((axis) => ((axis.score / axis.max) * AXIS_MAX) <= 16)
     .sort((a, b) => (a.score / a.max) - (b.score / b.max))
     .slice(0, count);
+}
+
+function displayTypeName(typeName) {
+  return String(typeName || "").replace(/^[A-Z0-9]\.\s*/, "");
 }
 
 function scorePhrase(results) {
@@ -843,7 +848,7 @@ function makeSummary(data, results, grade, typeResult, flags) {
   const sentences = [
     `종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`,
     lowest.length ? `특히 ${joinKorean(lowest)} 영역부터 살펴보는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 살펴보는 것이 좋습니다.",
-    `현재의 주된 대사 패턴은 ${primary}으로 평가됩니다.`,
+    `현재의 주된 대사 패턴은 ${displayTypeName(primary)}으로 평가됩니다.`,
   ];
   if (flags.length) sentences.push("우선 확인이 필요한 검사결과는 종합점수보다 먼저 의학적으로 확인하는 것이 좋습니다.");
   else if (limitedAxes.length) sentences.push(`${limitedAxes.join(", ")} 축은 입력값 부족 또는 판독 제한으로 별도 해석이 필요합니다.`);
@@ -1011,7 +1016,7 @@ function renderRadar(axes) {
 
 function renderPriority(axes) {
   const priorities = priorityAxes(axes, 3);
-  const items = priorities.length ? priorities : axes.slice(0, 2);
+  const items = priorities;
   const summaryItems = items.map((axis, index) => {
     const item = document.createElement("li");
     item.className = "priority-compact";
@@ -1025,7 +1030,7 @@ function renderPriority(axes) {
   });
   elements.priorityList.replaceChildren(...summaryItems);
   elements.priorityListDetail.replaceChildren(...detailItems);
-  elements.priorityAxes.textContent = priorities.length ? priorities.slice(0, 2).map((axis) => axis.label).join(" · ") : "입력 후 표시됩니다.";
+  elements.priorityAxes.textContent = priorities.length ? priorities.slice(0, 2).map((axis) => axis.label).join(" · ") : "16점 이하 영역 없음";
 }
 
 function renderFlags(flags) {
@@ -1302,8 +1307,8 @@ function renderValidation(validation) {
 function renderType(typeResult, data, results) {
   const primary = selectedPrimaryType(typeResult, data);
   const secondary = selectedSecondaryType(typeResult, data);
-  elements.primaryType.textContent = primary;
-  elements.secondaryType.textContent = secondary;
+  elements.primaryType.textContent = displayTypeName(primary);
+  elements.secondaryType.textContent = displayTypeName(secondary);
   elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 보조 태그 없음";
   const baseReason = makeTypeReason(data, results, primary);
   elements.primaryTypeReason.textContent = !primary.startsWith("E.") && secondary.includes("E. 근감소")
@@ -1378,8 +1383,8 @@ function currentReportSnapshot() {
   };
   return {
     ...rendered,
-    primaryType,
-    secondaryType,
+    primaryType: displayTypeName(primaryType),
+    secondaryType: displayTypeName(secondaryType),
     scoreRuleVersion: SCORE_RULE_VERSION,
     calculatedScores,
     reportSnapshot: {

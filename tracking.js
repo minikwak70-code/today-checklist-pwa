@@ -86,6 +86,10 @@ function escapeHtml(value) {
   }[char]));
 }
 
+function displayTypeName(typeName) {
+  return String(typeName || "").replace(/^[A-Z0-9]\.\s*/, "");
+}
+
 function roleLabel(role) {
   return {
     admin: "관리자",
@@ -257,7 +261,7 @@ function renderPatientTable() {
       <td>${ageAt(patient.birth_date)}</td>
       <td>${formatDate(patient.latest_assessment_date)}</td>
       <td>${scoreText(patient.latest_total_score)}</td>
-      <td>${escapeHtml(patient.latest_primary_type || "--")}</td>
+      <td>${escapeHtml(displayTypeName(patient.latest_primary_type) || "--")}</td>
       <td><button class="mini-button" type="button" data-open-patient="${escapeHtml(patient.id)}">열기</button></td>
     </tr>
   `).join("");
@@ -345,7 +349,7 @@ function renderAssessmentTable() {
       <td>${scoreText(assessment.liverScore)}</td>
       <td>${scoreText(assessment.inflammationScore)}</td>
       <td>${scoreText(assessment.autonomicScore)}</td>
-      <td>${escapeHtml(assessment.primaryType || "--")}</td>
+      <td>${escapeHtml(displayTypeName(assessment.primaryType) || "--")}</td>
       <td>
         <button class="mini-button" type="button" data-open-assessment="${escapeHtml(assessment.id)}">열기</button>
         ${tracking.permissions.canDeleteAssessment ? `<button class="mini-button danger" type="button" data-delete-assessment="${escapeHtml(assessment.id)}">삭제</button>` : ""}
@@ -623,7 +627,7 @@ function renderComparison() {
           <tbody>${rows.map((row) => `<tr><td>${row.metricLabel}</td><td>${numberText(row.before, 2)} ${row.unit}</td><td>${numberText(row.after, 2)} ${row.unit}</td><td>${row.diff >= 0 ? "+" : ""}${numberText(row.diff, 2)} ${row.unit}</td><td>${row.evaluation}</td></tr>`).join("")}</tbody>
         </table>
         <h3>주된 관리 패턴의 변화</h3>
-        <p>${escapeHtml(base.primaryType || "--")} → ${escapeHtml(compare.primaryType || "--")}</p>
+        <p>${escapeHtml(displayTypeName(base.primaryType) || "--")} → ${escapeHtml(displayTypeName(compare.primaryType) || "--")}</p>
       </section>
       <section class="comparison-page">
         <h3>해석 제한</h3>
