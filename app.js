@@ -310,11 +310,11 @@ function scoreHsCrp(value) {
   if (!present(value)) return missing(14);
   if (value > 10) return hold(14, "급성 염증원 확인 후 재검");
   return scoreByRanges(value, 14, [
-    { test: (v) => v < 0.3, score: 14, label: "최적 수준" },
-    { test: (v) => v <= 0.49, score: 11, label: "낮은 수준" },
-    { test: (v) => v <= 0.99, score: 8, label: "저강도 염증 관찰" },
-    { test: (v) => v <= 1.99, score: 5, label: "경도 상승" },
-    { test: (v) => v <= 2.99, score: 2, label: "지속 염증 확인 필요" },
+    { test: (v) => v < 0.2, score: 14, label: "최적 수준" },
+    { test: (v) => v <= 0.39, score: 11, label: "낮은 수준" },
+    { test: (v) => v <= 0.59, score: 8, label: "저강도 염증 관찰" },
+    { test: (v) => v <= 0.99, score: 5, label: "경도 상승" },
+    { test: (v) => v <= 1.99, score: 2, label: "지속 염증 확인 필요" },
     { test: (v) => v <= 10, score: 0, label: "염증 수치 상승" },
   ]);
 }
