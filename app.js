@@ -1081,9 +1081,6 @@ function renderAxisCards(axes) {
       const patterns = axis.autonomic?.patterns?.length
         ? axis.autonomic.patterns.map((pattern) => `<li><strong>${pattern.label}</strong><span>${pattern.text}</span></li>`).join("")
         : "<li><strong>패턴 태그</strong><span>입력 후 표시됩니다.</span></li>";
-      const priorities = axis.autonomic?.priorities?.length
-        ? axis.autonomic.priorities.map((item) => `<li>${item}</li>`).join("")
-        : "<li>입력 후 표시됩니다.</li>";
       const comment = axis.status === "unavailable"
         ? "HRV-Index, ANS Activity, Stress, SNS 비율을 모두 입력하면 자율신경·회복 점수가 계산됩니다."
         : axis.status === "hold"
@@ -1097,9 +1094,6 @@ function renderAxisCards(axes) {
         <ul class="axis-key-values">${detailRows}</ul>
         <p class="subsection-label">패턴 태그</p>
         <ul class="axis-key-values autonomic-patterns">${patterns}</ul>
-        <p class="subsection-label">관리 우선순위</p>
-        <ul class="axis-key-values autonomic-priorities">${priorities}</ul>
-        <small class="field-help">${axis.autonomic?.notice || ""}</small>
       `;
       return card;
     }
