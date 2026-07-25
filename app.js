@@ -1,5 +1,12 @@
 const AXIS_MAX = 20;
 const SCORE_RULE_VERSION = "metabolic-score-v3.1";
+const DEFAULT_ULN = {
+  alt: 40,
+  ggt: 60,
+  tbil: 1.2,
+  ast: 40,
+  alp: 120,
+};
 
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
@@ -148,7 +155,6 @@ const allFields = [
   "testDate",
   "assessmentStage",
   "mealStatus",
-  "ldlMethod",
   "hrvIndexGrade",
   "stressGrade",
   "ansActivity",
@@ -304,6 +310,11 @@ function scoreUln(value, uln, max, scores) {
     { test: (v) => v > 3, score: 0, label: "원인 확인 우선" },
   ]);
   return { ...result, ratio };
+}
+
+function getUln(data, key) {
+  const fieldName = `${key}Uln`;
+  return present(data[fieldName]) ? data[fieldName] : DEFAULT_ULN[key];
 }
 
 function scoreHsCrp(value) {
@@ -506,12 +517,12 @@ function makeResults(data) {
   const tgHdl = scoreTgHdl(data.tg, data.hdl);
   const tg = scoreTg(data.tg);
   const nonHdl = scoreNonHdl(data.totalChol, data.hdl);
-  const alt = scoreUln(data.alt, data.altUln, 10, [10, 8, 5, 2]);
-  const ggt = scoreUln(data.ggt, data.ggtUln, 6, [6, 5, 3, 1]);
-  const tbilRaw = scoreUln(data.tbil, data.tbilUln, 4, [4, 3, 2, 1]);
+  const alt = scoreUln(data.alt, getUln(data, "alt"), 10, [10, 8, 5, 2]);
+  const ggt = scoreUln(data.ggt, getUln(data, "ggt"), 6, [6, 5, 3, 1]);
+  const tbilRaw = scoreUln(data.tbil, getUln(data, "tbil"), 4, [4, 3, 2, 1]);
   const tbil = data.gilbert && tbilRaw && !tbilRaw.missing ? { ...tbilRaw, score: 4, label: "길버트증후군 보정" } : tbilRaw;
-  const ast = scoreUln(data.ast, data.astUln, 0, [0, 0, 0, 0]);
-  const alp = scoreUln(data.alp, data.alpUln, 0, [0, 0, 0, 0]);
+  const ast = scoreUln(data.ast, getUln(data, "ast"), 0, [0, 0, 0, 0]);
+  const alp = scoreUln(data.alp, getUln(data, "alp"), 0, [0, 0, 0, 0]);
   const hsCrp = scoreHsCrp(data.hsCrp);
   const visceralFat = scoreVisceralFat(data.visceralFat);
   const snsPercent = present(data.snsPercent) ? data.snsPercent : data.snsPnsRatio;
@@ -549,9 +560,9 @@ function makeResults(data) {
       "liver",
       "간대사",
       [
-        { label: "ALT", result: alt, value: present(alt.ratio) ? `${alt.ratio.toFixed(2)} x ULN` : null },
-        { label: "GGT", result: ggt, value: present(ggt.ratio) ? `${ggt.ratio.toFixed(2)} x ULN` : null },
-        { label: "TBIL", result: tbil, value: present(tbil.ratio) ? `${tbil.ratio.toFixed(2)} x ULN` : null },
+        { label: "ALT", result: alt, value: present(data.alt) ? `${data.alt} U/L` : null },
+        { label: "GGT", result: ggt, value: present(data.ggt) ? `${data.ggt} U/L` : null },
+        { label: "TBIL", result: tbil, value: present(data.tbil) ? `${data.tbil} mg/dL` : null },
       ],
       "간수치, 담도 관련 지표, 빌리루빈 상태를 함께 평가합니다.",
       !present(data.alt) && !present(data.ggt) && !present(data.tbil),
@@ -624,9 +635,8 @@ function validateInputs(data) {
   if (present(data.tg) && data.tg > 2000) addWarning("tg", "TG 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.ldl) && present(data.totalChol) && present(data.hdl)) {
     const nonHdl = data.totalChol - data.hdl;
-    if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값, 단위 또는 검사방법을 확인해 주세요.");
+    if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값 또는 단위를 확인해 주세요.");
   }
-  if (data.ldlMethod === "계산값" && data.tg >= 440) addWarning("ldlMethod", "중성지방 상승으로 계산 LDL-C의 정확도가 제한될 수 있습니다.");
   if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
@@ -649,10 +659,10 @@ function makeRiskFlags(data, results, validation) {
   if (results.parts.nonHdl?.value >= 220) add("warning", "non-HDL-C", `${results.parts.nonHdl.value} mg/dL`, "220 mg/dL 이상으로 지질 관련 위험이 높은 기준에 해당합니다.");
   if (results.parts.alt?.ratio >= 3 || results.parts.ast?.ratio >= 3) {
     const liverValues = [
-      results.parts.alt?.ratio >= 3 && present(data.alt) ? `ALT ${data.alt} U/L (${results.parts.alt.ratio.toFixed(1)} x ULN)` : "",
-      results.parts.ast?.ratio >= 3 && present(data.ast) ? `AST ${data.ast} U/L (${results.parts.ast.ratio.toFixed(1)} x ULN)` : "",
+      results.parts.alt?.ratio >= 3 && present(data.alt) ? `ALT ${data.alt} U/L` : "",
+      results.parts.ast?.ratio >= 3 && present(data.ast) ? `AST ${data.ast} U/L` : "",
     ].filter(Boolean).join(", ");
-    add("warning", "간수치", liverValues, "3 x ULN 이상으로 간 관련 원인 확인이 우선입니다.");
+    add("warning", "간수치", liverValues, "기준 범위를 크게 초과하여 간 관련 원인 확인이 우선입니다.");
   }
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
   if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
@@ -818,7 +828,31 @@ function priorityAxes(axes, count = 3) {
 }
 
 function displayTypeName(typeName) {
-  return String(typeName || "").replace(/^[A-Z0-9]\.\s*/, "");
+  return String(typeName || "")
+    .split("+")
+    .map((part) => part.trim().replace(/^[A-Z0-9]\.\s*/, ""))
+    .join(" + ");
+}
+
+function typeGuideKey(typeName) {
+  const name = displayTypeName(typeName).replace(/\s+/g, "");
+  if (!name || name === "해당없음" || name === "특정우세형없음") return "";
+  if (name.includes("간관리선행")) return "liver";
+  if (name.includes("복부비만")) return "abdominal";
+  if (name.includes("인슐린저항")) return "insulin";
+  if (name.includes("만성염증")) return "inflammation";
+  if (name.includes("자율신경")) return "autonomic";
+  if (name.includes("근감소")) return "sarcopenia";
+  if (name.includes("복합대사위험")) return "complex";
+  if (name.includes("대사균형")) return "balanced";
+  return "";
+}
+
+function typeGuideKeys(typeName) {
+  return String(typeName || "")
+    .split("+")
+    .map(typeGuideKey)
+    .filter(Boolean);
 }
 
 function scorePhrase(results) {
@@ -909,7 +943,7 @@ function makeTypeReason(data, results, primary) {
     return makeSarcopeniaTypeSentence(data);
   }
   if (primary.startsWith("F.")) {
-    return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 우선 관리영역과 보조 태그를 함께 보며 단계적으로 접근하는 것이 좋습니다.";
+    return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 관리 우선영역과 관련 관찰항목을 함께 보며 단계적으로 접근하는 것이 좋습니다.";
   }
   if (primary === "대사 균형형") {
     return "5개 대사축이 모두 15점 이상으로 확인되어 특정 관리 유형보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
@@ -948,9 +982,9 @@ function renderComputed(data, results) {
   elements.nonHdlCalc.textContent = present(results.parts.nonHdl?.value)
     ? `non-HDL-C: ${results.parts.nonHdl.value} mg/dL — ${results.parts.nonHdl.label}`
     : "non-HDL-C: 총콜레스테롤과 HDL-C 입력 후 계산";
-  elements.altCalc.textContent = present(results.parts.alt?.ratio) ? `ALT: ${results.parts.alt.ratio.toFixed(2)} x ULN — ${results.parts.alt.label}` : "ALT: ULN 배수 대기";
-  elements.ggtCalc.textContent = present(results.parts.ggt?.ratio) ? `GGT: ${results.parts.ggt.ratio.toFixed(2)} x ULN — ${results.parts.ggt.label}` : "GGT: ULN 배수 대기";
-  elements.tbilCalc.textContent = present(results.parts.tbil?.ratio) ? `TBIL: ${results.parts.tbil.ratio.toFixed(2)} x ULN — ${results.parts.tbil.label}` : "TBIL: ULN 배수 대기";
+  elements.altCalc.textContent = present(data.alt) ? `ALT: ${data.alt} U/L — ${results.parts.alt.label}` : "ALT: 입력 후 계산";
+  elements.ggtCalc.textContent = present(data.ggt) ? `GGT: ${data.ggt} U/L — ${results.parts.ggt.label}` : "GGT: 입력 후 계산";
+  elements.tbilCalc.textContent = present(data.tbil) ? `TBIL: ${data.tbil} mg/dL — ${results.parts.tbil.label}` : "TBIL: 입력 후 계산";
 }
 
 function renderRadar(axes) {
@@ -1263,7 +1297,6 @@ function renderNotes(data, results, typeResult, validation) {
   const hrvCondition = results.hrvLimited ? "판독 제한 있음" : "판독 제한 없음";
   const conditions = [
     `채혈 상태: ${data.mealStatus || "미입력"}`,
-    `LDL-C 검사방식: ${data.ldlMethod || "미입력"}`,
     `HRV 측정조건: ${hrvCondition}`,
   ];
   const limits = [];
@@ -1309,11 +1342,18 @@ function renderType(typeResult, data, results) {
   const secondary = selectedSecondaryType(typeResult, data);
   elements.primaryType.textContent = displayTypeName(primary);
   elements.secondaryType.textContent = displayTypeName(secondary);
-  elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 보조 태그 없음";
+  elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 관찰항목 없음";
   const baseReason = makeTypeReason(data, results, primary);
   elements.primaryTypeReason.textContent = !primary.startsWith("E.") && secondary.includes("E. 근감소")
     ? `${baseReason} ${makeSarcopeniaTypeSentence(data)}`
     : baseReason;
+  const primaryKey = typeGuideKey(primary);
+  const secondaryKeys = new Set(typeGuideKeys(secondary));
+  document.querySelectorAll("[data-type-guide]").forEach((item) => {
+    const key = item.dataset.typeGuide;
+    item.classList.toggle("is-primary-type", key === primaryKey);
+    item.classList.toggle("is-secondary-type", key !== primaryKey && secondaryKeys.has(key));
+  });
 }
 
 function render() {
@@ -1433,14 +1473,10 @@ function fillSample() {
     hdl: 40,
     totalChol: 226,
     ldl: 148,
-    ldlMethod: "검사결과지 수치",
     mealStatus: "식후 4시간 미만",
     alt: 58,
-    altUln: 40,
     ggt: 74,
-    ggtUln: 60,
     tbil: 1.1,
-    tbilUln: 1.2,
     hsCrp: 2.4,
     visceralFat: 12,
     sbp: 136,
@@ -1459,11 +1495,6 @@ function resetForm() {
   elements.form.reset();
   setValues({
     testDate: localDateKey(),
-    altUln: 40,
-    ggtUln: 60,
-    tbilUln: 1.2,
-    astUln: 40,
-    alpUln: 120,
   });
   elements.generateButton.textContent = "리포트 생성";
   elements.generateStatus.textContent = "입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.";
@@ -1518,11 +1549,6 @@ elements.printButton.addEventListener("click", () => {
 setupManualTypeSelects();
 setValues({
   testDate: localDateKey(),
-  altUln: 40,
-  ggtUln: 60,
-  tbilUln: 1.2,
-  astUln: 40,
-  alpUln: 120,
 });
 window.metabolicReportApp = {
   render,

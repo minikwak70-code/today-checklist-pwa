@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=25" />
+    <link rel="stylesheet" href="./styles.css?v=26" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -140,7 +140,7 @@
                 <span id="selectedLatestDate">최근 검사: --</span>
                 <span id="selectedLatestScore">최근 총점: --</span>
                 <span id="selectedDelta">초진 대비: --</span>
-                <span id="selectedPriority">현재 우선 관리영역: --</span>
+                <span id="selectedPriority">현재 관리 우선영역: --</span>
               </div>
             </div>
           </article>
@@ -281,16 +281,6 @@
                   <input id="ldl" name="ldl" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>LDL-C 검사방식</span>
-                  <select id="ldlMethod" name="ldlMethod">
-                    <option value="">선택</option>
-                    <option>검사결과지 수치</option>
-                    <option>직접측정</option>
-                    <option>계산값</option>
-                    <option>모름</option>
-                  </select>
-                </label>
-                <label>
                   <span>채혈 당시 식사 상태</span>
                   <select id="mealStatus" name="mealStatus">
                     <option value="">선택</option>
@@ -328,23 +318,6 @@
                 <p id="ggtCalc">GGT: --</p>
                 <p id="tbilCalc">TBIL: --</p>
               </div>
-              <details class="inline-details">
-                <summary>검사실 정상범위 변경</summary>
-                <div class="form-grid three">
-                  <label>
-                    <span>ALT ULN (U/L)</span>
-                    <input id="altUln" name="altUln" type="number" step="1" min="0.1" value="40" inputmode="decimal" />
-                  </label>
-                  <label>
-                    <span>GGT ULN (U/L)</span>
-                    <input id="ggtUln" name="ggtUln" type="number" step="1" min="0.1" value="60" inputmode="decimal" />
-                  </label>
-                  <label>
-                    <span>TBIL ULN (mg/dL)</span>
-                    <input id="tbilUln" name="tbilUln" type="number" step="0.1" min="0.1" value="1.2" inputmode="decimal" />
-                  </label>
-                </div>
-              </details>
             </fieldset>
 
             <fieldset>
@@ -415,9 +388,7 @@
                 <legend>추가 검사 및 문진</legend>
                 <div class="form-grid three">
                   <label><span>AST (U/L)</span><input id="ast" type="number" step="1" min="0" inputmode="decimal" /></label>
-                  <label><span>AST ULN (U/L)</span><input id="astUln" type="number" step="1" min="0.1" value="40" inputmode="decimal" /></label>
                   <label><span>ALP (U/L)</span><input id="alp" type="number" step="1" min="0" inputmode="decimal" /></label>
-                  <label><span>ALP ULN (U/L)</span><input id="alpUln" type="number" step="1" min="0.1" value="120" inputmode="decimal" /></label>
                   <label><span>허리둘레 (cm)</span><input id="waist" type="number" step="0.1" min="0" inputmode="decimal" /></label>
                   <label><span>안정 시 심박수 (bpm)</span><input id="restingHr" type="number" step="1" min="0" inputmode="decimal" /></label>
                 </div>
@@ -614,25 +585,25 @@
                 <strong id="secondaryType">해당 없음</strong>
               </div>
               <div>
-                <p class="section-title">우선 관리영역</p>
+                <p class="section-title">관리 우선영역</p>
                 <strong id="priorityAxes">입력 후 표시됩니다.</strong>
               </div>
               <div>
-                <p class="section-title">주요 보조 태그</p>
+                <p class="section-title">관련 관찰항목</p>
                 <p id="supportTags" class="tag-line">입력 후 표시됩니다.</p>
               </div>
               <p id="primaryTypeReason" class="type-reason">입력 후 주타입 판정 근거가 표시됩니다.</p>
               <div class="type-overview" aria-label="대사 타입 설명">
                 <p class="section-title">타입 안내</p>
                 <dl>
-                  <div><dt>대사균형형</dt><dd>전반적인 균형이 좋은 상태</dd></div>
-                  <div><dt>복부비만형</dt><dd>내장지방 감량이 시급한 유형</dd></div>
-                  <div><dt>인슐린 저항형</dt><dd>혈당 관련 대사 조절이 시급한 유형</dd></div>
-                  <div><dt>만성염증형</dt><dd>만성염증으로 인해 면역력이 저하된 유형</dd></div>
-                  <div><dt>자율신경(스트레스)형</dt><dd>스트레스 및 자율신경실조가 문제인 유형</dd></div>
-                  <div><dt>근감소형</dt><dd>근육 및 신체기능이 저하되어 있는 유형</dd></div>
-                  <div><dt>복합대사위험형</dt><dd>여러 대사 문제가 겹쳐 있어 단계적인 관리가 시급한 유형</dd></div>
-                  <div><dt>간관리 선행형</dt><dd>다른 문제보다도 간기능 개선이 시급한 유형</dd></div>
+                  <div data-type-guide="balanced"><dt>대사균형형</dt><dd>전반적인 균형이 좋은 상태</dd></div>
+                  <div data-type-guide="abdominal"><dt>복부비만형</dt><dd>내장지방 감량이 시급한 유형</dd></div>
+                  <div data-type-guide="insulin"><dt>인슐린 저항형</dt><dd>혈당 관련 대사 조절이 시급한 유형</dd></div>
+                  <div data-type-guide="inflammation"><dt>만성염증형</dt><dd>만성염증으로 인해 면역력이 저하된 유형</dd></div>
+                  <div data-type-guide="autonomic"><dt>자율신경(스트레스)형</dt><dd>스트레스 및 자율신경실조가 문제인 유형</dd></div>
+                  <div data-type-guide="sarcopenia"><dt>근감소형</dt><dd>근육 및 신체기능이 저하되어 있는 유형</dd></div>
+                  <div data-type-guide="complex"><dt>복합대사위험형</dt><dd>여러 대사 문제가 겹쳐 있어 단계적인 관리가 시급한 유형</dd></div>
+                  <div data-type-guide="liver"><dt>간관리 선행형</dt><dd>다른 문제보다도 간기능 개선이 시급한 유형</dd></div>
                 </dl>
               </div>
               <details class="manual-type no-print">
@@ -650,7 +621,7 @@
                 <ul id="axisScoreLegend" class="axis-score-legend"></ul>
               </article>
               <article class="priority-card">
-                <p class="section-title">핵심 관리영역</p>
+                <p class="section-title">관리 우선영역</p>
                 <ol id="priorityList" class="priority-list"></ol>
               </article>
             </div>
@@ -700,7 +671,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=27" defer></script>
-    <script src="./tracking.js?v=5" defer></script>
+    <script src="./app.js?v=28" defer></script>
+    <script src="./tracking.js?v=6" defer></script>
   </body>
 </html>
