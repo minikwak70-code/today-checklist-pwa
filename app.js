@@ -829,8 +829,10 @@ function priorityAxes(axes, count = 3) {
 
 function displayTypeName(typeName) {
   return String(typeName || "")
+    .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
     .split("+")
-    .map((part) => part.trim().replace(/^[A-Z0-9]\.\s*/, ""))
+    .map((part) => part.trim())
+    .filter(Boolean)
     .join(" + ");
 }
 
@@ -871,7 +873,18 @@ function selectedSecondaryType(typeResult, data) {
 function joinKorean(items) {
   if (!items.length) return "";
   if (items.length === 1) return items[0];
-  return `${items.slice(0, -1).join(", ")}와 ${items.at(-1)}`;
+  return `${items.slice(0, -1).join(", ")}${particle(items.at(-2), "과", "와")} ${items.at(-1)}`;
+}
+
+function hasFinalConsonant(text) {
+  const char = String(text || "").trim().slice(-1);
+  if (!char) return false;
+  const code = char.charCodeAt(0);
+  return code >= 0xac00 && code <= 0xd7a3 && (code - 0xac00) % 28 !== 0;
+}
+
+function particle(text, withFinal, withoutFinal) {
+  return hasFinalConsonant(text) ? withFinal : withoutFinal;
 }
 
 function makeSummary(data, results, grade, typeResult, flags) {
@@ -943,7 +956,7 @@ function makeTypeReason(data, results, primary) {
     return makeSarcopeniaTypeSentence(data);
   }
   if (primary.startsWith("F.")) {
-    return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 관리 우선영역과 관련 관찰항목을 함께 보며 단계적으로 접근하는 것이 좋습니다.";
+    return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 관리 필요영역과 관련 관찰항목을 함께 보며 단계적으로 접근하는 것이 좋습니다.";
   }
   if (primary === "대사 균형형") {
     return "5개 대사축이 모두 15점 이상으로 확인되어 특정 관리 유형보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
@@ -1455,6 +1468,27 @@ function setValues(values) {
   render();
 }
 
+function formatBirthDate(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
+function setupBirthDateInputs() {
+  ["birthDate", "newBirthDate"].forEach((id) => {
+    const input = field(id);
+    if (!input) return;
+    input.addEventListener("input", () => {
+      const formatted = formatBirthDate(input.value);
+      if (input.value !== formatted) input.value = formatted;
+    });
+    input.addEventListener("blur", () => {
+      input.value = formatBirthDate(input.value);
+    });
+  });
+}
+
 function localDateKey(date = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const get = (type) => parts.find((part) => part.type === type)?.value;
@@ -1547,6 +1581,7 @@ elements.printButton.addEventListener("click", () => {
 });
 
 setupManualTypeSelects();
+setupBirthDateInputs();
 setValues({
   testDate: localDateKey(),
 });

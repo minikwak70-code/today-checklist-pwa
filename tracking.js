@@ -87,7 +87,12 @@ function escapeHtml(value) {
 }
 
 function displayTypeName(typeName) {
-  return String(typeName || "").replace(/^[A-Z0-9]\.\s*/, "");
+  return String(typeName || "")
+    .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
+    .split("+")
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" + ");
 }
 
 function roleLabel(role) {
@@ -331,7 +336,7 @@ function renderSelectedSummary() {
   t.selectedLatestDate.textContent = `최근 검사: ${latest?.assessmentDate || "--"}`;
   t.selectedLatestScore.textContent = `최근 총점: ${latest ? scoreText(latest.totalScore) : "--"}`;
   t.selectedDelta.textContent = `초진 대비: ${delta === null ? "--" : `${delta >= 0 ? "+" : ""}${numberText(delta)}점`}`;
-  t.selectedPriority.textContent = `현재 관리 우선영역: ${lowest?.label || "--"}`;
+  t.selectedPriority.textContent = `현재 관리 필요영역: ${lowest?.label || "--"}`;
 }
 
 function renderAssessmentTable() {
@@ -612,7 +617,7 @@ function renderComparison() {
         </div>
         ${comparisonRadar(axisRows)}
         <p><strong>가장 많이 개선된 영역:</strong> ${improvedAxis ? `${improvedAxis.label} ${improvedAxis.diff >= 0 ? "+" : ""}${numberText(improvedAxis.diff)}점` : "--"}</p>
-        <p><strong>현재 관리 우선영역:</strong> ${lowAxis?.label || "--"}</p>
+        <p><strong>현재 관리 필요영역:</strong> ${lowAxis?.label || "--"}</p>
         <p class="comparison-summary">${makeComparisonSummary(base, compare, improvedAxis, lowAxis, rows)}</p>
       </section>
       <section class="comparison-page">

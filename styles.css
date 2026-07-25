@@ -883,14 +883,14 @@ button:disabled {
 }
 
 .type-overview dl > div.is-primary-type {
-  border-color: var(--green);
-  background: #e7f2ed;
-  box-shadow: inset 0 0 0 2px rgba(35, 116, 90, 0.14);
+  border-color: #d8b56f;
+  background: #fff8e9;
+  box-shadow: inset 0 0 0 2px rgba(216, 181, 111, 0.18);
 }
 
 .type-overview dl > div.is-secondary-type {
-  border-color: #d8b56f;
-  background: #fff8e9;
+  border-color: var(--green);
+  background: #e7f2ed;
 }
 
 .type-overview dl > div.is-primary-type dt,
@@ -912,14 +912,14 @@ button:disabled {
 
 .type-overview dl > div.is-primary-type::after {
   content: "주타입";
-  background: var(--green);
-  color: white;
+  background: #e6c77f;
+  color: #513b08;
 }
 
 .type-overview dl > div.is-secondary-type::after {
   content: "동반";
-  background: #e6c77f;
-  color: #513b08;
+  background: var(--green);
+  color: white;
 }
 
 .type-overview dt {
