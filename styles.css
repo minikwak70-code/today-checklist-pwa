@@ -1498,41 +1498,6 @@ button:disabled {
   display: block;
 }
 
-.sarcopenia-report {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: #fbfdfb;
-}
-
-.sarcopenia-report[hidden] {
-  display: none;
-}
-
-.sarcopenia-list {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.sarcopenia-list li {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4ebe6;
-  color: var(--muted);
-  font-size: 13px;
-  word-break: keep-all;
-}
-
-.sarcopenia-list strong {
-  color: var(--ink);
-  text-align: right;
-}
-
 .notes-list {
   display: grid;
   gap: 6px;
@@ -1713,11 +1678,26 @@ button:disabled {
   }
 
   .report-page {
-    min-height: 0;
+    min-height: calc(297mm - 16mm);
     break-after: page;
     page-break-after: always;
     gap: 12px;
     overflow: visible;
+  }
+
+  .page-interpretation {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .page-details {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .page-footer {
+    width: 100%;
+    align-self: end;
+    grid-row: -1;
+    margin-top: 0;
   }
 
   .report-page:last-child {
@@ -1882,9 +1862,8 @@ button:disabled {
   }
 
   .page-summary {
-    min-height: calc(297mm - 16mm);
-    grid-template-rows: auto auto auto minmax(24mm, auto) auto;
-    align-content: start;
+    grid-template-rows: auto auto auto minmax(24mm, 1fr) auto;
+    align-content: stretch;
     gap: 12px;
   }
 
@@ -2005,7 +1984,6 @@ button:disabled {
   .type-card,
   .warning-box,
   .summary-card,
-  .sarcopenia-report,
   .priority-card,
   .axis-card,
   table,
@@ -2051,7 +2029,6 @@ button:disabled {
   .axis-card,
   .detail-section > div,
   .note-block,
-  .sarcopenia-report,
   .summary-card,
   .type-card {
     box-shadow: none !important;
@@ -2062,7 +2039,6 @@ button:disabled {
   .axis-card,
   .detail-section > div,
   .note-block,
-  .sarcopenia-report,
   .summary-card,
   .type-card {
     border: 0;

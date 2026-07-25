@@ -60,8 +60,6 @@ const elements = {
   flagArea: document.querySelector("#flagArea"),
   axisCards: document.querySelector("#axisCards"),
   detailTable: document.querySelector("#detailTable"),
-  sarcopeniaReport: document.querySelector("#sarcopeniaReport"),
-  sarcopeniaBody: document.querySelector("#sarcopeniaBody"),
   conditionList: document.querySelector("#conditionList"),
   limitList: document.querySelector("#limitList"),
   commonGuideList: document.querySelector("#commonGuideList"),
@@ -1162,10 +1160,21 @@ function detailNeedsAttention(detail) {
   if (detail.result?.missing) return false;
   if (detail.result?.hold) return true;
   const label = detail.result?.label || "";
-  return /경계|관찰|상승|높음|높은 범위|관리 필요|진단범위|전단계|재검|별도 평가|추가 평가|원인 확인|염증|고혈압|주의혈압|저하|치우침|부족|과도|기준 이상|확인 필요/.test(label);
+  return /경계|관찰|상승|높음|높은 범위|낮은|관리 필요|진단범위|전단계|재검|별도 평가|추가 평가|원인 확인|염증|고혈압|주의혈압|저하|치우침|부족|과도|기준 이상|확인 필요/.test(label);
 }
 
-function renderDetails(axes) {
+function makeDetailTableRow(axisLabel, detail) {
+  const row = document.createElement("tr");
+  const result = detail.result;
+  const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "판정 보류" : `${result.score}/${result.max}`;
+  const value = detail.value || "--";
+  const label = result?.label || "";
+  if (detailNeedsAttention(detail)) row.classList.add("is-attention");
+  row.innerHTML = `<td class="axis">${axisLabel}</td><td class="test-name">${detail.label}</td><td class="result-value">${value}</td><td class="score">${score}</td><td class="interpretation">${label}</td>`;
+  return row;
+}
+
+function renderDetails(axes, data) {
   const table = document.createElement("table");
   table.className = "result-table";
   table.innerHTML = `
@@ -1184,38 +1193,18 @@ function renderDetails(axes) {
   const tbody = table.querySelector("tbody");
   const rows = axes.flatMap((axis) => axis.details
     .filter((detail) => detail.value || (!detail.reference && detail.result && !detail.result.missing))
-    .map((detail) => {
-      const row = document.createElement("tr");
-      const result = detail.result;
-      const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "판정 보류" : `${result.score}/${result.max}`;
-      const value = detail.value || "--";
-      const label = result?.label || "";
-      if (detailNeedsAttention(detail)) row.classList.add("is-attention");
-      row.innerHTML = `<td class="axis">${axis.label}</td><td class="test-name">${detail.label}</td><td class="result-value">${value}</td><td class="score">${score}</td><td class="interpretation">${label}</td>`;
-      return row;
+    .map((detail) => makeDetailTableRow(axis.label, detail)));
+  if (sarcopeniaInputsPresent(data)) {
+    const smi = assessSmi(data);
+    rows.push(makeDetailTableRow("근감소 평가", {
+      label: "SMI",
+      result: { score: null, max: 0, label: smi.label },
+      value: present(data.smi) ? `${formatDecimal(data.smi)} kg/m²` : null,
+      reference: true,
     }));
+  }
   tbody.replaceChildren(...rows);
   elements.detailTable.replaceChildren(table);
-}
-
-function renderSarcopeniaReport(data) {
-  if (!sarcopeniaInputsPresent(data)) {
-    elements.sarcopeniaReport.hidden = true;
-    elements.sarcopeniaBody.replaceChildren();
-    return;
-  }
-  const smi = assessSmi(data);
-  const rows = [];
-  if (present(data.smi)) rows.push([smi.valueText, smi.label]);
-  const list = document.createElement("ul");
-  list.className = "sarcopenia-list";
-  list.replaceChildren(...rows.map(([label, value]) => {
-    const item = document.createElement("li");
-    item.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
-    return item;
-  }));
-  elements.sarcopeniaBody.replaceChildren(list);
-  elements.sarcopeniaReport.hidden = false;
 }
 
 function liverNormalMessage(data, results) {
@@ -1366,8 +1355,7 @@ function render() {
   renderRadar(results.axes);
   renderPriority(results.axes);
   renderAxisCards(results.axes);
-  renderDetails(results.axes);
-  renderSarcopeniaReport(data);
+  renderDetails(results.axes, data);
   renderNotes(data, results, typeResult, validation);
   return { data, results, flags, typeResult, validation };
 }
