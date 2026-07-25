@@ -1812,11 +1812,37 @@ button:disabled {
   }
 
   .page-summary {
-    gap: 9px;
+    min-height: calc(297mm - 16mm);
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 11px;
+  }
+
+  .page-summary .top-flags {
+    grid-row: 1;
+  }
+
+  .page-summary .report-header {
+    grid-row: 2;
+  }
+
+  .page-summary .type-card {
+    grid-row: 3;
+  }
+
+  .page-summary .summary-grid {
+    grid-row: 4;
+    align-self: stretch;
+    min-height: 0;
+  }
+
+  .page-summary .radar-card,
+  .page-summary .priority-card {
+    height: 100%;
   }
 
   .page-summary .page-footer {
-    margin-top: 2px;
+    grid-row: 5;
+    margin-top: 0;
   }
 
   .axis-cards {
