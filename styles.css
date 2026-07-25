@@ -1747,95 +1747,95 @@ button:disabled {
   }
 
   .report-header h2 {
-    font-size: 30px;
+    font-size: 34px;
   }
 
   .patient-line {
     margin-top: 8px;
-    font-size: 12.5px;
+    font-size: 13.4px;
   }
 
   .score-badge {
-    width: 116px;
-    min-height: 106px;
+    width: 124px;
+    min-height: 112px;
     justify-self: end;
     box-shadow: none;
   }
 
   .score-badge strong {
-    font-size: 34px;
+    font-size: 38px;
   }
 
   .score-badge small {
-    max-width: 98px;
-    font-size: 9.8px;
+    max-width: 104px;
+    font-size: 10.2px;
   }
 
   .type-card {
     grid-template-columns: repeat(4, 1fr);
     margin-top: 0;
-    padding: 10px;
+    padding: 12px;
   }
 
   .type-card {
-    gap: 7px;
+    gap: 9px;
   }
 
   .type-guide,
   .type-reason {
-    font-size: 9.7px;
-    line-height: 1.34;
+    font-size: 10.6px;
+    line-height: 1.38;
   }
 
   .type-guide {
-    padding-bottom: 7px;
+    padding-bottom: 8px;
   }
 
   .type-card .section-title {
-    font-size: 9.5px;
-    margin-bottom: 3px;
+    font-size: 10px;
+    margin-bottom: 4px;
   }
 
   .type-card strong {
-    font-size: 13px;
-    line-height: 1.28;
+    font-size: 14px;
+    line-height: 1.32;
   }
 
   .tag-line {
-    font-size: 10.2px;
-    line-height: 1.28;
+    font-size: 10.8px;
+    line-height: 1.32;
   }
 
   .type-reason {
-    padding: 7px 9px;
+    padding: 8px 10px;
   }
 
   .type-overview {
-    gap: 4px;
+    gap: 5px;
   }
 
   .type-overview dl {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 5px;
+    gap: 6px;
   }
 
   .type-overview dl > div {
-    padding: 5px 6px;
+    padding: 6px 7px;
   }
 
   .type-overview dt {
-    font-size: 8.8px;
+    font-size: 9.4px;
     margin-bottom: 2px;
   }
 
   .type-overview dd {
-    font-size: 7.7px;
-    line-height: 1.2;
+    font-size: 8.2px;
+    line-height: 1.24;
   }
 
   .summary-grid {
     grid-template-columns: minmax(0, 1.42fr) minmax(168px, 0.58fr);
-    gap: 10px;
+    gap: 12px;
     margin-top: 0;
   }
 
@@ -1857,7 +1857,7 @@ button:disabled {
   .axis-score-legend li {
     gap: 4px;
     padding: 5px 4px;
-    font-size: 7.6px;
+    font-size: 8.2px;
   }
 
   .priority-list li {
@@ -1866,25 +1866,26 @@ button:disabled {
   }
 
   .priority-list strong {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .priority-card,
   .summary-card,
   .detail-section > div {
-    padding: 12px;
+    padding: 14px;
   }
 
   .page-summary {
     min-height: calc(297mm - 16mm);
-    grid-template-rows: auto auto 78mm minmax(30mm, auto) auto;
-    gap: 9px;
+    grid-template-rows: auto auto auto minmax(24mm, auto) auto;
+    align-content: start;
+    gap: 12px;
   }
 
   .page-summary .top-flags {
     grid-row: 4;
     display: grid;
-    min-height: 30mm;
+    min-height: 24mm;
     align-content: start;
     margin: 0;
   }
@@ -1896,6 +1897,8 @@ button:disabled {
 
   .page-summary .report-header {
     grid-row: 1;
+    min-height: 0 !important;
+    padding-top: 0;
   }
 
   .page-summary .type-card {

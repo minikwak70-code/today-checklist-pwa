@@ -149,9 +149,6 @@ const allFields = [
   "ansActivity",
   "snsActivity",
   "pnsActivity",
-  "lowProteinStatus",
-  "weightLossStatus",
-  "functionalDeclineStatus",
   "manualPrimaryType",
   "manualSecondaryType",
   "clinicianNote",
@@ -201,10 +198,7 @@ function assessSmi(data) {
 }
 
 function sarcopeniaInputsPresent(data) {
-  return present(data.smi) ||
-    present(data.lowProteinStatus) ||
-    present(data.weightLossStatus) ||
-    present(data.functionalDeclineStatus);
+  return present(data.smi);
 }
 
 function scored(score, max, label, extra = {}) {
@@ -766,25 +760,12 @@ function scoreTypes(data, results) {
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
 
   const smi = assessSmi(data);
-  const lowProtein = data.lowProteinStatus === "있음";
-  const weightLoss = data.weightLossStatus === "있음";
-  const functionalDecline = data.functionalDeclineStatus === "있음";
   if (smi.low) tags.push("근육량 관리 필요");
   if (smi.borderline) tags.push("근육량 경계");
-  if (functionalDecline) tags.push("일상기능 저하");
-  if (lowProtein) tags.push("단백질 섭취 부족");
-  if (weightLoss) tags.push("비의도적 체중감소");
   const eRawStrength =
     (smi.low ? 2 : 0) +
-    (smi.borderline ? 1 : 0) +
-    (lowProtein ? 1 : 0) +
-    (weightLoss ? 1 : 0) +
-    (functionalDecline ? 1 : 0);
-  const eCandidateAllowed =
-    (smi.low && (functionalDecline || lowProtein || weightLoss)) ||
-    (smi.borderline && (functionalDecline || weightLoss || lowProtein)) ||
-    (!smi.low && !smi.borderline && functionalDecline && (weightLoss || lowProtein));
-  addCandidate("E", "E. 근감소 우세형", eCandidateAllowed ? eRawStrength : 0, [smi.low, smi.borderline, lowProtein, weightLoss, functionalDecline].filter(Boolean));
+    (smi.borderline ? 1 : 0);
+  addCandidate("E", "E. 근감소 우세형", smi.low ? eRawStrength : 0, [smi.low, smi.borderline].filter(Boolean));
 
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
@@ -974,24 +955,13 @@ function makeTypeReason(data, results, primary) {
 
 function makeSarcopeniaTypeSentence(data) {
   const smi = assessSmi(data);
-  const lowProtein = data.lowProteinStatus === "있음";
-  const weightLoss = data.weightLossStatus === "있음";
-  const functionalDecline = data.functionalDeclineStatus === "있음";
-  const contexts = [
-    lowProtein ? "단백질 섭취 부족" : "",
-    weightLoss ? "비의도적 체중감소" : "",
-    functionalDecline ? "일상기능 저하" : "",
-  ].filter(Boolean);
   if (smi.low) {
-    return `${smi.valueText}로 낮은 근육량 기준에 해당합니다.${contexts.length ? ` ${contexts.join(", ")}도 함께 확인되어 영양과 활동 상태를 함께 관리할 필요가 있습니다.` : " 영양과 활동 상태를 함께 확인하는 것이 좋습니다."}`;
+    return `${smi.valueText}로 낮은 근육량 기준에 해당합니다. 영양과 활동 상태를 함께 확인하는 것이 좋습니다.`;
   }
   if (smi.borderline) {
-    return `${smi.valueText}로 근육량 경계구간입니다.${contexts.length ? ` ${contexts.join(", ")}를 함께 고려해 추적관찰이 필요합니다.` : " 추적관찰이 필요합니다."}`;
+    return `${smi.valueText}로 근육량 경계구간입니다. 추적관찰이 필요합니다.`;
   }
-  if (functionalDecline || weightLoss || lowProtein) {
-    return `SMI는 기준 이상이지만 ${contexts.join(", ")}가 확인되어 영양, 체중 변화, 일상기능 상태를 함께 살펴볼 필요가 있습니다.`;
-  }
-  return "근육량과 관련 문진을 함께 참고해 영양과 활동 상태를 확인하는 방향입니다.";
+  return "SMI 기준으로 근육량 상태를 참고합니다.";
 }
 
 function renderComputed(data, results) {
@@ -1230,18 +1200,13 @@ function renderDetails(axes) {
 
 function sarcopeniaNarrative(data) {
   const smi = assessSmi(data);
-  const lowProtein = data.lowProteinStatus === "있음";
-  const weightLoss = data.weightLossStatus === "있음";
-  const functionalDecline = data.functionalDeclineStatus === "있음";
   const notes = [];
   if (smi.status === "missing") return notes;
   if (smi.status === "unknown-sex") notes.push("성별을 선택하면 남성·여성 기준으로 SMI 자동 판정을 표시합니다.");
   if (smi.low) {
-    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 영양, 체중 변화, 일상기능 상태를 함께 관리하는 것이 좋습니다.");
+    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 영양과 활동 상태를 함께 확인하는 것이 좋습니다.");
   } else if (smi.borderline) {
     notes.push("낮은 근육량 기준에는 해당하지 않지만 경계구간으로 추적관찰이 필요합니다.");
-  } else if (smi.normal && (lowProtein || weightLoss || functionalDecline)) {
-    notes.push("SMI는 기준 이상이지만 문진상 근감소 관련 관리 신호가 있어 영양과 활동 상태를 함께 확인하는 것이 좋습니다.");
   }
   return notes;
 }
@@ -1255,9 +1220,6 @@ function renderSarcopeniaReport(data) {
   const smi = assessSmi(data);
   const rows = [];
   if (present(data.smi)) rows.push([smi.valueText, smi.label]);
-  if (present(data.lowProteinStatus)) rows.push(["단백질 섭취 부족", data.lowProteinStatus]);
-  if (present(data.weightLossStatus)) rows.push(["최근 비의도적 체중감소", data.weightLossStatus]);
-  if (present(data.functionalDeclineStatus)) rows.push(["계단·보행·일상기능 저하", data.functionalDeclineStatus]);
   const list = document.createElement("ul");
   list.className = "sarcopenia-list";
   list.replaceChildren(...rows.map(([label, value]) => {
