@@ -464,6 +464,34 @@ async function handleApi(request, env) {
     return json({ patient: { id: patient.id, clinic_id: clinic.id, chart_number: patient.chartNumber, name: patient.name, sex: patient.sex, birth_date: patient.birthDate, memo: patient.memo, version: 1 } }, 201);
   }
 
+  const patientBaseMatch = url.pathname.match(/^\/api\/patients\/([^/]+)$/);
+  if (patientBaseMatch && request.method === "PATCH") {
+    const denied = requirePermission(context, "canEdit");
+    if (denied) return denied;
+    const existing = await getPatient(db, context, patientBaseMatch[1]);
+    if (!existing) return json({ error: "Patient not found." }, 404);
+    const body = await readJson(request);
+    const next = {
+      chartNumber: String(body.chartNumber || "").trim(),
+      name: String(body.name || "").trim(),
+      sex: body.sex || "",
+      birthDate: body.birthDate || "",
+      memo: body.memo || "",
+    };
+    if (!next.chartNumber || !next.name) return json({ error: "Chart number and name are required." }, 400);
+    const duplicate = await db.prepare(
+      "SELECT id FROM patients WHERE clinic_id = ? AND chart_number = ? AND id <> ? AND deleted_at IS NULL AND COALESCE(is_deleted, 0) = 0",
+    ).bind(clinic.id, next.chartNumber, existing.id).first();
+    if (duplicate) return json({ error: "Chart number already exists in this clinic." }, 409);
+    const now = nowIso();
+    await db.prepare(
+      "UPDATE patients SET chart_number = ?, name = ?, sex = ?, birth_date = ?, memo = ?, updated_at = ?, updated_by = ?, version = COALESCE(version, 1) + 1 WHERE id = ? AND clinic_id = ?",
+    ).bind(next.chartNumber, next.name, next.sex, next.birthDate, next.memo, now, user.id, existing.id, clinic.id).run();
+    const updated = await getPatient(db, context, existing.id);
+    await audit(db, context, request, "patient.update", "patient", existing.id, existing, updated);
+    return json({ patient: patientRow(updated) });
+  }
+
   const patientMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/assessments$/);
   if (patientMatch && request.method === "GET") {
     const denied = requirePermission(context, "canRead");

@@ -20,6 +20,8 @@ const t = {
   refresh: document.querySelector("#refreshPatientsButton"),
   createForm: document.querySelector("#patientCreateForm"),
   createButton: document.querySelector("#createPatientButton"),
+  editForm: document.querySelector("#patientEditForm"),
+  updatePatientButton: document.querySelector("#updatePatientButton"),
   table: document.querySelector("#patientTableBody"),
   detailPanel: document.querySelector("#patientDetailPanel"),
   selectedTitle: document.querySelector("#selectedPatientTitle"),
@@ -133,6 +135,7 @@ function applyPermissions() {
     item.hidden = !isAdmin;
   });
   setFormControls(t.createForm, Boolean(permissions.canCreatePatient));
+  setFormControls(t.editForm, Boolean(permissions.canEdit && tracking.selectedPatient));
   if (t.saveAssessment) t.saveAssessment.disabled = !permissions.canCreateAssessment || !tracking.selectedPatient;
   if (t.comparisonPrint) t.comparisonPrint.disabled = !permissions.canRead;
   if (t.compareButton) t.compareButton.disabled = !permissions.canRead;
@@ -172,6 +175,13 @@ function numberText(value, digits = 0) {
 
 function scoreText(value) {
   return value === null || value === undefined ? "--" : `${numberText(value)}점`;
+}
+
+function formatBirthDateInput(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
 }
 
 function calculatedValue(assessment, key, itemKey = "") {
@@ -276,7 +286,7 @@ async function createPatient(event) {
     chartNumber: document.querySelector("#newChartNumber").value.trim(),
     name: document.querySelector("#newPatientName").value.trim(),
     sex: document.querySelector("#newPatientSex").value,
-    birthDate: document.querySelector("#newBirthDate").value,
+    birthDate: formatBirthDateInput(document.querySelector("#newBirthDate").value),
     memo: document.querySelector("#newPatientMemo").value.trim(),
   };
   if (!payload.chartNumber || !payload.name) return;
@@ -293,12 +303,57 @@ async function createPatient(event) {
   }
 }
 
+function fillPatientEditForm(patient) {
+  document.querySelector("#editChartNumber").value = patient?.chart_number || "";
+  document.querySelector("#editPatientName").value = patient?.name || "";
+  document.querySelector("#editPatientSex").value = patient?.sex || "";
+  document.querySelector("#editBirthDate").value = patient?.birth_date || "";
+  document.querySelector("#editPatientMemo").value = patient?.memo || "";
+}
+
+async function updatePatient(event) {
+  event.preventDefault();
+  if (!tracking.selectedPatient) return;
+  const payload = {
+    chartNumber: document.querySelector("#editChartNumber").value.trim(),
+    name: document.querySelector("#editPatientName").value.trim(),
+    sex: document.querySelector("#editPatientSex").value,
+    birthDate: formatBirthDateInput(document.querySelector("#editBirthDate").value),
+    memo: document.querySelector("#editPatientMemo").value.trim(),
+  };
+  if (!payload.chartNumber || !payload.name) return;
+  t.updatePatientButton.disabled = true;
+  try {
+    const data = await api(`/api/patients/${tracking.selectedPatient.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    tracking.selectedPatient = data.patient;
+    await loadPatients();
+    const refreshed = tracking.patients.find((patient) => patient.id === tracking.selectedPatient.id);
+    if (refreshed) tracking.selectedPatient = refreshed;
+    fillPatientEditForm(tracking.selectedPatient);
+    t.selectedTitle.textContent = tracking.selectedPatient.name;
+    t.selectedMeta.textContent = patientDisplay(tracking.selectedPatient);
+    window.metabolicReportApp?.setValues({
+      patientName: tracking.selectedPatient.name,
+      chartNumber: tracking.selectedPatient.chart_number,
+      sex: tracking.selectedPatient.sex || "",
+      birthDate: tracking.selectedPatient.birth_date || "",
+      age: ageAt(tracking.selectedPatient.birth_date, document.querySelector("#testDate").value),
+    });
+    setBanner("환자 기본정보가 수정되었습니다.", "ok");
+  } catch (error) {
+    setBanner(error.message, "warning");
+  } finally {
+    applyPermissions();
+  }
+}
+
 async function openPatient(patientId) {
   tracking.selectedPatient = tracking.patients.find((patient) => patient.id === patientId) || null;
   if (!tracking.selectedPatient) return;
   t.detailPanel.hidden = false;
   t.selectedTitle.textContent = tracking.selectedPatient.name;
   t.selectedMeta.textContent = patientDisplay(tracking.selectedPatient);
+  fillPatientEditForm(tracking.selectedPatient);
   applyPermissions();
   window.metabolicReportApp?.setValues({
     patientName: tracking.selectedPatient.name,
@@ -806,6 +861,16 @@ function printComparison() {
 }
 
 t.createForm.addEventListener("submit", createPatient);
+t.editForm?.addEventListener("submit", updatePatient);
+[document.querySelector("#newBirthDate"), document.querySelector("#editBirthDate")].forEach((input) => {
+  input?.addEventListener("input", () => {
+    const formatted = formatBirthDateInput(input.value);
+    if (input.value !== formatted) input.value = formatted;
+  });
+  input?.addEventListener("blur", () => {
+    input.value = formatBirthDateInput(input.value);
+  });
+});
 t.refresh.addEventListener("click", loadPatients);
 t.search.addEventListener("input", () => loadPatients().catch((error) => setBanner(error.message, "warning")));
 t.typeFilter.addEventListener("change", () => loadPatients().catch((error) => setBanner(error.message, "warning")));

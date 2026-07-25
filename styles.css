@@ -698,6 +698,23 @@ input::placeholder {
   background: transparent;
 }
 
+.patient-edit-panel {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.patient-edit-panel summary {
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.patient-edit-panel .mini-form {
+  margin-top: 12px;
+}
+
 .subsection-label {
   margin: 16px 0 9px;
   color: var(--green-dark);
@@ -1435,6 +1452,27 @@ button:disabled {
   font-size: 11px;
   font-weight: 900;
   background: #eef4f1;
+}
+
+.result-table tr.is-attention td {
+  background: #fff7f1;
+  border-bottom-color: #f0d4c2;
+}
+
+.result-table tr.is-attention td:first-child {
+  box-shadow: inset 4px 0 0 #d7955d;
+}
+
+.result-table tr.is-attention .test-name,
+.result-table tr.is-attention .result-value,
+.result-table tr.is-attention .interpretation {
+  color: #7d3327;
+  font-weight: 850;
+}
+
+.result-table tr.is-attention .score {
+  color: #14523f;
+  font-weight: 900;
 }
 
 .result-table td:nth-child(3),

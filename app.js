@@ -74,9 +74,6 @@ const elements = {
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
   tgHdlCalc: document.querySelector("#tgHdlCalc"),
   nonHdlCalc: document.querySelector("#nonHdlCalc"),
-  altCalc: document.querySelector("#altCalc"),
-  ggtCalc: document.querySelector("#ggtCalc"),
-  tbilCalc: document.querySelector("#tbilCalc"),
 };
 
 const numberFields = new Set([
@@ -326,6 +323,22 @@ function scoreBloodPressure(sbp, dbp) {
   return scored(0, 6, "매우 높은 범위");
 }
 
+function assessWaist(sex, waist) {
+  if (!present(waist)) return missing(0);
+  if (sex === "남성") return { score: null, max: 0, label: waist >= 90 ? "복부비만 기준 이상" : "기준 미만" };
+  if (sex === "여성") return { score: null, max: 0, label: waist >= 85 ? "복부비만 기준 이상" : "기준 미만" };
+  return { score: null, max: 0, label: "성별 기준 확인 필요" };
+}
+
+function assessRestingHr(value) {
+  if (!present(value)) return missing(0);
+  if (value < 50) return { score: null, max: 0, label: "낮은 심박수 확인" };
+  if (value < 60) return { score: null, max: 0, label: "낮은 범위" };
+  if (value <= 89) return { score: null, max: 0, label: "참고범위" };
+  if (value <= 99) return { score: null, max: 0, label: "상승" };
+  return { score: null, max: 0, label: "높은 범위" };
+}
+
 function normalizeGrade(grade) {
   return String(grade || "").replace(/\s+/g, "");
 }
@@ -507,8 +520,12 @@ function makeResults(data) {
   const tbil = tbilRaw;
   const ast = scoreUln(data.ast, getUln(data, "ast"), 0, [0, 0, 0, 0]);
   const alp = scoreUln(data.alp, getUln(data, "alp"), 0, [0, 0, 0, 0]);
+  const waist = assessWaist(data.sex, data.waist);
   const hsCrp = scoreHsCrp(data.hsCrp);
   const visceralFat = scoreVisceralFat(data.visceralFat);
+  const restingHrValue = present(data.restingHr) ? data.restingHr : data.heartRate;
+  const restingHr = assessRestingHr(restingHrValue);
+  const bloodPressure = scoreBloodPressure(data.sbp, data.dbp);
   const snsPercent = present(data.snsPercent) ? data.snsPercent : data.snsPnsRatio;
   const pnsPercent = present(snsPercent) ? 100 - snsPercent : null;
   const hrvIndex = scoreHrvIndex(data.hrvIndexGrade, hrvLimited);
@@ -547,6 +564,8 @@ function makeResults(data) {
         { label: "ALT", result: alt, value: present(data.alt) ? `${data.alt} U/L` : null },
         { label: "GGT", result: ggt, value: present(data.ggt) ? `${data.ggt} U/L` : null },
         { label: "TBIL", result: tbil, value: present(data.tbil) ? `${data.tbil} mg/dL` : null },
+        { label: "AST", result: ast, value: present(data.ast) ? `${data.ast} U/L` : null, reference: true },
+        { label: "ALP", result: alp, value: present(data.alp) ? `${data.alp} U/L` : null, reference: true },
       ],
       "간수치, 담도 관련 지표, 빌리루빈 상태를 함께 평가합니다.",
       !present(data.alt) && !present(data.ggt) && !present(data.tbil),
@@ -557,6 +576,7 @@ function makeResults(data) {
       [
         { label: "hs-CRP", result: hsCrp, value: present(data.hsCrp) ? `${data.hsCrp} mg/L` : null },
         { label: "내장지방레벨", result: visceralFat, value: present(data.visceralFat) ? `${data.visceralFat}` : null },
+        { label: "허리둘레", result: waist, value: present(data.waist) ? `${data.waist} cm` : null, reference: true },
       ],
       "저강도 염증과 내장지방 상태를 함께 반영합니다.",
       !present(data.hsCrp) && !present(data.visceralFat),
@@ -570,6 +590,8 @@ function makeResults(data) {
         { label: "ANS Activity", result: ansActivity, value: data.ansActivity || null },
         { label: "Stress", result: stress, value: data.stressGrade || null },
         { label: "SNS:PNS 균형", result: snsPnsBalance, value: present(snsPercent) ? `SNS ${formatDecimal(snsPercent, 1)}% : PNS ${formatDecimal(pnsPercent, 1)}%` : null },
+        { label: "안정 시 심박수", result: restingHr, value: present(restingHrValue) ? `${restingHrValue} bpm` : null, reference: true },
+        { label: "혈압", result: bloodPressure, value: present(data.sbp) || present(data.dbp) ? `${data.sbp || "-"}/${data.dbp || "-"} mmHg` : null, reference: true },
       ],
       "옴니핏 자율신경 측정 결과를 HRV-Index, ANS Activity, Stress, SNS:PNS 균형으로 평가합니다.",
       autonomicMissing,
@@ -594,7 +616,7 @@ function makeResults(data) {
     };
   }
 
-  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, hsCrp, visceralFat, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
+  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, hsCrp, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
 }
 
 function validateInputs(data) {
@@ -983,9 +1005,6 @@ function renderComputed(data, results) {
   elements.nonHdlCalc.textContent = present(results.parts.nonHdl?.value)
     ? `non-HDL-C: ${results.parts.nonHdl.value} mg/dL — ${results.parts.nonHdl.label}`
     : "non-HDL-C: 총콜레스테롤과 HDL-C 입력 후 계산";
-  elements.altCalc.textContent = present(data.alt) ? `ALT: ${data.alt} U/L — ${results.parts.alt.label}` : "ALT: 입력 후 계산";
-  elements.ggtCalc.textContent = present(data.ggt) ? `GGT: ${data.ggt} U/L — ${results.parts.ggt.label}` : "GGT: 입력 후 계산";
-  elements.tbilCalc.textContent = present(data.tbil) ? `TBIL: ${data.tbil} mg/dL — ${results.parts.tbil.label}` : "TBIL: 입력 후 계산";
 }
 
 function renderRadar(axes) {
@@ -1169,6 +1188,13 @@ function renderAxisCards(axes) {
   }));
 }
 
+function detailNeedsAttention(detail) {
+  if (detail.result?.missing) return false;
+  if (detail.result?.hold) return true;
+  const label = detail.result?.label || "";
+  return /경계|관찰|상승|높음|높은 범위|관리 필요|진단범위|전단계|재검|별도 평가|추가 평가|원인 확인|염증|고혈압|주의혈압|저하|치우침|부족|과도|기준 이상|확인 필요/.test(label);
+}
+
 function renderDetails(axes) {
   const table = document.createElement("table");
   table.className = "result-table";
@@ -1194,6 +1220,7 @@ function renderDetails(axes) {
       const score = detail.reference ? "참고" : result?.missing ? "--" : result?.hold ? "판정 보류" : `${result.score}/${result.max}`;
       const value = detail.value || "--";
       const label = result?.label || "";
+      if (detailNeedsAttention(detail)) row.classList.add("is-attention");
       row.innerHTML = `<td class="axis">${axis.label}</td><td class="test-name">${detail.label}</td><td class="result-value">${value}</td><td class="score">${score}</td><td class="interpretation">${label}</td>`;
       return row;
     }));
