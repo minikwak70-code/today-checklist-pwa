@@ -67,8 +67,6 @@ const metricMeta = [
   { key: "snsPercent", label: "SNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.snsPercent ?? calculatedValue(assessment, "snsPercent") },
   { key: "pnsPercent", label: "PNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.pnsPercent ?? calculatedValue(assessment, "pnsPercent") },
   { key: "smi", label: "SMI", unit: "kg/m²", direction: "up", value: (raw) => raw.smi },
-  { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
-  { key: "chairStandSeconds", label: "Chair Stand", unit: "초", direction: "down", value: (raw) => raw.chairStandSeconds },
 ];
 
 function setBanner(text, tone = "") {

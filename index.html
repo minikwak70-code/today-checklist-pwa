@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=27" />
+    <link rel="stylesheet" href="./styles.css?v=28" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -326,7 +326,6 @@
                 <label>
                   <span>hs-CRP (mg/L)</span>
                   <input id="hsCrp" name="hsCrp" type="number" step="0.1" min="0" inputmode="decimal" />
-                  <small class="field-help">hs-CRP는 mg/L 단위로 입력해 주세요. 예: 0.59 mg/L</small>
                 </label>
                 <label>
                   <span>내장지방레벨</span>
@@ -399,14 +398,6 @@
                     <input id="smi" type="number" step="0.01" min="0" inputmode="decimal" />
                     <small class="field-help">SMI는 키를 보정한 골격근량 지표입니다. 근감소 위험 판단에 참고하며 대사건강 총점에는 반영되지 않습니다.</small>
                   </label>
-                  <label>
-                    <span>악력 최고값 (kg)</span>
-                    <input id="gripStrength" type="number" step="0.1" min="0" inputmode="decimal" />
-                  </label>
-                  <label>
-                    <span>5회 Chair Stand (초)</span>
-                    <input id="chairStandSeconds" type="number" step="0.1" min="0" inputmode="decimal" />
-                  </label>
                   <label><span>단백질 섭취 부족</span><select id="lowProteinStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
                   <label><span>최근 비의도적 체중감소</span><select id="weightLossStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
                   <label><span>계단·보행·일상기능 저하</span><select id="functionalDeclineStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
@@ -415,16 +406,12 @@
                   <label><input id="jaundice" type="checkbox" /> 황달 여부</label>
                   <label><input id="darkUrine" type="checkbox" /> 진한 소변 여부</label>
                   <label><input id="ruqPain" type="checkbox" /> 우상복부 통증 여부</label>
-                  <label><input id="knownLiverDisease" type="checkbox" /> 기존 간질환 여부</label>
                   <label><input id="severeLiverDisease" type="checkbox" /> 기존 중증 간질환</label>
                   <label><input id="fattyLiver" type="checkbox" /> 지방간 병력 또는 소견</label>
                   <label><input id="gumDisease" type="checkbox" /> 잇몸질환</label>
                   <label><input id="dermatitis" type="checkbox" /> 피부염</label>
                   <label><input id="chronicPain" type="checkbox" /> 만성 통증</label>
                   <label><input id="recurrentInflammation" type="checkbox" /> 반복되는 염증 증상</label>
-                  <label><input id="recentInfection" type="checkbox" /> 최근 급성감염 또는 발열</label>
-                  <label><input id="recentTraumaSurgery" type="checkbox" /> 최근 외상·수술</label>
-                  <label><input id="recentHardExercise" type="checkbox" /> 최근 고강도 운동</label>
                   <label><input id="sleepProblem" type="checkbox" /> 수면장애</label>
                   <label><input id="chronicFatigue" type="checkbox" /> 만성 피로</label>
                   <label><input id="palpitation" type="checkbox" /> 두근거림</label>
@@ -434,25 +421,20 @@
             </details>
 
             <fieldset>
-              <legend>검사조건 및 해석 제한</legend>
+              <legend>검사 전 확인사항</legend>
               <div class="check-grid">
-                <label><input id="hba1cCaution" type="checkbox" /> HbA1c 해석 주의 조건</label>
-                <label><input id="acuteInflammation" type="checkbox" /> 급성감염·외상·격한 운동</label>
-                <label><input id="gilbert" type="checkbox" /> 길버트증후군 보정 가능</label>
-                <label><input id="directBilirubin" type="checkbox" /> 직접빌리루빈 우세 또는 담즙정체 의심</label>
-                <label><input id="vascularHistory" type="checkbox" /> 심혈관질환 병력</label>
-                <label><input id="diabetesHistory" type="checkbox" /> 당뇨병</label>
-                <label><input id="ckd" type="checkbox" /> 만성신장질환</label>
+                <label><input id="recentInfection" type="checkbox" /> 최근 감기·염증·발열</label>
+                <label><input id="recentTraumaSurgery" type="checkbox" /> 최근 외상·수술·시술</label>
+                <label><input id="recentHardExercise" type="checkbox" /> 검사 전 24시간 이내 격한 운동</label>
+                <label><input id="recentAlcohol" type="checkbox" /> 검사 전 음주</label>
+                <label><input id="recentSmokingCaffeine" type="checkbox" /> 검사 전 흡연 또는 카페인</label>
+                <label><input id="medicationAffectingResults" type="checkbox" /> 검사결과에 영향을 줄 수 있는 약물 복용</label>
                 <label><input id="lipidMedication" type="checkbox" /> 지질강하제 복용</label>
-              </div>
-              <p class="subsection-label">HRV 판독 제한</p>
-              <div class="check-grid">
-                <label><input id="hrvAtrialFib" type="checkbox" /> 심방세동 또는 심한 부정맥</label>
-                <label><input id="hrvWaveError" type="checkbox" /> 측정 오류 또는 파형 불량</label>
-                <label><input id="hrvAcuteDisease" type="checkbox" /> 급성질환</label>
-                <label><input id="hrvStimulant" type="checkbox" /> 측정 직전 운동·흡연·카페인</label>
-                <label><input id="hrvOtherLimit" type="checkbox" /> 기타</label>
-                <label><input id="hrvMedication" type="checkbox" /> HRV 약물 영향 가능</label>
+                <label><input id="diabetesMedication" type="checkbox" /> 당뇨약 또는 인슐린 사용</label>
+                <label><input id="steroidImmunosuppressant" type="checkbox" /> 스테로이드 또는 면역억제제 사용</label>
+                <label><input id="knownLiverDisease" type="checkbox" /> 간질환 병력 또는 간수치 관련 진료 중</label>
+                <label><input id="hrvWaveError" type="checkbox" /> HRV 측정 오류 또는 파형 불량</label>
+                <label><input id="hrvAtrialFib" type="checkbox" /> 심한 부정맥 또는 심방세동</label>
               </div>
             </fieldset>
 
@@ -671,7 +653,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=29" defer></script>
-    <script src="./tracking.js?v=7" defer></script>
+    <script src="./app.js?v=30" defer></script>
+    <script src="./tracking.js?v=8" defer></script>
   </body>
 </html>

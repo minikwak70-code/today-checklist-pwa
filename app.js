@@ -109,25 +109,12 @@ const numberFields = new Set([
   "waist",
   "restingHr",
   "smi",
-  "gripStrength",
-  "chairStandSeconds",
 ]);
 
 const checkboxFields = new Set([
-  "hba1cCaution",
-  "acuteInflammation",
-  "gilbert",
-  "directBilirubin",
-  "vascularHistory",
-  "diabetesHistory",
-  "ckd",
   "lipidMedication",
   "hrvAtrialFib",
   "hrvWaveError",
-  "hrvAcuteDisease",
-  "hrvStimulant",
-  "hrvOtherLimit",
-  "hrvMedication",
   "jaundice",
   "darkUrine",
   "ruqPain",
@@ -141,6 +128,11 @@ const checkboxFields = new Set([
   "recentInfection",
   "recentTraumaSurgery",
   "recentHardExercise",
+  "recentAlcohol",
+  "recentSmokingCaffeine",
+  "medicationAffectingResults",
+  "diabetesMedication",
+  "steroidImmunosuppressant",
   "sleepProblem",
   "chronicFatigue",
   "palpitation",
@@ -211,23 +203,8 @@ function assessSmi(data) {
   return { status: "normal", label: "근육량 기준 이상", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: false, borderline: false, normal: true };
 }
 
-function assessGrip(data) {
-  if (!present(data.gripStrength)) return { status: "missing", label: "미측정", low: false, valueText: "" };
-  if (!data.sex) return { status: "unknown-sex", label: "성별 정보가 없어 악력 기준을 적용할 수 없습니다.", low: false, valueText: `악력 ${formatDecimal(data.gripStrength, 1)} kg` };
-  const low = data.sex === "남성" ? data.gripStrength < 28 : data.gripStrength < 18;
-  return { status: low ? "low" : "normal", label: low ? "근력 저하" : "근력 기준 이상", low, valueText: `악력 ${formatDecimal(data.gripStrength, 1)} kg` };
-}
-
-function assessChairStand(data) {
-  if (!present(data.chairStandSeconds)) return { status: "missing", label: "미측정", low: false, valueText: "" };
-  const low = data.chairStandSeconds >= 12;
-  return { status: low ? "low" : "normal", label: low ? "신체기능 저하" : "신체기능 기준 이상", low, valueText: `5회 Chair Stand ${formatDecimal(data.chairStandSeconds, 1)}초` };
-}
-
 function sarcopeniaInputsPresent(data) {
   return present(data.smi) ||
-    present(data.gripStrength) ||
-    present(data.chairStandSeconds) ||
     present(data.lowProteinStatus) ||
     present(data.weightLossStatus) ||
     present(data.functionalDeclineStatus);
@@ -480,7 +457,14 @@ function autonomicCarePriorities(data) {
 }
 
 function hasHrvLimit(data) {
-  return data.hrvAtrialFib || data.hrvWaveError || data.hrvAcuteDisease || data.hrvStimulant || data.hrvOtherLimit;
+  return (
+    data.hrvAtrialFib ||
+    data.hrvWaveError ||
+    data.recentInfection ||
+    data.recentHardExercise ||
+    data.recentAlcohol ||
+    data.recentSmokingCaffeine
+  );
 }
 
 function makeAxis(key, label, details, comment, unavailable, forcedHold = false) {
@@ -520,7 +504,7 @@ function makeResults(data) {
   const alt = scoreUln(data.alt, getUln(data, "alt"), 10, [10, 8, 5, 2]);
   const ggt = scoreUln(data.ggt, getUln(data, "ggt"), 6, [6, 5, 3, 1]);
   const tbilRaw = scoreUln(data.tbil, getUln(data, "tbil"), 4, [4, 3, 2, 1]);
-  const tbil = data.gilbert && tbilRaw && !tbilRaw.missing ? { ...tbilRaw, score: 4, label: "길버트증후군 보정" } : tbilRaw;
+  const tbil = tbilRaw;
   const ast = scoreUln(data.ast, getUln(data, "ast"), 0, [0, 0, 0, 0]);
   const alp = scoreUln(data.alp, getUln(data, "alp"), 0, [0, 0, 0, 0]);
   const hsCrp = scoreHsCrp(data.hsCrp);
@@ -684,7 +668,7 @@ function scoreTypes(data, results) {
   const hba1cHigh = data.hba1c >= 5.7;
   const tgHdlHigh = results.parts.tgHdl?.ratio >= 3.5;
   const tgHdlModerate = results.parts.tgHdl?.ratio >= 2.5;
-  const acuteInflammation = data.hsCrp > 10 || data.acuteInflammation || data.recentInfection || data.recentTraumaSurgery || data.recentHardExercise;
+  const acuteInflammation = data.hsCrp > 10 || data.recentInfection || data.recentTraumaSurgery || data.recentHardExercise;
   const liverAbnormal = (results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1);
   const liverPriority =
     results.parts.alt?.ratio >= 3 ||
@@ -760,29 +744,25 @@ function scoreTypes(data, results) {
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
 
   const smi = assessSmi(data);
-  const grip = assessGrip(data);
-  const chair = assessChairStand(data);
   const lowProtein = data.lowProteinStatus === "있음";
   const weightLoss = data.weightLossStatus === "있음";
   const functionalDecline = data.functionalDeclineStatus === "있음";
   if (smi.low) tags.push("근육량 관리 필요");
   if (smi.borderline) tags.push("근육량 경계");
-  if (grip.low) tags.push("근력 저하");
-  if (chair.low) tags.push("신체기능 저하");
-  if (smi.low && grip.low) tags.push("근육량·근력 함께 낮음");
+  if (functionalDecline) tags.push("일상기능 저하");
+  if (lowProtein) tags.push("단백질 섭취 부족");
+  if (weightLoss) tags.push("비의도적 체중감소");
   const eRawStrength =
     (smi.low ? 2 : 0) +
     (smi.borderline ? 1 : 0) +
-    (grip.low ? 2 : 0) +
-    (chair.low ? 2 : 0) +
     (lowProtein ? 1 : 0) +
     (weightLoss ? 1 : 0) +
     (functionalDecline ? 1 : 0);
   const eCandidateAllowed =
-    (smi.low && (grip.low || chair.low || functionalDecline || lowProtein || weightLoss)) ||
-    (smi.borderline && (grip.low || chair.low) && (functionalDecline || weightLoss || lowProtein)) ||
-    (!smi.low && !smi.borderline && (grip.low || chair.low) && functionalDecline);
-  addCandidate("E", "E. 근감소 우세형", eCandidateAllowed ? eRawStrength : 0, [smi.low, smi.borderline, grip.low, chair.low, lowProtein, weightLoss, functionalDecline].filter(Boolean));
+    (smi.low && (functionalDecline || lowProtein || weightLoss)) ||
+    (smi.borderline && (functionalDecline || weightLoss || lowProtein)) ||
+    (!smi.low && !smi.borderline && functionalDecline && (weightLoss || lowProtein));
+  addCandidate("E", "E. 근감소 우세형", eCandidateAllowed ? eRawStrength : 0, [smi.low, smi.borderline, lowProtein, weightLoss, functionalDecline].filter(Boolean));
 
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
@@ -972,16 +952,24 @@ function makeTypeReason(data, results, primary) {
 
 function makeSarcopeniaTypeSentence(data) {
   const smi = assessSmi(data);
-  const grip = assessGrip(data);
-  const chair = assessChairStand(data);
-  if (smi.low && grip.low && chair.low) {
-    return `${smi.valueText}로 낮은 근육량 기준에 해당하며, 악력과 Chair Stand도 저하되어 근육량·근력·신체기능 저하가 함께 확인됩니다. 근감소 우세형 가능성을 고려하되 진료와 추가 평가가 필요합니다.`;
+  const lowProtein = data.lowProteinStatus === "있음";
+  const weightLoss = data.weightLossStatus === "있음";
+  const functionalDecline = data.functionalDeclineStatus === "있음";
+  const contexts = [
+    lowProtein ? "단백질 섭취 부족" : "",
+    weightLoss ? "비의도적 체중감소" : "",
+    functionalDecline ? "일상기능 저하" : "",
+  ].filter(Boolean);
+  if (smi.low) {
+    return `${smi.valueText}로 낮은 근육량 기준에 해당합니다.${contexts.length ? ` ${contexts.join(", ")}도 함께 확인되어 영양과 활동 상태를 함께 관리할 필요가 있습니다.` : " 영양과 활동 상태를 함께 확인하는 것이 좋습니다."}`;
   }
-  if (smi.low && grip.low) return `${smi.valueText}로 낮은 근육량 기준에 해당하며, ${grip.valueText}로 근력 저하가 함께 관찰됩니다. 근감소 우세형 가능성이 높아 추가 평가가 필요합니다.`;
-  if (smi.low && chair.low) return `${smi.valueText}로 낮은 근육량 기준에 해당하며, ${chair.valueText}로 신체기능 저하가 함께 관찰됩니다. 근감소 우세형 가능성이 높아 추가 평가가 필요합니다.`;
-  if (smi.low) return `${smi.valueText}로 낮은 근육량 기준에 해당합니다. 다만 근감소 여부를 종합적으로 판단하려면 악력 또는 신체기능 평가가 필요합니다.`;
-  if (smi.normal && (grip.low || chair.low)) return `SMI는 기준 이상이지만 근력 또는 신체기능 저하가 관찰됩니다. 통증, 관절질환, 신경학적 문제와 활동량을 함께 확인할 필요가 있습니다.`;
-  return "근육량, 근력 또는 신체기능 관련 관리 신호가 관찰됩니다. 영양, 근력, 기능 상태를 함께 확인하는 방향입니다.";
+  if (smi.borderline) {
+    return `${smi.valueText}로 근육량 경계구간입니다.${contexts.length ? ` ${contexts.join(", ")}를 함께 고려해 추적관찰이 필요합니다.` : " 추적관찰이 필요합니다."}`;
+  }
+  if (functionalDecline || weightLoss || lowProtein) {
+    return `SMI는 기준 이상이지만 ${contexts.join(", ")}가 확인되어 영양, 체중 변화, 일상기능 상태를 함께 살펴볼 필요가 있습니다.`;
+  }
+  return "근육량과 관련 문진을 함께 참고해 영양과 활동 상태를 확인하는 방향입니다.";
 }
 
 function renderComputed(data, results) {
@@ -1215,23 +1203,18 @@ function renderDetails(axes) {
 
 function sarcopeniaNarrative(data) {
   const smi = assessSmi(data);
-  const grip = assessGrip(data);
-  const chair = assessChairStand(data);
+  const lowProtein = data.lowProteinStatus === "있음";
+  const weightLoss = data.weightLossStatus === "있음";
+  const functionalDecline = data.functionalDeclineStatus === "있음";
   const notes = [];
   if (smi.status === "missing") return notes;
   if (smi.status === "unknown-sex") notes.push("성별을 선택하면 남성·여성 기준으로 SMI 자동 판정을 표시합니다.");
-  if (smi.low && grip.status === "missing" && chair.status === "missing") {
-    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 근감소 위험을 더 정확히 평가하려면 악력 또는 5회 Chair Stand 검사가 필요합니다.");
-  } else if (smi.normal && grip.status === "missing" && chair.status === "missing") {
-    notes.push("SMI는 기준 이상입니다. 악력과 신체기능은 측정되지 않아 근감소 위험에 대한 종합판정에는 제한이 있습니다.");
-  } else if (smi.low && grip.low && chair.low) {
-    notes.push("근육량·근력·신체기능 저하가 함께 확인됩니다.");
-  } else if (smi.low && (grip.low || chair.low)) {
-    notes.push("근육량 저하와 근력 또는 신체기능 저하가 함께 확인되어 근감소 우세형 가능성이 높습니다.");
-  } else if (smi.normal && (grip.low || chair.low)) {
-    notes.push("근육량은 기준 이상이지만 근력 또는 신체기능 저하가 관찰됩니다. 통증, 관절질환, 신경학적 문제와 활동량을 함께 확인할 필요가 있습니다.");
+  if (smi.low) {
+    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 영양, 체중 변화, 일상기능 상태를 함께 관리하는 것이 좋습니다.");
   } else if (smi.borderline) {
     notes.push("낮은 근육량 기준에는 해당하지 않지만 경계구간으로 추적관찰이 필요합니다.");
+  } else if (smi.normal && (lowProtein || weightLoss || functionalDecline)) {
+    notes.push("SMI는 기준 이상이지만 문진상 근감소 관련 관리 신호가 있어 영양과 활동 상태를 함께 확인하는 것이 좋습니다.");
   }
   return notes;
 }
@@ -1243,12 +1226,8 @@ function renderSarcopeniaReport(data) {
     return;
   }
   const smi = assessSmi(data);
-  const grip = assessGrip(data);
-  const chair = assessChairStand(data);
   const rows = [];
   if (present(data.smi)) rows.push([smi.valueText, smi.label]);
-  if (present(data.gripStrength)) rows.push([grip.valueText, grip.label]);
-  if (present(data.chairStandSeconds)) rows.push([chair.valueText, chair.label]);
   if (present(data.lowProteinStatus)) rows.push(["단백질 섭취 부족", data.lowProteinStatus]);
   if (present(data.weightLossStatus)) rows.push(["최근 비의도적 체중감소", data.weightLossStatus]);
   if (present(data.functionalDeclineStatus)) rows.push(["계단·보행·일상기능 저하", data.functionalDeclineStatus]);
@@ -1297,6 +1276,24 @@ function hsCrpInterpretationNotes(data) {
   return notes;
 }
 
+function checkedConditionLabels(data) {
+  const items = [
+    ["recentInfection", "최근 감기·염증·발열"],
+    ["recentTraumaSurgery", "최근 외상·수술·시술"],
+    ["recentHardExercise", "검사 전 24시간 이내 격한 운동"],
+    ["recentAlcohol", "검사 전 음주"],
+    ["recentSmokingCaffeine", "검사 전 흡연 또는 카페인"],
+    ["medicationAffectingResults", "검사결과에 영향을 줄 수 있는 약물 복용"],
+    ["lipidMedication", "지질강하제 복용"],
+    ["diabetesMedication", "당뇨약 또는 인슐린 사용"],
+    ["steroidImmunosuppressant", "스테로이드 또는 면역억제제 사용"],
+    ["knownLiverDisease", "간질환 병력 또는 간수치 관련 진료 중"],
+    ["hrvWaveError", "HRV 측정 오류 또는 파형 불량"],
+    ["hrvAtrialFib", "심한 부정맥 또는 심방세동"],
+  ];
+  return items.filter(([key]) => data[key]).map(([, label]) => label);
+}
+
 function renderList(element, items) {
   if (!element) return;
   element.replaceChildren(...items.map((text) => {
@@ -1308,8 +1305,10 @@ function renderList(element, items) {
 
 function renderNotes(data, results, typeResult, validation) {
   const hrvCondition = results.hrvLimited ? "판독 제한 있음" : "판독 제한 없음";
+  const checkedConditions = checkedConditionLabels(data);
   const conditions = [
     `채혈 상태: ${data.mealStatus || "미입력"}`,
+    checkedConditions.length ? `검사 전 확인사항: ${checkedConditions.join(", ")}` : "검사 전 확인사항: 특이사항 없음",
     `HRV 측정조건: ${hrvCondition}`,
   ];
   const limits = [];
@@ -1319,8 +1318,13 @@ function renderNotes(data, results, typeResult, validation) {
   if (data.mealStatus === "식후 4~7시간") limits.push("식후 상태가 TG 및 TG/HDL-C 해석에 일부 영향을 줄 수 있습니다.");
   if (data.mealStatus === "확인 불가") limits.push("채혈 당시 식사 상태를 확인할 수 없어 TG 및 TG/HDL-C 해석에 제한이 있습니다.");
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
-    limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획 및 길버트증후군 가능성을 확인하세요.");
+    limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획을 확인하세요.");
   }
+  if (data.recentInfection || data.recentTraumaSurgery || data.recentHardExercise) limits.push("최근 염증·외상·수술·격한 운동은 hs-CRP와 염증 관련 해석에 영향을 줄 수 있습니다.");
+  if (data.recentAlcohol) limits.push("검사 전 음주는 간수치, 중성지방, HRV 해석에 영향을 줄 수 있습니다.");
+  if (data.recentSmokingCaffeine) limits.push("검사 전 흡연 또는 카페인은 혈압과 HRV 해석에 영향을 줄 수 있습니다.");
+  if (data.medicationAffectingResults || data.lipidMedication || data.diabetesMedication || data.steroidImmunosuppressant) limits.push("복용 중인 약물은 혈당, 지질, 염증, 간수치 해석에 영향을 줄 수 있어 약물 정보를 함께 확인해야 합니다.");
+  if (data.knownLiverDisease) limits.push("간질환 병력 또는 간수치 관련 진료 중인 경우 간대사 결과는 기존 진료 내용과 함께 해석해야 합니다.");
   if (data.hsCrp > 10) limits.push("급성 감염·외상·수술·격한 운동 등 급성 염증 원인을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
   if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경(스트레스) 축의 점수 판정을 보류합니다.");
   if (typeResult.notes.length) limits.push(...typeResult.notes);
@@ -1329,7 +1333,6 @@ function renderNotes(data, results, typeResult, validation) {
   const common = [
     "본 리포트는 질병을 진단하거나 확진하기 위한 도구가 아니라, 초진 상태와 관리 전후 변화를 비교하기 위한 임상 관리지표입니다.",
     "검사 결과는 증상, 병력, 복용약 및 추가검사와 함께 해석해야 합니다.",
-    "TG/HDL-C 비율은 인슐린 저항성을 확진하는 검사가 아니라 관련 대사 패턴을 추정하는 보조지표입니다.",
     "검사 저장을 실행한 환자정보와 검사결과는 공덕경희한의원 공동 작업공간의 인증된 사용자만 접근할 수 있는 서버 데이터베이스에 기록됩니다.",
   ];
   renderList(elements.conditionList, conditions);
