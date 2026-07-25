@@ -1198,19 +1198,6 @@ function renderDetails(axes) {
   elements.detailTable.replaceChildren(table);
 }
 
-function sarcopeniaNarrative(data) {
-  const smi = assessSmi(data);
-  const notes = [];
-  if (smi.status === "missing") return notes;
-  if (smi.status === "unknown-sex") notes.push("성별을 선택하면 남성·여성 기준으로 SMI 자동 판정을 표시합니다.");
-  if (smi.low) {
-    notes.push("SMI가 낮은 근육량 기준에 해당합니다. 영양과 활동 상태를 함께 확인하는 것이 좋습니다.");
-  } else if (smi.borderline) {
-    notes.push("낮은 근육량 기준에는 해당하지 않지만 경계구간으로 추적관찰이 필요합니다.");
-  }
-  return notes;
-}
-
 function renderSarcopeniaReport(data) {
   if (!sarcopeniaInputsPresent(data)) {
     elements.sarcopeniaReport.hidden = true;
@@ -1227,11 +1214,7 @@ function renderSarcopeniaReport(data) {
     item.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
     return item;
   }));
-  const notes = sarcopeniaNarrative(data);
-  const noteBox = document.createElement("p");
-  noteBox.className = "sarcopenia-note";
-  noteBox.textContent = notes.length ? notes.join(" ") : "근감소 평가 입력값은 대사건강 총점에는 반영되지 않으며, 타입 판정과 관리 방향 설정에 참고합니다.";
-  elements.sarcopeniaBody.replaceChildren(list, noteBox);
+  elements.sarcopeniaBody.replaceChildren(list);
   elements.sarcopeniaReport.hidden = false;
 }
 

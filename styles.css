@@ -1533,13 +1533,6 @@ button:disabled {
   text-align: right;
 }
 
-.sarcopenia-note {
-  margin: 12px 0 0;
-  color: #34433d;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
 .notes-list {
   display: grid;
   gap: 6px;
