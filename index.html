@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=29" />
+    <link rel="stylesheet" href="./styles.css?v=30" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -424,7 +424,6 @@
                 <label>
                   <span>SMI (kg/m²)</span>
                   <input id="smi" name="smi" type="number" step="0.01" min="0" inputmode="decimal" />
-                  <small class="field-help">SMI는 키를 보정한 골격근량 지표입니다. 근감소 위험 판단에 참고하며 대사건강 총점에는 반영되지 않습니다.</small>
                 </label>
                 <label><span>단백질 섭취 부족</span><select id="lowProteinStatus" name="lowProteinStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
                 <label><span>최근 비의도적 체중감소</span><select id="weightLossStatus" name="weightLossStatus"><option value="">선택</option><option>없음</option><option>있음</option><option>모름</option></select></label>
@@ -660,24 +659,19 @@
                 <p class="section-title">세부 검사 결과</p>
                 <div id="detailTable" class="detail-table"></div>
               </div>
-              <div>
-                <p class="section-title">해석 참고사항</p>
-                <div class="note-groups">
-                  <section>
-                    <h3>해석 시 참고사항</h3>
-                    <ul id="limitList" class="notes-list"></ul>
-                  </section>
-                  <section>
-                    <h3>공통 안내</h3>
-                    <ul id="commonGuideList" class="notes-list"></ul>
-                  </section>
-                </div>
-              </div>
+              <article id="sarcopeniaReport" class="sarcopenia-report" hidden>
+                <p class="section-title">근감소 평가</p>
+                <div id="sarcopeniaBody"></div>
+              </article>
+              <section class="note-block">
+                <p class="section-title">해석 시 참고사항</p>
+                <ul id="limitList" class="notes-list"></ul>
+              </section>
+              <section class="note-block">
+                <p class="section-title">공통 안내</p>
+                <ul id="commonGuideList" class="notes-list"></ul>
+              </section>
             </div>
-            <article id="sarcopeniaReport" class="sarcopenia-report" hidden>
-              <p class="section-title">근감소 평가</p>
-              <div id="sarcopeniaBody"></div>
-            </article>
             <footer class="page-footer">공덕경희한의원 | 대사건강 리포트 | 3/3</footer>
           </section>
         </section>
