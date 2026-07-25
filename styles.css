@@ -910,9 +910,9 @@ button:disabled {
   background: #e7f2ed;
 }
 
-.type-overview dl > div.is-primary-type dt,
-.type-overview dl > div.is-secondary-type dt {
-  padding-right: 44px;
+.type-overview dl > div.is-primary-type,
+.type-overview dl > div.is-secondary-type {
+  padding-right: 58px;
 }
 
 .type-overview dl > div.is-primary-type::after,
@@ -1774,63 +1774,76 @@ button:disabled {
   .type-card {
     grid-template-columns: repeat(4, 1fr);
     margin-top: 0;
-    padding: 12px;
+    padding: 14px;
   }
 
   .type-card {
-    gap: 9px;
+    gap: 11px;
   }
 
   .type-guide,
   .type-reason {
-    font-size: 10.6px;
-    line-height: 1.38;
+    font-size: 11.4px;
+    line-height: 1.45;
   }
 
   .type-guide {
-    padding-bottom: 8px;
+    padding-bottom: 10px;
   }
 
   .type-card .section-title {
-    font-size: 10px;
-    margin-bottom: 4px;
+    font-size: 10.5px;
+    margin-bottom: 5px;
   }
 
   .type-card strong {
-    font-size: 14px;
-    line-height: 1.32;
+    font-size: 15px;
+    line-height: 1.38;
   }
 
   .tag-line {
-    font-size: 10.8px;
-    line-height: 1.32;
+    font-size: 11.2px;
+    line-height: 1.38;
   }
 
   .type-reason {
-    padding: 8px 10px;
+    padding: 9px 11px;
   }
 
   .type-overview {
-    gap: 5px;
+    gap: 6px;
   }
 
   .type-overview dl {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 6px;
+    gap: 7px;
   }
 
   .type-overview dl > div {
-    padding: 6px 7px;
+    padding: 7px 8px;
+  }
+
+  .type-overview dl > div.is-primary-type,
+  .type-overview dl > div.is-secondary-type {
+    padding-right: 45px;
   }
 
   .type-overview dt {
-    font-size: 9.4px;
-    margin-bottom: 2px;
+    font-size: 10px;
+    margin-bottom: 3px;
   }
 
   .type-overview dd {
-    font-size: 8.2px;
-    line-height: 1.24;
+    font-size: 8.8px;
+    line-height: 1.32;
+  }
+
+  .type-overview dl > div.is-primary-type::after,
+  .type-overview dl > div.is-secondary-type::after {
+    top: 6px;
+    right: 6px;
+    padding: 2px 5px;
+    font-size: 7.8px;
   }
 
   .summary-grid {
