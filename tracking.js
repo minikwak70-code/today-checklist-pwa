@@ -5,6 +5,7 @@ const tracking = {
   permissions: {},
   members: [],
   patients: [],
+  patientsRequestId: 0,
   selectedPatient: null,
   assessments: [],
   comparison: null,
@@ -251,14 +252,24 @@ async function loadMe() {
 }
 
 async function loadPatients() {
+  const requestId = ++tracking.patientsRequestId;
   const params = new URLSearchParams({
     search: t.search.value || "",
     type: t.typeFilter.value || "",
     sort: t.sort.value || "recent",
   });
   const data = await api(`/api/patients?${params}`);
+  if (requestId !== tracking.patientsRequestId) return;
   tracking.patients = data.patients || [];
   renderPatientTable();
+}
+
+function debounce(fn, delay = 250) {
+  let timer = null;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 }
 
 function renderPatientTable() {
@@ -872,7 +883,8 @@ t.editForm?.addEventListener("submit", updatePatient);
   });
 });
 t.refresh.addEventListener("click", loadPatients);
-t.search.addEventListener("input", () => loadPatients().catch((error) => setBanner(error.message, "warning")));
+const debouncedPatientSearch = debounce(() => loadPatients().catch((error) => setBanner(error.message, "warning")), 280);
+t.search.addEventListener("input", debouncedPatientSearch);
 t.typeFilter.addEventListener("change", () => loadPatients().catch((error) => setBanner(error.message, "warning")));
 t.sort.addEventListener("change", () => loadPatients().catch((error) => setBanner(error.message, "warning")));
 t.table.addEventListener("click", (event) => {

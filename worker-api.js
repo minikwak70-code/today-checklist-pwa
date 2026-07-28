@@ -1,6 +1,7 @@
 const SCORE_RULE_VERSION = "metabolic-score-v3.0";
 const DEFAULT_CLINIC_ID = "clinic_gongdeok_kyunghee";
 const DEFAULT_CLINIC_NAME = "공덕경희한의원";
+let schemaReadyPromise = null;
 
 const ROLE_LABELS = {
   admin: "관리자",
@@ -89,10 +90,12 @@ async function ensureSchema(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS patients_name_idx ON patients (name)"),
     db.prepare("CREATE INDEX IF NOT EXISTS patients_chart_number_idx ON patients (chart_number)"),
     db.prepare("CREATE INDEX IF NOT EXISTS patients_clinic_idx ON patients (clinic_id, is_active)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS patients_clinic_list_idx ON patients (clinic_id, is_deleted, deleted_at, updated_at DESC)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS patients_clinic_chart_unique ON patients (clinic_id, chart_number) WHERE deleted_at IS NULL"),
     db.prepare("CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, clinic_id TEXT, patient_id TEXT NOT NULL, assessment_date TEXT NOT NULL, assessment_stage TEXT, fasting_status TEXT, raw_values TEXT NOT NULL, calculated_scores TEXT NOT NULL, total_score REAL, glucose_score REAL, lipid_score REAL, liver_score REAL, inflammation_score REAL, autonomic_score REAL, score_rule_version TEXT NOT NULL, primary_type TEXT, secondary_type TEXT, type_strengths TEXT, tags TEXT, warnings TEXT, clinician_note TEXT, report_snapshot TEXT, is_deleted INTEGER NOT NULL DEFAULT 0, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT, version INTEGER NOT NULL DEFAULT 1)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_patient_date_idx ON assessments (patient_id, assessment_date)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_clinic_idx ON assessments (clinic_id, patient_id, assessment_date)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS assessments_latest_idx ON assessments (clinic_id, patient_id, is_deleted, deleted_at, assessment_date DESC, created_at DESC)"),
     db.prepare("CREATE TABLE IF NOT EXISTS score_rule_versions (id TEXT PRIMARY KEY, version TEXT NOT NULL UNIQUE, effective_date TEXT NOT NULL, rules TEXT NOT NULL, description TEXT, created_at TEXT NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, clinic_id TEXT, user_id TEXT, action TEXT NOT NULL, target_type TEXT, target_id TEXT, before_data TEXT, after_data TEXT, ip_address TEXT, user_agent TEXT, entity_type TEXT, entity_id TEXT, before_values TEXT, after_values TEXT, reason TEXT, created_at TEXT NOT NULL, created_by TEXT)"),
     db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_clinic_idx ON audit_logs (clinic_id, created_at)"),
@@ -138,6 +141,16 @@ async function ensureSchema(db) {
     "Current embedded metabolic score rules with hs-CRP, visceral fat and SMI reference logic.",
     now,
   ).run();
+}
+
+async function ensureSchemaOnce(db) {
+  if (!schemaReadyPromise) {
+    schemaReadyPromise = ensureSchema(db).catch((error) => {
+      schemaReadyPromise = null;
+      throw error;
+    });
+  }
+  return schemaReadyPromise;
 }
 
 async function getOrCreateUser(request, db) {
@@ -200,7 +213,7 @@ async function ensureMembership(db, user) {
 
 async function getContext(request, env) {
   if (!env.DB) return { error: json({ error: "D1 database binding DB is not configured." }, 503) };
-  await ensureSchema(env.DB);
+  await ensureSchemaOnce(env.DB);
   const userResult = await getOrCreateUser(request, env.DB);
   if (userResult.error) return userResult;
   const user = userResult.user;
@@ -401,6 +414,7 @@ async function handleApi(request, env) {
     const denied = requirePermission(context, "canRead");
     if (denied) return denied;
     const search = `%${(url.searchParams.get("search") || "").trim()}%`;
+    const type = url.searchParams.get("type") || "";
     const order = url.searchParams.get("sort") === "score"
       ? "latest_total_score DESC"
       : url.searchParams.get("sort") === "chart"
@@ -409,32 +423,40 @@ async function handleApi(request, env) {
           ? "p.name ASC"
           : "latest_assessment_date DESC";
     const query = `
+      WITH latest_assessments AS (
+        SELECT id, patient_id, assessment_date, total_score, primary_type
+        FROM (
+          SELECT
+            id, patient_id, assessment_date, total_score, primary_type,
+            ROW_NUMBER() OVER (
+              PARTITION BY patient_id
+              ORDER BY assessment_date DESC, created_at DESC
+            ) AS row_number
+          FROM assessments
+          WHERE clinic_id = ?
+            AND deleted_at IS NULL
+            AND COALESCE(is_deleted, 0) = 0
+        )
+        WHERE row_number = 1
+      )
       SELECT
         p.id, p.clinic_id, p.chart_number, p.name, p.sex, p.birth_date, p.memo, p.created_at, p.updated_at,
         p.created_by, p.updated_by, p.version,
-        cu.name AS created_by_name, uu.name AS updated_by_name,
         a.assessment_date AS latest_assessment_date,
         a.total_score AS latest_total_score,
         a.primary_type AS latest_primary_type
       FROM patients p
-      LEFT JOIN users cu ON cu.id = p.created_by
-      LEFT JOIN users uu ON uu.id = p.updated_by
-      LEFT JOIN assessments a ON a.id = (
-        SELECT id FROM assessments
-        WHERE patient_id = p.id AND clinic_id = ? AND deleted_at IS NULL AND COALESCE(is_deleted, 0) = 0
-        ORDER BY assessment_date DESC, created_at DESC
-        LIMIT 1
-      )
+      LEFT JOIN latest_assessments a ON a.patient_id = p.id
       WHERE p.clinic_id = ?
         AND p.deleted_at IS NULL
         AND COALESCE(p.is_deleted, 0) = 0
         AND (p.name LIKE ? OR p.chart_number LIKE ?)
+        AND (? = '' OR a.primary_type = ?)
       ORDER BY ${order}, p.updated_at DESC
     `;
-    const result = await db.prepare(query).bind(clinic.id, clinic.id, search, search).all();
-    const type = url.searchParams.get("type") || "";
+    const result = await db.prepare(query).bind(clinic.id, clinic.id, search, search, type, type).all();
     const patients = (result.results || []).map(patientRow);
-    return json({ clinic, patients: type ? patients.filter((patient) => patient.latest_primary_type === type) : patients });
+    return json({ clinic, patients });
   }
 
   if (url.pathname === "/api/patients" && request.method === "POST") {
