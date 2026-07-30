@@ -899,6 +899,7 @@ function selectedSecondaryType(typeResult, data) {
 }
 
 function programName(programId) {
+  if (!programId) return "";
   return TREATMENT_PROGRAMS.find((program) => program.id === programId)?.name || "";
 }
 
