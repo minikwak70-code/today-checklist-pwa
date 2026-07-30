@@ -38,6 +38,44 @@ const PRIORITY_REASON_COMMENTS = {
   autonomic: "스트레스와 자율신경 불균형은 몸을 계속 각성시켜 부담을 줍니다.",
 };
 
+const TREATMENT_PROGRAMS = [
+  { id: "", name: "선택" },
+  { id: "liver_function", name: "간기능개선치료" },
+  { id: "lean_diet", name: "린다이어트 프로그램" },
+  { id: "enzyme_fast", name: "효소절식 프로그램" },
+  { id: "herbal_medicine", name: "한약치료" },
+];
+
+const TREATMENT_FIELD_IDS = [
+  "treatmentProgramPrimary",
+  "treatmentProgramSecondary",
+  "treatmentProgramTertiary",
+  "treatmentDurationPrimary",
+  "treatmentDurationSecondary",
+  "treatmentDurationTertiary",
+  "treatmentDuration",
+  "treatmentGoals",
+  "treatmentFocusCustom",
+  "treatmentPlan",
+];
+
+const TREATMENT_FOCUS_FIELDS = [
+  ["focusCarbRestriction", "탄수화물 제한"],
+  ["focusVisceralFat", "내장지방 감소"],
+  ["focusSleepQuality", "수면의 질 향상"],
+  ["focusInflammationReduction", "염증수치 감소"],
+  ["focusLiverRecovery", "간기능 회복"],
+  ["focusInsulinResistance", "인슐린 저항성 개선"],
+  ["focusStressRecovery", "스트레스 반응 조절"],
+  ["focusMuscleMaintenance", "근육량 유지"],
+  ["focusExerciseRoutine", "운동 루틴 형성"],
+  ["focusAlcoholReduction", "음주 조절"],
+];
+
+let treatmentPlanUserEdited = false;
+let treatmentPlanApplyingAuto = false;
+let treatmentDurationUserEdited = false;
+
 const elements = {
   form: document.querySelector("#reportForm"),
   generateButton: document.querySelector("#generateButton"),
@@ -72,6 +110,13 @@ const elements = {
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
   tgHdlCalc: document.querySelector("#tgHdlCalc"),
   nonHdlCalc: document.querySelector("#nonHdlCalc"),
+  generateTreatmentPlanButton: document.querySelector("#generateTreatmentPlanButton"),
+  treatmentDirection: document.querySelector("#treatmentDirection"),
+  treatmentProgramList: document.querySelector("#treatmentProgramList"),
+  treatmentDurationOutput: document.querySelector("#treatmentDurationOutput"),
+  treatmentDurationReason: document.querySelector("#treatmentDurationReason"),
+  treatmentGoalList: document.querySelector("#treatmentGoalList"),
+  treatmentFocusList: document.querySelector("#treatmentFocusList"),
 };
 
 const numberFields = new Set([
@@ -132,6 +177,7 @@ const checkboxFields = new Set([
   "chronicFatigue",
   "palpitation",
   "tensionAnxiety",
+  ...TREATMENT_FOCUS_FIELDS.map(([id]) => id),
 ]);
 
 const allFields = [
@@ -150,6 +196,7 @@ const allFields = [
   "manualPrimaryType",
   "manualSecondaryType",
   "clinicianNote",
+  ...TREATMENT_FIELD_IDS,
   ...numberFields,
   ...checkboxFields,
 ];
@@ -851,6 +898,292 @@ function selectedSecondaryType(typeResult, data) {
   return data.manualSecondaryType || typeResult.secondary;
 }
 
+function programName(programId) {
+  return TREATMENT_PROGRAMS.find((program) => program.id === programId)?.name || "";
+}
+
+function treatmentTypes(primary, secondary) {
+  return [displayTypeName(primary), ...displayTypeName(secondary).split("+")]
+    .map((type) => type.trim())
+    .filter((type) => type && type !== "해당 없음");
+}
+
+function addUnique(items, value) {
+  if (value && !items.includes(value)) items.push(value);
+}
+
+function axisByKey(results, key) {
+  return results.axes.find((axis) => axis.key === key);
+}
+
+function normalizedAxisScore(axis) {
+  if (!axis || axis.status === "unavailable" || axis.status === "hold" || !axis.max) return null;
+  return (axis.score / axis.max) * AXIS_MAX;
+}
+
+function parseDurationMonths(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  const range = text.match(/^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)개월$/);
+  if (range) return { min: Number(range[1]), max: Number(range[2]) };
+  const single = text.match(/^(\d+(?:\.\d+)?)개월$/);
+  if (single) return { min: Number(single[1]), max: Number(single[1]) };
+  return null;
+}
+
+function formatMonthRange(range) {
+  if (!range) return "직접 상담 후 결정";
+  const min = Number(range.min.toFixed(1)).toString();
+  const max = Number(range.max.toFixed(1)).toString();
+  return range.min === range.max ? `${min}개월` : `${min}~${max}개월`;
+}
+
+function sumTreatmentDurations(durations) {
+  const activeDurations = durations.filter(Boolean);
+  if (!activeDurations.length) return "";
+  const ranges = activeDurations.map(parseDurationMonths);
+  if (ranges.some((range) => !range)) return "직접 상담 후 결정";
+  return formatMonthRange(ranges.reduce((sum, range) => ({
+    min: sum.min + range.min,
+    max: sum.max + range.max,
+  }), { min: 0, max: 0 }));
+}
+
+function focusLabelsFromData(data) {
+  return TREATMENT_FOCUS_FIELDS
+    .filter(([id]) => data[id])
+    .map(([, label]) => label);
+}
+
+function focusCustomLabels(text) {
+  return String(text || "")
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function setFocusFields(focusIds) {
+  for (const [id] of TREATMENT_FOCUS_FIELDS) {
+    const input = field(id);
+    if (input) input.checked = focusIds.includes(id);
+  }
+}
+
+function makeTreatmentSuggestion(data, results, grade, typeResult) {
+  if (!results.max) {
+    return {
+      primaryProgram: "",
+      secondaryProgram: "",
+      tertiaryProgram: "",
+      primaryDuration: "",
+      secondaryDuration: "",
+      tertiaryDuration: "",
+      duration: "",
+      durationReason: "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.",
+      goals: ["검사 결과 확인 후 치료 목표 설정"],
+      focusIds: [],
+      focusCustom: "",
+      direction: "검사결과를 입력하면 타입에 따른 치료 방향이 자동으로 표시됩니다.",
+    };
+  }
+  const primary = selectedPrimaryType(typeResult, data);
+  const secondary = selectedSecondaryType(typeResult, data);
+  const types = treatmentTypes(primary, secondary);
+  const primaryName = displayTypeName(primary);
+  const priority = priorityAxes(results.axes, 3);
+  const lowAxes = priority.map((axis) => axis.label);
+  const goals = [];
+  const focusIds = [];
+  const programs = [];
+  const addProgram = (id) => addUnique(programs, id);
+  const addFocus = (id) => addUnique(focusIds, id);
+  const glucoseScore = normalizedAxisScore(axisByKey(results, "glucose"));
+  const lipidScore = normalizedAxisScore(axisByKey(results, "lipid"));
+  const liverScore = normalizedAxisScore(axisByKey(results, "liver"));
+  const inflammationScore = normalizedAxisScore(axisByKey(results, "inflammation"));
+  const autonomicScore = normalizedAxisScore(axisByKey(results, "autonomic"));
+  const severeAxisCount = [glucoseScore, lipidScore, liverScore, inflammationScore, autonomicScore].filter((score) => score !== null && score <= 10).length;
+
+  if (types.some((type) => type.includes("간관리")) || liverScore !== null && liverScore <= 12) {
+    addProgram("liver_function");
+    addUnique(goals, "간기능 및 피로 회복 개선");
+    addFocus("focusLiverRecovery");
+    addFocus("focusAlcoholReduction");
+  }
+  if (types.some((type) => type.includes("복부비만")) || lipidScore !== null && lipidScore <= 12 || data.visceralFat >= 10 || data.waist >= 85) {
+    addProgram("lean_diet");
+    addUnique(goals, "내장지방 및 체지방률 감소");
+    addUnique(goals, "지질대사 개선");
+    addFocus("focusVisceralFat");
+    addFocus("focusCarbRestriction");
+    addFocus("focusExerciseRoutine");
+  }
+  if (types.some((type) => type.includes("인슐린")) || glucoseScore !== null && glucoseScore <= 12) {
+    addProgram("lean_diet");
+    addProgram("herbal_medicine");
+    addUnique(goals, "혈당 및 인슐린 저항성 개선");
+    addFocus("focusInsulinResistance");
+    addFocus("focusCarbRestriction");
+  }
+  if (types.some((type) => type.includes("만성염증")) || inflammationScore !== null && inflammationScore <= 12) {
+    addProgram("herbal_medicine");
+    addProgram("enzyme_fast");
+    addUnique(goals, "만성염증 부담 완화");
+    addFocus("focusInflammationReduction");
+    addFocus("focusSleepQuality");
+  }
+  if (types.some((type) => type.includes("자율신경")) || autonomicScore !== null && autonomicScore <= 12) {
+    addProgram("herbal_medicine");
+    addUnique(goals, "스트레스 반응 및 회복력 개선");
+    addFocus("focusStressRecovery");
+    addFocus("focusSleepQuality");
+  }
+  if (types.some((type) => type.includes("근감소"))) {
+    addProgram("herbal_medicine");
+    addUnique(goals, "근육량과 신체기능 저하 예방");
+    addFocus("focusMuscleMaintenance");
+    addFocus("focusExerciseRoutine");
+  }
+  if (types.some((type) => type.includes("복합대사위험"))) {
+    addProgram("lean_diet");
+    addProgram("herbal_medicine");
+    addUnique(goals, "여러 대사 문제의 단계적 개선");
+    addFocus("focusCarbRestriction");
+    addFocus("focusVisceralFat");
+    addFocus("focusSleepQuality");
+  }
+  if (types.some((type) => type.includes("대사균형"))) {
+    addUnique(goals, "현재 대사 균형 유지");
+    addUnique(goals, "정기 추적검사를 통한 변화 확인");
+    addFocus("focusExerciseRoutine");
+    addFocus("focusSleepQuality");
+  }
+  if (!programs.length) {
+    addProgram("herbal_medicine");
+    addUnique(goals, "개별 증상과 검사 변화 추적");
+    addFocus("focusSleepQuality");
+  }
+
+  let duration = "3개월";
+  let durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
+  if (primaryName.includes("복합대사위험") || (results.max && results.total < 55) || severeAxisCount >= 2) {
+    duration = "4~6개월";
+    durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
+  } else if (results.total >= 70 && severeAxisCount === 0) {
+    duration = "2~3개월";
+    durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
+  }
+
+  const directionBase = primaryName && primaryName !== "특정 우세형 없음"
+    ? `현재 결과는 ${primaryName}${secondary && displayTypeName(secondary) !== "해당 없음" ? `과 ${displayTypeName(secondary)}` : ""} 양상이 관찰됩니다.`
+    : "현재 결과는 특정 타입 하나보다 낮은 점수의 관리 필요영역을 중심으로 접근합니다.";
+  const direction = `${directionBase} ${lowAxes.length ? `${lowAxes.join(" · ")} 개선을 우선 목표로 치료계획을 세웁니다.` : "전반적인 균형 유지와 정기 추적을 목표로 합니다."}`;
+  const primaryDuration = duration;
+  const secondaryDuration = programs[1] ? duration : "";
+  const tertiaryDuration = programs[2] ? duration : "";
+  const totalDuration = sumTreatmentDurations([primaryDuration, secondaryDuration, tertiaryDuration]);
+
+  return {
+    primaryProgram: programs[0] || "",
+    secondaryProgram: programs[1] || "",
+    tertiaryProgram: programs[2] || "",
+    primaryDuration,
+    secondaryDuration,
+    tertiaryDuration,
+    duration: totalDuration || duration,
+    durationReason,
+    goals: goals.slice(0, 5),
+    focusIds: focusIds.slice(0, 6),
+    focusCustom: "",
+    direction,
+  };
+}
+
+function fillTreatmentFields(suggestion) {
+  treatmentPlanApplyingAuto = true;
+  field("treatmentProgramPrimary").value = suggestion.primaryProgram || "";
+  field("treatmentProgramSecondary").value = suggestion.secondaryProgram || "";
+  field("treatmentProgramTertiary").value = suggestion.tertiaryProgram || "";
+  setDurationSelectValue("treatmentDurationPrimary", suggestion.primaryDuration);
+  setDurationSelectValue("treatmentDurationSecondary", suggestion.secondaryDuration);
+  setDurationSelectValue("treatmentDurationTertiary", suggestion.tertiaryDuration);
+  field("treatmentDuration").value = suggestion.duration || "";
+  field("treatmentGoals").value = suggestion.goals.join("\n");
+  field("treatmentFocusCustom").value = suggestion.focusCustom || "";
+  setFocusFields(suggestion.focusIds || []);
+  treatmentDurationUserEdited = false;
+  treatmentPlanApplyingAuto = false;
+}
+
+function setDurationSelectValue(id, value) {
+  const select = field(id);
+  select.value = [...select.options].some((option) => option.value === value) ? value : "";
+}
+
+function maybeUpdateTotalTreatmentDuration(data, suggestion) {
+  if (treatmentDurationUserEdited) return data;
+  const primaryDuration = data.treatmentDurationPrimary || suggestion.primaryDuration;
+  const secondaryDuration = data.treatmentDurationSecondary || suggestion.secondaryDuration;
+  const tertiaryDuration = data.treatmentDurationTertiary || suggestion.tertiaryDuration;
+  const programDurations = [
+    data.treatmentProgramPrimary || suggestion.primaryProgram ? primaryDuration : "",
+    data.treatmentProgramSecondary || suggestion.secondaryProgram ? secondaryDuration : "",
+    data.treatmentProgramTertiary || suggestion.tertiaryProgram ? tertiaryDuration : "",
+  ];
+  const totalDuration = sumTreatmentDurations(programDurations) || suggestion.duration;
+  const input = field("treatmentDuration");
+  if (input && input.value !== totalDuration) input.value = totalDuration || "";
+  return { ...data, treatmentDuration: totalDuration || "" };
+}
+
+function treatmentGoalsFromText(text, fallbackGoals) {
+  const goals = String(text || "")
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return goals.length ? goals : fallbackGoals;
+}
+
+function renderTreatmentPlan(data, suggestion) {
+  const primaryProgram = data.treatmentProgramPrimary || suggestion.primaryProgram;
+  const secondaryProgram = data.treatmentProgramSecondary || suggestion.secondaryProgram;
+  const tertiaryProgram = data.treatmentProgramTertiary || suggestion.tertiaryProgram;
+  const durations = [
+    data.treatmentDurationPrimary || suggestion.primaryDuration || data.treatmentDuration,
+    data.treatmentDurationSecondary || suggestion.secondaryDuration || data.treatmentDuration,
+    data.treatmentDurationTertiary || suggestion.tertiaryDuration || data.treatmentDuration,
+  ];
+  const programs = [primaryProgram, secondaryProgram, tertiaryProgram]
+    .map((programId, index) => ({
+      name: programName(programId),
+      duration: durations[index],
+    }))
+    .filter((program) => program.name);
+  const goals = treatmentGoalsFromText(data.treatmentGoals, suggestion.goals);
+  const focusItems = [
+    ...focusLabelsFromData(data),
+    ...focusCustomLabels(data.treatmentFocusCustom || data.treatmentPlan),
+  ].filter((item, index, array) => array.indexOf(item) === index);
+  elements.treatmentDirection.textContent = suggestion.direction;
+  elements.treatmentProgramList.replaceChildren(...programs.map((name, index) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span>${index + 1}</span><strong>${name.name}</strong><small>${name.duration || "기간 상담 후 결정"}</small>`;
+    return item;
+  }));
+  elements.treatmentDurationOutput.textContent = data.treatmentDuration || suggestion.duration;
+  elements.treatmentDurationReason.textContent = suggestion.durationReason;
+  elements.treatmentGoalList.replaceChildren(...goals.map((goal) => {
+    const item = document.createElement("li");
+    item.textContent = goal;
+    return item;
+  }));
+  elements.treatmentFocusList.replaceChildren(...(focusItems.length ? focusItems : ["검사 결과와 상담 내용을 바탕으로 중점사항을 정합니다."]).map((focus) => {
+    const item = document.createElement("li");
+    item.textContent = focus;
+    return item;
+  }));
+}
+
 function joinKorean(items) {
   if (!items.length) return "";
   if (items.length === 1) return items[0];
@@ -1334,12 +1667,19 @@ function renderType(typeResult, data, results) {
 }
 
 function render() {
-  const data = readForm();
+  let data = readForm();
   const validation = validateInputs(data);
   const results = makeResults(data);
   const flags = makeRiskFlags(data, results, validation);
   const grade = getGrade(results.total, results.max);
   const typeResult = scoreTypes(data, results);
+  const treatmentSuggestion = makeTreatmentSuggestion(data, results, grade, typeResult);
+  if (!treatmentPlanUserEdited) {
+    fillTreatmentFields(treatmentSuggestion);
+    data = readForm();
+  } else {
+    data = maybeUpdateTotalTreatmentDuration(data, treatmentSuggestion);
+  }
 
   renderComputed(data, results);
   renderValidation(validation);
@@ -1357,6 +1697,7 @@ function render() {
   renderAxisCards(results.axes);
   renderDetails(results.axes, data);
   renderNotes(data, results, typeResult, validation);
+  renderTreatmentPlan(data, treatmentSuggestion);
   return { data, results, flags, typeResult, validation };
 }
 
@@ -1416,12 +1757,34 @@ function currentReportSnapshot() {
         max: axis.max,
         status: axis.status,
       })),
+      treatmentPlan: {
+        primaryProgram: rendered.data.treatmentProgramPrimary,
+        secondaryProgram: rendered.data.treatmentProgramSecondary,
+        tertiaryProgram: rendered.data.treatmentProgramTertiary,
+        primaryDuration: rendered.data.treatmentDurationPrimary,
+        secondaryDuration: rendered.data.treatmentDurationSecondary,
+        tertiaryDuration: rendered.data.treatmentDurationTertiary,
+        duration: rendered.data.treatmentDuration,
+        goals: rendered.data.treatmentGoals,
+        focusItems: focusLabelsFromData(rendered.data),
+        focusCustom: rendered.data.treatmentFocusCustom,
+      },
     },
   };
 }
 
+function isTreatmentInputId(id) {
+  return TREATMENT_FIELD_IDS.includes(id) || TREATMENT_FOCUS_FIELDS.some(([fieldId]) => fieldId === id);
+}
+
 function setValues(values) {
-  for (const [id, value] of Object.entries(values)) {
+  const nextValues = { ...values };
+  if (!present(nextValues.treatmentFocusCustom) && present(nextValues.treatmentPlan)) {
+    nextValues.treatmentFocusCustom = nextValues.treatmentPlan;
+  }
+  if (Object.keys(nextValues).some((id) => isTreatmentInputId(id) && present(nextValues[id]))) treatmentPlanUserEdited = true;
+  if (present(nextValues.treatmentDuration)) treatmentDurationUserEdited = true;
+  for (const [id, value] of Object.entries(nextValues)) {
     const input = field(id);
     if (!input) continue;
     if (checkboxFields.has(id)) input.checked = Boolean(value);
@@ -1459,6 +1822,8 @@ function localDateKey(date = new Date()) {
 }
 
 function fillSample() {
+  treatmentPlanUserEdited = false;
+  treatmentDurationUserEdited = false;
   setValues({
     patientName: "홍길동",
     chartNumber: "GK-24001",
@@ -1490,6 +1855,8 @@ function fillSample() {
 function resetForm() {
   if (!confirm("전체 입력값을 지울까요?")) return;
   elements.form.reset();
+  treatmentPlanUserEdited = false;
+  treatmentDurationUserEdited = false;
   setValues({
     testDate: localDateKey(),
   });
@@ -1525,13 +1892,46 @@ function setupManualTypeSelects() {
   }
 }
 
-elements.form.addEventListener("input", render);
-elements.form.addEventListener("change", render);
+function setupTreatmentProgramSelects() {
+  for (const id of ["treatmentProgramPrimary", "treatmentProgramSecondary", "treatmentProgramTertiary"]) {
+    const select = field(id);
+    select.replaceChildren(...TREATMENT_PROGRAMS.map((program) => {
+      const option = document.createElement("option");
+      option.value = program.id;
+      option.textContent = program.name;
+      return option;
+    }));
+  }
+}
+
+function regenerateTreatmentPlan() {
+  const data = readForm();
+  const validation = validateInputs(data);
+  const results = makeResults(data);
+  const grade = getGrade(results.total, results.max);
+  const typeResult = scoreTypes(data, results);
+  fillTreatmentFields(makeTreatmentSuggestion(data, results, grade, typeResult));
+  treatmentPlanUserEdited = true;
+  treatmentDurationUserEdited = false;
+  render();
+}
+
+elements.form.addEventListener("input", (event) => {
+  if (event.target.id === "treatmentDuration" && !treatmentPlanApplyingAuto) treatmentDurationUserEdited = true;
+  if (isTreatmentInputId(event.target.id) && !treatmentPlanApplyingAuto) treatmentPlanUserEdited = true;
+  render();
+});
+elements.form.addEventListener("change", (event) => {
+  if (event.target.id === "treatmentDuration" && !treatmentPlanApplyingAuto) treatmentDurationUserEdited = true;
+  if (isTreatmentInputId(event.target.id) && !treatmentPlanApplyingAuto) treatmentPlanUserEdited = true;
+  render();
+});
 elements.form.addEventListener("submit", (event) => {
   event.preventDefault();
   generateReport();
 });
 elements.generateButton.addEventListener("click", generateReport);
+elements.generateTreatmentPlanButton.addEventListener("click", regenerateTreatmentPlan);
 elements.sampleButton.addEventListener("click", fillSample);
 elements.resetButton.addEventListener("click", resetForm);
 elements.printButton.addEventListener("click", () => {
@@ -1544,6 +1944,7 @@ elements.printButton.addEventListener("click", () => {
 });
 
 setupManualTypeSelects();
+setupTreatmentProgramSelects();
 setupBirthDateInputs();
 setValues({
   testDate: localDateKey(),
