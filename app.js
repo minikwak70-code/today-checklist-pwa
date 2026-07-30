@@ -1077,7 +1077,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
   const directionBase = primaryName && primaryName !== "특정 우세형 없음"
     ? `현재 결과는 ${primaryName}${secondary && displayTypeName(secondary) !== "해당 없음" ? `과 ${displayTypeName(secondary)}` : ""} 양상이 관찰됩니다.`
     : "현재 결과는 특정 타입 하나보다 낮은 점수의 관리 필요영역을 중심으로 접근합니다.";
-  const direction = `${directionBase} ${lowAxes.length ? `${lowAxes.join(" · ")} 개선을 우선 목표로 치료계획을 세웁니다.` : "전반적인 균형 유지와 정기 추적을 목표로 합니다."}`;
+  const direction = `${directionBase} ${lowAxes.length ? `${lowAxes.join(" · ")} 개선을 중심으로 한 치료가 필요합니다.` : "전반적인 균형 유지와 정기 추적이 필요합니다."}`;
   const primaryDuration = duration;
   const secondaryDuration = programs[1] ? duration : "";
   const tertiaryDuration = programs[2] ? duration : "";
@@ -1122,15 +1122,15 @@ function setDurationSelectValue(id, value) {
 
 function maybeUpdateTotalTreatmentDuration(data, suggestion) {
   if (treatmentDurationUserEdited) return data;
-  const primaryDuration = data.treatmentDurationPrimary || suggestion.primaryDuration;
-  const secondaryDuration = data.treatmentDurationSecondary || suggestion.secondaryDuration;
-  const tertiaryDuration = data.treatmentDurationTertiary || suggestion.tertiaryDuration;
+  const primaryDuration = data.treatmentDurationPrimary;
+  const secondaryDuration = data.treatmentDurationSecondary;
+  const tertiaryDuration = data.treatmentDurationTertiary;
   const programDurations = [
-    data.treatmentProgramPrimary || suggestion.primaryProgram ? primaryDuration : "",
-    data.treatmentProgramSecondary || suggestion.secondaryProgram ? secondaryDuration : "",
-    data.treatmentProgramTertiary || suggestion.tertiaryProgram ? tertiaryDuration : "",
+    data.treatmentProgramPrimary ? primaryDuration : "",
+    data.treatmentProgramSecondary ? secondaryDuration : "",
+    data.treatmentProgramTertiary ? tertiaryDuration : "",
   ];
-  const totalDuration = sumTreatmentDurations(programDurations) || suggestion.duration;
+  const totalDuration = sumTreatmentDurations(programDurations);
   const input = field("treatmentDuration");
   if (input && input.value !== totalDuration) input.value = totalDuration || "";
   return { ...data, treatmentDuration: totalDuration || "" };
@@ -1145,13 +1145,13 @@ function treatmentGoalsFromText(text, fallbackGoals) {
 }
 
 function renderTreatmentPlan(data, suggestion) {
-  const primaryProgram = data.treatmentProgramPrimary || suggestion.primaryProgram;
-  const secondaryProgram = data.treatmentProgramSecondary || suggestion.secondaryProgram;
-  const tertiaryProgram = data.treatmentProgramTertiary || suggestion.tertiaryProgram;
+  const primaryProgram = data.treatmentProgramPrimary;
+  const secondaryProgram = data.treatmentProgramSecondary;
+  const tertiaryProgram = data.treatmentProgramTertiary;
   const durations = [
-    data.treatmentDurationPrimary || suggestion.primaryDuration || data.treatmentDuration,
-    data.treatmentDurationSecondary || suggestion.secondaryDuration || data.treatmentDuration,
-    data.treatmentDurationTertiary || suggestion.tertiaryDuration || data.treatmentDuration,
+    data.treatmentDurationPrimary,
+    data.treatmentDurationSecondary,
+    data.treatmentDurationTertiary,
   ];
   const programs = [primaryProgram, secondaryProgram, tertiaryProgram]
     .map((programId, index) => ({
