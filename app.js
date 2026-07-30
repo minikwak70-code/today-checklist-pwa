@@ -61,15 +61,17 @@ const TREATMENT_FIELD_IDS = [
 
 const TREATMENT_FOCUS_FIELDS = [
   ["focusCarbRestriction", "탄수화물 제한"],
-  ["focusVisceralFat", "내장지방 감소"],
-  ["focusSleepQuality", "수면의 질 향상"],
-  ["focusInflammationReduction", "염증수치 감소"],
-  ["focusLiverRecovery", "간기능 회복"],
-  ["focusInsulinResistance", "인슐린 저항성 개선"],
-  ["focusStressRecovery", "스트레스 반응 조절"],
-  ["focusMuscleMaintenance", "근육량 유지"],
-  ["focusExerciseRoutine", "운동 루틴 형성"],
-  ["focusAlcoholReduction", "음주 조절"],
+  ["focusAlcoholAvoidance", "금주"],
+  ["focusSaltRestriction", "소금 제한"],
+  ["focusFoodRestriction", "밀가루/설탕/유당/과당 제한"],
+  ["focusSixteenHourFast", "16시간 공복"],
+  ["focusAerobicExercise", "유산소 운동"],
+  ["focusStrengthTraining", "근력운동"],
+  ["focusSleepHabit", "수면습관 개선"],
+  ["focusSupplement", "영양보충제 복용"],
+  ["focusMelatonin", "멜라토닌 복용"],
+  ["focusProteinIntake", "단백질 섭취"],
+  ["focusPlantFat", "식물성 지질 섭취"],
 ];
 
 let treatmentPlanUserEdited = false;
@@ -1008,62 +1010,68 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
   if (types.some((type) => type.includes("간관리")) || liverScore !== null && liverScore <= 12) {
     addProgram("liver_function");
     addUnique(goals, "간기능 및 피로 회복 개선");
-    addFocus("focusLiverRecovery");
-    addFocus("focusAlcoholReduction");
+    addFocus("focusAlcoholAvoidance");
+    addFocus("focusSupplement");
   }
   if (types.some((type) => type.includes("복부비만")) || lipidScore !== null && lipidScore <= 12 || data.visceralFat >= 10 || data.waist >= 85) {
     addProgram("lean_diet");
     addUnique(goals, "내장지방 및 체지방률 감소");
     addUnique(goals, "지질대사 개선");
-    addFocus("focusVisceralFat");
     addFocus("focusCarbRestriction");
-    addFocus("focusExerciseRoutine");
+    addFocus("focusSixteenHourFast");
+    addFocus("focusAerobicExercise");
+    addFocus("focusPlantFat");
   }
   if (types.some((type) => type.includes("인슐린")) || glucoseScore !== null && glucoseScore <= 12) {
     addProgram("lean_diet");
     addProgram("herbal_medicine");
     addUnique(goals, "혈당 및 인슐린 저항성 개선");
-    addFocus("focusInsulinResistance");
     addFocus("focusCarbRestriction");
+    addFocus("focusFoodRestriction");
+    addFocus("focusSixteenHourFast");
   }
   if (types.some((type) => type.includes("만성염증")) || inflammationScore !== null && inflammationScore <= 12) {
     addProgram("herbal_medicine");
     addProgram("enzyme_fast");
     addUnique(goals, "만성염증 부담 완화");
-    addFocus("focusInflammationReduction");
-    addFocus("focusSleepQuality");
+    addFocus("focusFoodRestriction");
+    addFocus("focusSleepHabit");
+    addFocus("focusSupplement");
   }
   if (types.some((type) => type.includes("자율신경")) || autonomicScore !== null && autonomicScore <= 12) {
     addProgram("herbal_medicine");
     addUnique(goals, "스트레스 반응 및 회복력 개선");
-    addFocus("focusStressRecovery");
-    addFocus("focusSleepQuality");
+    addFocus("focusSleepHabit");
+    addFocus("focusMelatonin");
   }
   if (types.some((type) => type.includes("근감소"))) {
     addProgram("herbal_medicine");
     addUnique(goals, "근육량과 신체기능 저하 예방");
-    addFocus("focusMuscleMaintenance");
-    addFocus("focusExerciseRoutine");
+    addFocus("focusProteinIntake");
+    addFocus("focusStrengthTraining");
   }
   if (types.some((type) => type.includes("복합대사위험"))) {
     addProgram("lean_diet");
     addProgram("herbal_medicine");
     addUnique(goals, "여러 대사 문제의 단계적 개선");
     addFocus("focusCarbRestriction");
-    addFocus("focusVisceralFat");
-    addFocus("focusSleepQuality");
+    addFocus("focusFoodRestriction");
+    addFocus("focusAerobicExercise");
+    addFocus("focusSleepHabit");
   }
   if (types.some((type) => type.includes("대사균형"))) {
     addUnique(goals, "현재 대사 균형 유지");
     addUnique(goals, "정기 추적검사를 통한 변화 확인");
-    addFocus("focusExerciseRoutine");
-    addFocus("focusSleepQuality");
+    addFocus("focusAerobicExercise");
+    addFocus("focusStrengthTraining");
+    addFocus("focusSleepHabit");
   }
   if (!programs.length) {
     addProgram("herbal_medicine");
     addUnique(goals, "개별 증상과 검사 변화 추적");
-    addFocus("focusSleepQuality");
+    addFocus("focusSleepHabit");
   }
+  if (data.sbp >= 130 || data.dbp >= 80) addFocus("focusSaltRestriction");
 
   let duration = "3개월";
   let durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";

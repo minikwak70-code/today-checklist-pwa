@@ -340,6 +340,18 @@ textarea:focus-visible {
   overflow-x: auto;
 }
 
+.patient-list-wrap {
+  max-height: 354px;
+  overflow: auto;
+}
+
+.patient-list-wrap .tracking-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+}
+
 .tracking-table {
   width: 100%;
   min-width: 780px;

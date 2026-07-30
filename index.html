@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=38" />
+    <link rel="stylesheet" href="./styles.css?v=39" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -88,7 +88,7 @@
                   </select>
                 </label>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap patient-list-wrap">
                 <table class="tracking-table">
                   <thead>
                     <tr>
@@ -541,15 +541,17 @@
                 <span>중점사항</span>
                 <div class="check-grid compact">
                   <label><input id="focusCarbRestriction" type="checkbox" /> 탄수화물 제한</label>
-                  <label><input id="focusVisceralFat" type="checkbox" /> 내장지방 감소</label>
-                  <label><input id="focusSleepQuality" type="checkbox" /> 수면의 질 향상</label>
-                  <label><input id="focusInflammationReduction" type="checkbox" /> 염증수치 감소</label>
-                  <label><input id="focusLiverRecovery" type="checkbox" /> 간기능 회복</label>
-                  <label><input id="focusInsulinResistance" type="checkbox" /> 인슐린 저항성 개선</label>
-                  <label><input id="focusStressRecovery" type="checkbox" /> 스트레스 반응 조절</label>
-                  <label><input id="focusMuscleMaintenance" type="checkbox" /> 근육량 유지</label>
-                  <label><input id="focusExerciseRoutine" type="checkbox" /> 운동 루틴 형성</label>
-                  <label><input id="focusAlcoholReduction" type="checkbox" /> 음주 조절</label>
+                  <label><input id="focusAlcoholAvoidance" type="checkbox" /> 금주</label>
+                  <label><input id="focusSaltRestriction" type="checkbox" /> 소금 제한</label>
+                  <label><input id="focusFoodRestriction" type="checkbox" /> 밀가루/설탕/유당/과당 제한</label>
+                  <label><input id="focusSixteenHourFast" type="checkbox" /> 16시간 공복</label>
+                  <label><input id="focusAerobicExercise" type="checkbox" /> 유산소 운동</label>
+                  <label><input id="focusStrengthTraining" type="checkbox" /> 근력운동</label>
+                  <label><input id="focusSleepHabit" type="checkbox" /> 수면습관 개선</label>
+                  <label><input id="focusSupplement" type="checkbox" /> 영양보충제 복용</label>
+                  <label><input id="focusMelatonin" type="checkbox" /> 멜라토닌 복용</label>
+                  <label><input id="focusProteinIntake" type="checkbox" /> 단백질 섭취</label>
+                  <label><input id="focusPlantFat" type="checkbox" /> 식물성 지질 섭취</label>
                 </div>
               </div>
               <label class="full-field">
@@ -792,7 +794,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=41" defer></script>
-    <script src="./tracking.js?v=10" defer></script>
+    <script src="./app.js?v=42" defer></script>
+    <script src="./tracking.js?v=11" defer></script>
   </body>
 </html>

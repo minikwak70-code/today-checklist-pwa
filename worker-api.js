@@ -415,6 +415,9 @@ async function handleApi(request, env) {
     if (denied) return denied;
     const search = `%${(url.searchParams.get("search") || "").trim()}%`;
     const type = url.searchParams.get("type") || "";
+    const recentCutoff = new Date();
+    recentCutoff.setMonth(recentCutoff.getMonth() - 3);
+    const recentCutoffDate = recentCutoff.toISOString().slice(0, 10);
     const order = url.searchParams.get("sort") === "score"
       ? "latest_total_score DESC"
       : url.searchParams.get("sort") === "chart"
@@ -450,11 +453,12 @@ async function handleApi(request, env) {
       WHERE p.clinic_id = ?
         AND p.deleted_at IS NULL
         AND COALESCE(p.is_deleted, 0) = 0
+        AND a.assessment_date >= ?
         AND (p.name LIKE ? OR p.chart_number LIKE ?)
         AND (? = '' OR a.primary_type = ?)
       ORDER BY ${order}, p.updated_at DESC
     `;
-    const result = await db.prepare(query).bind(clinic.id, clinic.id, search, search, type, type).all();
+    const result = await db.prepare(query).bind(clinic.id, clinic.id, recentCutoffDate, search, search, type, type).all();
     const patients = (result.results || []).map(patientRow);
     return json({ clinic, patients });
   }

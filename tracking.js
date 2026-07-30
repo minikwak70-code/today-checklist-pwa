@@ -274,7 +274,7 @@ function debounce(fn, delay = 250) {
 
 function renderPatientTable() {
   if (!tracking.patients.length) {
-    t.table.innerHTML = `<tr><td colspan="8">등록된 환자가 없습니다.</td></tr>`;
+    t.table.innerHTML = `<tr><td colspan="8">최근 3개월 이내 검사 환자가 없습니다.</td></tr>`;
     return;
   }
   t.table.innerHTML = tracking.patients.map((patient) => `
