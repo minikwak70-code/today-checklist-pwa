@@ -453,7 +453,7 @@ async function handleApi(request, env) {
       WHERE p.clinic_id = ?
         AND p.deleted_at IS NULL
         AND COALESCE(p.is_deleted, 0) = 0
-        AND a.assessment_date >= ?
+        AND (a.assessment_date IS NULL OR a.assessment_date >= ?)
         AND (p.name LIKE ? OR p.chart_number LIKE ?)
         AND (? = '' OR a.primary_type = ?)
       ORDER BY ${order}, p.updated_at DESC

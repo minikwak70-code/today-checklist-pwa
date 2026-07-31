@@ -341,7 +341,7 @@ textarea:focus-visible {
 }
 
 .patient-list-wrap {
-  max-height: 354px;
+  max-height: 420px;
   overflow: auto;
 }
 
