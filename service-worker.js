@@ -1,8 +1,8 @@
-const CACHE_NAME = "metabolic-report-v58";
+const CACHE_NAME = "metabolic-report-v59";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=40",
+  "./styles.css?v=41",
   "./app.js?v=42",
   "./tracking.js?v=12",
   "./manifest.webmanifest",
