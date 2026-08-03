@@ -1323,7 +1323,10 @@ function renderRadar(axes) {
   const centerX = viewWidth / 2;
   const centerY = viewHeight / 2;
   const radius = 140;
-  const labelLines = (label) => label.includes("·") ? label.split("·").map((part, index) => index === 0 ? part : `·${part}`) : [label];
+  const labelLines = (label) => {
+    if (label === "자율신경(스트레스)") return ["자율신경", "(스트레스)"];
+    return label.includes("·") ? label.split("·").map((part, index) => index === 0 ? part : `·${part}`) : [label];
+  };
   const pointsFor = (scale, inactiveAsOuter = false) =>
     axes.map((axis, index) => {
       const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
