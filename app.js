@@ -1348,7 +1348,7 @@ function renderRadar(axes) {
     const tspans = lines.map((line, lineIndex) => (
       `<tspan x="${x}" dy="${lineIndex === 0 ? firstDy : "1.15em"}">${line}</tspan>`
     )).join("");
-    return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" font-size="16" font-weight="850">${tspans}</text>`;
+    return `<text x="${x}" y="${y}" text-anchor="${anchor}" dominant-baseline="middle" fill="${fill}" font-size="32" font-weight="850">${tspans}</text>`;
   }).join("");
   const spokes = axes.map((_, index) => {
     const angle = -Math.PI / 2 + (index * Math.PI * 2) / axes.length;
