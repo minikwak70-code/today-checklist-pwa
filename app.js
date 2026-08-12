@@ -724,6 +724,25 @@ function scoreTypes(data, results) {
   const addCandidate = (code, name, strength, reasons) => {
     if (strength > 0) candidates.push({ code, name, strength, reasons });
   };
+  const axisTypeMap = {
+    glucose: "B. 인슐린 저항 우세형",
+    lipid: "B. 인슐린 저항 우세형",
+    liver: "0. 간관리 선행형",
+    inflammation: "C. 만성염증 우세형",
+    autonomic: "D. 자율신경(스트레스) 우세형",
+  };
+  const supplementalTypes = priorityAxes(results.axes, 3)
+    .map((axis) => axisTypeMap[axis.key])
+    .filter(Boolean);
+  const secondaryFrom = (primary, names) => {
+    const unique = names.filter((name, index, array) =>
+      name &&
+      name !== primary &&
+      name !== "해당 없음" &&
+      array.indexOf(name) === index
+    );
+    return unique.length ? unique.join(" + ") : "해당 없음";
+  };
   const highTg = data.tg >= 150;
   const lowHdl = (data.sex === "남성" && data.hdl < 40) || (data.sex === "여성" && data.hdl < 50);
   const visceralHigh = data.visceralFat >= 10;
@@ -818,18 +837,29 @@ function scoreTypes(data, results) {
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
     return {
       primary: "F. 복합 대사위험형",
-      secondary: strong.map((item) => item.name).join(" + "),
+      secondary: secondaryFrom("F. 복합 대사위험형", [...strong.map((item) => item.name), ...supplementalTypes]),
       tags,
       notes: [`세부 조합: ${strong.map((item) => item.name.replace(/^[A-E]\. /, "")).join(" + ")}`],
       candidates: strong,
     };
   }
   if (strong.length === 0) {
-    return { primary: "특정 우세형 없음", secondary: "해당 없음", tags, notes: [], candidates };
+    const primary = supplementalTypes[0] || "특정 우세형 없음";
+    return {
+      primary,
+      secondary: secondaryFrom(primary, supplementalTypes.slice(1)),
+      tags,
+      notes: [],
+      candidates,
+    };
   }
+  const primary = strong[0].name;
   return {
-    primary: strong[0].name,
-    secondary: strong[1]?.strength >= 2 ? strong[1].name : "해당 없음",
+    primary,
+    secondary: secondaryFrom(primary, [
+      ...(strong[1]?.strength >= 2 ? [strong[1].name] : []),
+      ...supplementalTypes,
+    ]),
     tags,
     notes: [],
     candidates: strong,
