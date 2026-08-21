@@ -275,6 +275,7 @@ async function audit(db, context, request, action, targetType, targetId, beforeD
 }
 
 async function auditAuthFailure(db, request, user, reason) {
+  if (!user?.id) return;
   const now = nowIso();
   await db.prepare(
     `INSERT INTO audit_logs (
