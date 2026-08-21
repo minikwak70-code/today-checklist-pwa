@@ -260,16 +260,9 @@
                   <span>검사 단계</span>
                   <select id="assessmentStage" name="assessmentStage">
                     <option value="">선택</option>
-                    <option>초진</option>
-                    <option>치료 전</option>
-                    <option>4주 평가</option>
-                    <option>8주 평가</option>
-                    <option>12주 평가</option>
+                    <option>치료전</option>
                     <option>중간평가</option>
-                    <option>종결평가</option>
-                    <option>유지관리</option>
-                    <option>재평가</option>
-                    <option>사용자 지정</option>
+                    <option>치료후</option>
                   </select>
                 </label>
               </div>
@@ -425,43 +418,6 @@
                   <span>SMI (kg/m²)</span>
                   <input id="smi" name="smi" type="number" step="0.01" min="0" inputmode="decimal" />
                 </label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend>기저증상체크</legend>
-              <div class="check-grid">
-                <label><input id="jaundice" name="jaundice" type="checkbox" /> 황달 여부</label>
-                <label><input id="darkUrine" name="darkUrine" type="checkbox" /> 진한 소변 여부</label>
-                <label><input id="ruqPain" name="ruqPain" type="checkbox" /> 우상복부 통증 여부</label>
-                <label><input id="severeLiverDisease" name="severeLiverDisease" type="checkbox" /> 기존 중증 간질환</label>
-                <label><input id="fattyLiver" name="fattyLiver" type="checkbox" /> 지방간 병력 또는 소견</label>
-                <label><input id="gumDisease" name="gumDisease" type="checkbox" /> 잇몸질환</label>
-                <label><input id="dermatitis" name="dermatitis" type="checkbox" /> 피부염</label>
-                <label><input id="chronicPain" name="chronicPain" type="checkbox" /> 만성 통증</label>
-                <label><input id="recurrentInflammation" name="recurrentInflammation" type="checkbox" /> 반복되는 염증 증상</label>
-                <label><input id="sleepProblem" name="sleepProblem" type="checkbox" /> 수면장애</label>
-                <label><input id="chronicFatigue" name="chronicFatigue" type="checkbox" /> 만성 피로</label>
-                <label><input id="palpitation" name="palpitation" type="checkbox" /> 두근거림</label>
-                <label><input id="tensionAnxiety" name="tensionAnxiety" type="checkbox" /> 긴장·불안</label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend>검사 전 확인사항</legend>
-              <div class="check-grid">
-                <label><input id="recentInfection" type="checkbox" /> 최근 감기·염증·발열</label>
-                <label><input id="recentTraumaSurgery" type="checkbox" /> 최근 외상·수술·시술</label>
-                <label><input id="recentHardExercise" type="checkbox" /> 검사 전 24시간 이내 격한 운동</label>
-                <label><input id="recentAlcohol" type="checkbox" /> 검사 전 음주</label>
-                <label><input id="recentSmokingCaffeine" type="checkbox" /> 검사 전 흡연 또는 카페인</label>
-                <label><input id="medicationAffectingResults" type="checkbox" /> 검사결과에 영향을 줄 수 있는 약물 복용</label>
-                <label><input id="lipidMedication" type="checkbox" /> 지질강하제 복용</label>
-                <label><input id="diabetesMedication" type="checkbox" /> 당뇨약 또는 인슐린 사용</label>
-                <label><input id="steroidImmunosuppressant" type="checkbox" /> 스테로이드 또는 면역억제제 사용</label>
-                <label><input id="knownLiverDisease" type="checkbox" /> 간질환 병력 또는 간수치 관련 진료 중</label>
-                <label><input id="hrvWaveError" type="checkbox" /> HRV 측정 오류 또는 파형 불량</label>
-                <label><input id="hrvAtrialFib" type="checkbox" /> 심한 부정맥 또는 심방세동</label>
               </div>
             </fieldset>
 
@@ -794,7 +750,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=45" defer></script>
-    <script src="./tracking.js?v=12" defer></script>
+    <script src="./app.js?v=47" defer></script>
+    <script src="./tracking.js?v=13" defer></script>
   </body>
 </html>

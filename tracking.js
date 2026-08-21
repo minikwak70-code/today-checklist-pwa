@@ -221,6 +221,37 @@ function patientDisplay(patient) {
   return `${patient.name} · ${patient.sex || "성별 미입력"} · ${ageAt(patient.birth_date)}세 · 차트 ${patient.chart_number}`;
 }
 
+function patientReportValues(patient, atDate = "") {
+  const testDate = atDate || window.metabolicReportApp?.localDateKey?.() || new Date().toISOString().slice(0, 10);
+  return {
+    patientName: patient.name,
+    chartNumber: patient.chart_number,
+    sex: patient.sex || "",
+    birthDate: patient.birth_date || "",
+    age: ageAt(patient.birth_date, testDate),
+    testDate,
+  };
+}
+
+function resetReportForPatient(patient) {
+  if (!patient) return;
+  const values = patientReportValues(patient);
+  if (window.metabolicReportApp?.resetForPatient) {
+    window.metabolicReportApp.resetForPatient(values);
+    return;
+  }
+  window.metabolicReportApp?.setValues(values);
+}
+
+function showSelectedPatient(patient) {
+  if (!patient) return;
+  t.detailPanel.hidden = false;
+  t.selectedTitle.textContent = patient.name;
+  t.selectedMeta.textContent = patientDisplay(patient);
+  fillPatientEditForm(patient);
+  applyPermissions();
+}
+
 async function loadMe() {
   setTrackingEnabled(false);
   try {
@@ -303,9 +334,17 @@ async function createPatient(event) {
   if (!payload.chartNumber || !payload.name) return;
   t.createButton.disabled = true;
   try {
-    await api("/api/patients", { method: "POST", body: JSON.stringify(payload) });
+    const data = await api("/api/patients", { method: "POST", body: JSON.stringify(payload) });
     t.createForm.reset();
     await loadPatients();
+    tracking.selectedPatient = tracking.patients.find((patient) => patient.id === data.patient.id) || data.patient;
+    tracking.assessments = [];
+    showSelectedPatient(tracking.selectedPatient);
+    resetReportForPatient(tracking.selectedPatient);
+    renderSelectedSummary();
+    renderAssessmentTable();
+    renderAssessmentSelectors();
+    renderTrend();
     setBanner("환자가 등록되었습니다.", "ok");
   } catch (error) {
     setBanner(error.message, "warning");
@@ -361,19 +400,11 @@ async function updatePatient(event) {
 async function openPatient(patientId) {
   tracking.selectedPatient = tracking.patients.find((patient) => patient.id === patientId) || null;
   if (!tracking.selectedPatient) return;
-  t.detailPanel.hidden = false;
-  t.selectedTitle.textContent = tracking.selectedPatient.name;
-  t.selectedMeta.textContent = patientDisplay(tracking.selectedPatient);
-  fillPatientEditForm(tracking.selectedPatient);
-  applyPermissions();
-  window.metabolicReportApp?.setValues({
-    patientName: tracking.selectedPatient.name,
-    chartNumber: tracking.selectedPatient.chart_number,
-    sex: tracking.selectedPatient.sex || "",
-    birthDate: tracking.selectedPatient.birth_date || "",
-    age: ageAt(tracking.selectedPatient.birth_date, document.querySelector("#testDate").value),
-  });
+  showSelectedPatient(tracking.selectedPatient);
+  resetReportForPatient(tracking.selectedPatient);
   await loadAssessments();
+  const latest = latestAssessment();
+  if (latest) openAssessment(latest.id);
 }
 
 async function loadAssessments() {
@@ -389,6 +420,11 @@ async function loadAssessments() {
 
 function sortedAssessmentsAsc() {
   return [...tracking.assessments].sort((a, b) => `${a.assessmentDate}${a.createdAt}`.localeCompare(`${b.assessmentDate}${b.createdAt}`));
+}
+
+function latestAssessment() {
+  return [...tracking.assessments]
+    .sort((a, b) => `${b.assessmentDate}${b.createdAt}`.localeCompare(`${a.assessmentDate}${a.createdAt}`))[0] || null;
 }
 
 function renderSelectedSummary() {
@@ -488,12 +524,7 @@ function openAssessment(assessmentId) {
   if (!assessment || !tracking.selectedPatient) return;
   window.metabolicReportApp.setValues({
     ...assessment.rawValues,
-    patientName: tracking.selectedPatient.name,
-    chartNumber: tracking.selectedPatient.chart_number,
-    sex: tracking.selectedPatient.sex || assessment.rawValues.sex || "",
-    birthDate: tracking.selectedPatient.birth_date || assessment.rawValues.birthDate || "",
-    age: ageAt(tracking.selectedPatient.birth_date, assessment.assessmentDate),
-    testDate: assessment.assessmentDate,
+    ...patientReportValues(tracking.selectedPatient, assessment.assessmentDate),
     assessmentStage: assessment.assessmentStage || "",
     clinicianNote: assessment.clinicianNote || "",
   });

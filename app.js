@@ -100,7 +100,6 @@ const elements = {
   flagArea: document.querySelector("#flagArea"),
   axisCards: document.querySelector("#axisCards"),
   detailTable: document.querySelector("#detailTable"),
-  conditionList: document.querySelector("#conditionList"),
   limitList: document.querySelector("#limitList"),
   commonGuideList: document.querySelector("#commonGuideList"),
   validationSummary: document.querySelector("#validationSummary"),
@@ -154,31 +153,6 @@ const numberFields = new Set([
 ]);
 
 const checkboxFields = new Set([
-  "lipidMedication",
-  "hrvAtrialFib",
-  "hrvWaveError",
-  "jaundice",
-  "darkUrine",
-  "ruqPain",
-  "knownLiverDisease",
-  "severeLiverDisease",
-  "fattyLiver",
-  "gumDisease",
-  "dermatitis",
-  "chronicPain",
-  "recurrentInflammation",
-  "recentInfection",
-  "recentTraumaSurgery",
-  "recentHardExercise",
-  "recentAlcohol",
-  "recentSmokingCaffeine",
-  "medicationAffectingResults",
-  "diabetesMedication",
-  "steroidImmunosuppressant",
-  "sleepProblem",
-  "chronicFatigue",
-  "palpitation",
-  "tensionAnxiety",
   ...TREATMENT_FOCUS_FIELDS.map(([id]) => id),
 ]);
 
@@ -511,14 +485,7 @@ function autonomicCarePriorities(data) {
 }
 
 function hasHrvLimit(data) {
-  return (
-    data.hrvAtrialFib ||
-    data.hrvWaveError ||
-    data.recentInfection ||
-    data.recentHardExercise ||
-    data.recentAlcohol ||
-    data.recentSmokingCaffeine
-  );
+  return false;
 }
 
 function makeAxis(key, label, details, comment, unavailable, forcedHold = false) {
@@ -750,16 +717,12 @@ function scoreTypes(data, results) {
   const hba1cHigh = data.hba1c >= 5.7;
   const tgHdlHigh = results.parts.tgHdl?.ratio >= 3.5;
   const tgHdlModerate = results.parts.tgHdl?.ratio >= 2.5;
-  const acuteInflammation = data.hsCrp > 10 || data.recentInfection || data.recentTraumaSurgery || data.recentHardExercise;
+  const acuteInflammation = data.hsCrp > 10;
   const liverAbnormal = (results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1);
   const liverPriority =
     results.parts.alt?.ratio >= 3 ||
     results.parts.ast?.ratio >= 3 ||
-    (results.parts.tbil?.ratio > 1 && liverAbnormal) ||
-    data.jaundice ||
-    data.darkUrine ||
-    data.ruqPain ||
-    data.severeLiverDisease;
+    (results.parts.tbil?.ratio > 1 && liverAbnormal);
 
   if (visceralHigh) tags.push("내장지방 증가");
   if (highTg) tags.push("고중성지방");
@@ -787,23 +750,20 @@ function scoreTypes(data, results) {
     };
   }
 
-  const aReasons = [visceralHigh, waistHigh, highTg, lowHdl, data.fattyLiver].filter(Boolean);
+  const aReasons = [visceralHigh, waistHigh, highTg, lowHdl].filter(Boolean);
   addCandidate("A", "A. 복부비만 우세형", aReasons.length + (aReasons.length >= 2 && !hba1cHigh ? 1 : 0), aReasons);
 
-  const bReasons = [tgHdlHigh, hba1cHigh, tgHdlModerate && hba1cHigh, tgHdlModerate && (visceralHigh || data.fattyLiver)].filter(Boolean);
+  const bReasons = [tgHdlHigh, hba1cHigh, tgHdlModerate && hba1cHigh, tgHdlModerate && visceralHigh].filter(Boolean);
   addCandidate("B", "B. 인슐린 저항 우세형", bReasons.length + (tgHdlHigh ? 1 : 0), bReasons);
 
   const hsCrpElevated = data.hsCrp >= 0.5 && data.hsCrp <= 10;
   const hsCrpOnePlus = data.hsCrp >= 1 && data.hsCrp <= 10;
   const hsCrpTwoPlus = data.hsCrp >= 2 && data.hsCrp <= 10;
-  const inflammationCompanion = data.gumDisease || data.dermatitis || data.chronicPain || data.recurrentInflammation;
   const inflammationHold = (data.hsCrp > 10) || (hsCrpElevated && acuteInflammation);
   const cReasons = [
     hsCrpOnePlus,
-    hsCrpElevated && inflammationCompanion,
     hsCrpElevated && visceralHigh,
     hsCrpTwoPlus && !acuteInflammation,
-    hsCrpOnePlus && data.recurrentInflammation,
   ].filter(Boolean);
   if (inflammationHold) {
     tags.push("만성염증형 판정 보류 — 급성 염증 가능성 확인 후 재검");
@@ -816,11 +776,7 @@ function scoreTypes(data, results) {
     gradeLowOrVeryLow(data.ansActivity),
     gradeHighOrVeryHigh(data.stressGrade),
     present(data.snsPercent) && Math.abs(data.snsPercent - 50) > 6,
-    data.sleepProblem,
-    data.chronicFatigue,
     data.restingHr >= 90 || data.heartRate >= 90,
-    data.palpitation,
-    data.tensionAnxiety,
   ].filter(Boolean);
   addCandidate("D", "D. 자율신경(스트레스) 우세형", dReasons.length, dReasons);
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
@@ -1586,7 +1542,7 @@ function liverNormalMessage(data, results) {
   const liverAxis = results.axes.find((axis) => axis.key === "liver");
   if (!liverAxis || liverAxis.score < 17) return [];
   const messages = ["현재 측정한 간수치는 대체로 양호합니다."];
-  if (data.fattyLiver || data.tg >= 150 || results.parts.tgHdl?.ratio >= 3.5 || data.visceralFat >= 10 || data.waist >= 85) {
+  if (data.tg >= 150 || results.parts.tgHdl?.ratio >= 3.5 || data.visceralFat >= 10 || data.waist >= 85) {
     messages.push("다만 정상 간수치만으로 지방간을 완전히 배제할 수는 없습니다.");
   }
   return messages;
@@ -1612,24 +1568,6 @@ function hsCrpInterpretationNotes(data) {
   return notes;
 }
 
-function checkedConditionLabels(data) {
-  const items = [
-    ["recentInfection", "최근 감기·염증·발열"],
-    ["recentTraumaSurgery", "최근 외상·수술·시술"],
-    ["recentHardExercise", "검사 전 24시간 이내 격한 운동"],
-    ["recentAlcohol", "검사 전 음주"],
-    ["recentSmokingCaffeine", "검사 전 흡연 또는 카페인"],
-    ["medicationAffectingResults", "검사결과에 영향을 줄 수 있는 약물 복용"],
-    ["lipidMedication", "지질강하제 복용"],
-    ["diabetesMedication", "당뇨약 또는 인슐린 사용"],
-    ["steroidImmunosuppressant", "스테로이드 또는 면역억제제 사용"],
-    ["knownLiverDisease", "간질환 병력 또는 간수치 관련 진료 중"],
-    ["hrvWaveError", "HRV 측정 오류 또는 파형 불량"],
-    ["hrvAtrialFib", "심한 부정맥 또는 심방세동"],
-  ];
-  return items.filter(([key]) => data[key]).map(([, label]) => label);
-}
-
 function renderList(element, items) {
   if (!element) return;
   element.replaceChildren(...items.map((text) => {
@@ -1640,13 +1578,6 @@ function renderList(element, items) {
 }
 
 function renderNotes(data, results, typeResult, validation) {
-  const hrvCondition = results.hrvLimited ? "판독 제한 있음" : "판독 제한 없음";
-  const checkedConditions = checkedConditionLabels(data);
-  const conditions = [
-    `채혈 상태: ${data.mealStatus || "미입력"}`,
-    checkedConditions.length ? `검사 전 확인사항: ${checkedConditions.join(", ")}` : "검사 전 확인사항: 특이사항 없음",
-    `HRV 측정조건: ${hrvCondition}`,
-  ];
   const limits = [];
   limits.push(...liverNormalMessage(data, results));
   limits.push(...hsCrpInterpretationNotes(data));
@@ -1656,13 +1587,7 @@ function renderNotes(data, results, typeResult, validation) {
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
     limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획을 확인하세요.");
   }
-  if (data.recentInfection || data.recentTraumaSurgery || data.recentHardExercise) limits.push("최근 염증·외상·수술·격한 운동은 hs-CRP와 염증 관련 해석에 영향을 줄 수 있습니다.");
-  if (data.recentAlcohol) limits.push("검사 전 음주는 간수치, 중성지방, HRV 해석에 영향을 줄 수 있습니다.");
-  if (data.recentSmokingCaffeine) limits.push("검사 전 흡연 또는 카페인은 혈압과 HRV 해석에 영향을 줄 수 있습니다.");
-  if (data.medicationAffectingResults || data.lipidMedication || data.diabetesMedication || data.steroidImmunosuppressant) limits.push("복용 중인 약물은 혈당, 지질, 염증, 간수치 해석에 영향을 줄 수 있어 약물 정보를 함께 확인해야 합니다.");
-  if (data.knownLiverDisease) limits.push("간질환 병력 또는 간수치 관련 진료 중인 경우 간대사 결과는 기존 진료 내용과 함께 해석해야 합니다.");
-  if (data.hsCrp > 10) limits.push("급성 감염·외상·수술·격한 운동 등 급성 염증 원인을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
-  if (results.hrvLimited) limits.push("HRV 판독 제한 조건이 있어 자율신경(스트레스) 축의 점수 판정을 보류합니다.");
+  if (data.hsCrp > 10) limits.push("hs-CRP가 10 mg/L를 초과해 급성 염증 가능성을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
   if (typeResult.notes.length) limits.push(...typeResult.notes);
   if (validation.warnings.length) limits.push(...validation.warnings.map((warning) => warning.text));
   if (!limits.length) limits.push("이번 결과에서 별도의 해석 제한은 표시되지 않았습니다.");
@@ -1671,7 +1596,6 @@ function renderNotes(data, results, typeResult, validation) {
     "검사 결과는 증상, 병력, 복용약 및 추가검사와 함께 해석해야 합니다.",
     "검사 저장을 실행한 환자정보와 검사결과는 공덕경희한의원 공동 작업공간의 인증된 사용자만 접근할 수 있는 서버 데이터베이스에 기록됩니다.",
   ];
-  renderList(elements.conditionList, conditions);
   renderList(elements.limitList, limits);
   renderList(elements.commonGuideList, common);
 }
@@ -1890,7 +1814,6 @@ function fillSample() {
     ansActivity: "높음",
     stressGrade: "높음",
     snsPercent: 59,
-    fattyLiver: true,
   });
 }
 
@@ -1904,6 +1827,22 @@ function resetForm() {
   });
   elements.generateButton.textContent = "리포트 생성";
   elements.generateStatus.textContent = "입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.";
+}
+
+function resetForPatient(values = {}) {
+  elements.form.reset();
+  treatmentPlanUserEdited = false;
+  treatmentDurationUserEdited = false;
+  setValues({
+    patientName: values.patientName || "",
+    chartNumber: values.chartNumber || "",
+    sex: values.sex || "",
+    birthDate: values.birthDate || "",
+    age: values.age ?? "",
+    testDate: values.testDate || localDateKey(),
+  });
+  elements.generateButton.textContent = "리포트 생성";
+  elements.generateStatus.textContent = "새 환자 정보가 적용되었습니다. 검사수치를 입력한 뒤 리포트를 생성하세요.";
 }
 
 function generateReport() {
@@ -1995,6 +1934,7 @@ window.metabolicReportApp = {
   render,
   readForm,
   setValues,
+  resetForPatient,
   localDateKey,
   generateReport,
   snapshot: currentReportSnapshot,
