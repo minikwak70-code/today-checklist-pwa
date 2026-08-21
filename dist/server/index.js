@@ -145,10 +145,16 @@ async function ensureSchema(db) {
 
 async function ensureSchemaOnce(db) {
   if (!schemaReadyPromise) {
-    schemaReadyPromise = ensureSchema(db).catch((error) => {
-      schemaReadyPromise = null;
-      throw error;
-    });
+    schemaReadyPromise = db.prepare("SELECT id FROM clinics LIMIT 1").first()
+      .then(() => undefined)
+      .catch((error) => {
+        if (/no such table/i.test(String(error?.message || error))) return ensureSchema(db);
+        throw error;
+      })
+      .catch((error) => {
+        schemaReadyPromise = null;
+        throw error;
+      });
   }
   return schemaReadyPromise;
 }
@@ -166,7 +172,10 @@ async function getOrCreateUser(request, db) {
       await auditAuthFailure(db, request, existing, "inactive user account");
       return { error: json({ error: "User account is inactive." }, 403) };
     }
-    await db.prepare("UPDATE users SET name = COALESCE(?, name), last_login_at = ?, updated_at = ? WHERE id = ?").bind(displayName, nowIso(), nowIso(), existing.id).run();
+    const lastLoginAt = Date.parse(existing.last_login_at || "");
+    if (!Number.isFinite(lastLoginAt) || Date.now() - lastLoginAt >= 15 * 60 * 1000) {
+      await db.prepare("UPDATE users SET name = COALESCE(?, name), last_login_at = ?, updated_at = ? WHERE id = ?").bind(displayName, nowIso(), nowIso(), existing.id).run();
+    }
     return { user: { ...existing, name: displayName || existing.name, email } };
   }
   const user = {
