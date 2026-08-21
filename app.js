@@ -187,7 +187,6 @@ const allFields = [
   "birthDate",
   "testDate",
   "assessmentStage",
-  "mealStatus",
   "hrvIndexGrade",
   "stressGrade",
   "ansActivity",
@@ -300,7 +299,9 @@ function assessPhysicalFunction(data) {
     ? ((data.previousWeight - data.currentWeight) / data.previousWeight) * 100
     : weightValid && previousWeightValid ? 0 : null;
   const lowBmi = present(bmi) && bmi < 18.5;
-  const unintentionalWeightLoss = data.weightLossContext === "비의도적" && present(weightLossRate) && weightLossRate >= 5;
+  const weightLossReported = ["있음", "비의도적"].includes(data.weightLossContext);
+  const unintentionalWeightLoss = weightLossReported && present(weightLossRate) && weightLossRate >= 5;
+  const suspectedWeightLoss = weightLossReported && !unintentionalWeightLoss;
 
   const intakeFields = ["appetiteReduced", "mealAmountReduced", "difficultyFinishingMeal"];
   const digestionFields = [
@@ -338,6 +339,7 @@ function assessPhysicalFunction(data) {
   const tags = [
     lowBmi ? "저체중" : "",
     unintentionalWeightLoss ? "최근 체중감소" : "",
+    suspectedWeightLoss ? "최근 체중감소 의심" : "",
     intakeIssue ? "섭취부족" : "",
     digestionIssue ? "소화기능 저하" : "",
     smi.low ? "근육량 저하" : "",
@@ -352,7 +354,7 @@ function assessPhysicalFunction(data) {
     data.smi,
     data.gripStrength,
     data.skeletalMuscleMass,
-  ].some(present) || [...intakeFields, ...digestionFields, "fatigueActivityReduced", "walkingStairsDifficulty"].some((id) => Boolean(data[id]));
+  ].some(present) || present(data.weightLossContext) || [...intakeFields, ...digestionFields, "fatigueActivityReduced", "walkingStairsDifficulty"].some((id) => Boolean(data[id]));
 
   return {
     score,
@@ -364,6 +366,7 @@ function assessPhysicalFunction(data) {
     weightLossRate,
     lowBmi,
     unintentionalWeightLoss,
+    suspectedWeightLoss,
     intakeIssue,
     digestionIssue,
     smi,
@@ -802,7 +805,7 @@ function validateInputs(data) {
   if (present(data.sbp) && present(data.dbp) && data.dbp > data.sbp) addError("dbp", "이완기혈압이 수축기혈압보다 높습니다.");
   if (present(data.smi) && data.smi <= 0) addError("smi", "SMI는 0보다 큰 kg/m² 값을 입력해야 합니다.");
   if (present(data.currentWeight) && data.currentWeight <= 0) addError("currentWeight", "현재 체중은 0보다 커야 합니다.");
-  if (present(data.previousWeight) && data.previousWeight <= 0) addError("previousWeight", "6개월 전 체중은 0보다 커야 합니다.");
+  if (present(data.previousWeight) && data.previousWeight <= 0) addError("previousWeight", "평소 체중은 0보다 커야 합니다.");
   if (present(data.gripStrength) && data.gripStrength <= 0) addError("gripStrength", "악력은 0보다 커야 합니다.");
   if (present(data.height) && (data.height < 100 || data.height > 220)) addError("height", "키는 100~220cm 범위로 입력해 주세요.");
   if (present(data.waist) && (data.waist < 40 || data.waist > 200)) addError("waist", "허리둘레는 40~200cm 범위로 입력해 주세요.");
@@ -819,9 +822,6 @@ function validateInputs(data) {
     if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값 또는 단위를 확인해 주세요.");
   }
   if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
-  if (data.weightLossContext === "비의도적" && (!present(data.currentWeight) || !present(data.previousWeight))) {
-    addWarning("previousWeight", "비의도적 체중감소율 계산을 위해 현재 체중과 6개월 전 체중을 모두 입력해 주세요.");
-  }
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
   return { errors, warnings };
@@ -1507,7 +1507,9 @@ function renderComputed(data, results) {
   const bmiText = present(physicalFunction.bmi) ? `BMI ${physicalFunction.bmi.toFixed(1)}` : "BMI 계산 대기";
   const weightLossText = present(physicalFunction.weightLossRate)
     ? `체중감소율 ${physicalFunction.weightLossRate.toFixed(1)}%`
-    : "체중감소율 계산 대기";
+    : physicalFunction.suspectedWeightLoss
+      ? "최근 체중감소 의심 · 비율 미산출"
+      : "체중감소율 계산 대기";
   elements.physicalFunctionCalc.textContent = `${bmiText} · ${weightLossText}`;
 }
 
@@ -1777,9 +1779,19 @@ function renderDetails(axes, data) {
         result: { score: assessment.domainScores.weight, max: 2, label: assessment.lowBmi ? "저체중 기준 해당" : "체중 상태 확인" },
       },
       {
-        label: "6개월 체중 변화",
-        value: present(assessment.weightLossRate) ? `${assessment.weightLossRate.toFixed(1)}% 감소` : null,
-        result: { score: assessment.domainScores.weight, max: 2, label: assessment.unintentionalWeightLoss ? "비의도적 체중감소 기준 해당" : "기준 해당 없음" },
+        label: "최근 체중 변화",
+        value: present(assessment.weightLossRate)
+          ? `${assessment.weightLossRate.toFixed(1)}% 감소`
+          : assessment.suspectedWeightLoss ? "감소 응답 · 비율 미산출" : null,
+        result: {
+          score: assessment.domainScores.weight,
+          max: 2,
+          label: assessment.unintentionalWeightLoss
+            ? "비의도적 체중감소 기준 해당"
+            : assessment.suspectedWeightLoss
+              ? "최근 체중감소 의심 · 수치 확인 필요"
+              : "기준 해당 없음",
+        },
         reference: true,
       },
       {
@@ -1890,9 +1902,6 @@ function renderNotes(data, results, typeResult, validation) {
   const limits = [];
   limits.push(...liverNormalMessage(data, results));
   limits.push(...hsCrpInterpretationNotes(data));
-  if (data.mealStatus === "식후 4시간 미만") limits.push("최근 식사의 영향으로 TG 및 TG/HDL-C가 평소보다 높게 측정되었을 수 있습니다.");
-  if (data.mealStatus === "식후 4~7시간") limits.push("식후 상태가 TG 및 TG/HDL-C 해석에 일부 영향을 줄 수 있습니다.");
-  if (data.mealStatus === "확인 불가") limits.push("채혈 당시 식사 상태를 확인할 수 없어 TG 및 TG/HDL-C 해석에 제한이 있습니다.");
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
     limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획을 확인하세요.");
   }
@@ -2084,7 +2093,9 @@ function isTreatmentInputId(id) {
 
 function setValues(values) {
   const nextValues = { ...values };
-  if (!present(nextValues.weightLossContext) && nextValues.weightLossStatus === "있음") nextValues.weightLossContext = "비의도적";
+  if (!present(nextValues.weightLossContext) && nextValues.weightLossStatus === "있음") nextValues.weightLossContext = "있음";
+  if (nextValues.weightLossContext === "비의도적") nextValues.weightLossContext = "있음";
+  if (nextValues.weightLossContext === "의도적") nextValues.weightLossContext = "없음";
   if (!present(nextValues.mealAmountReduced) && nextValues.lowProteinStatus === "있음") nextValues.mealAmountReduced = true;
   if (!present(nextValues.fatigueActivityReduced) && nextValues.functionalDeclineStatus === "있음") nextValues.fatigueActivityReduced = true;
   if (!present(nextValues.treatmentFocusCustom) && present(nextValues.treatmentPlan)) {
@@ -2143,7 +2154,6 @@ function fillSample() {
     hdl: 40,
     totalChol: 226,
     ldl: 148,
-    mealStatus: "식후 4시간 미만",
     alt: 58,
     ggt: 74,
     tbil: 1.1,
@@ -2184,6 +2194,7 @@ function resetForPatient(values = {}) {
     birthDate: values.birthDate || "",
     age: values.age ?? "",
     testDate: values.testDate || localDateKey(),
+    previousWeight: values.previousWeight ?? "",
   });
   elements.generateButton.textContent = "리포트 생성";
   elements.generateStatus.textContent = "새 환자 정보가 적용되었습니다. 검사수치를 입력한 뒤 리포트를 생성하세요.";

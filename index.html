@@ -280,26 +280,16 @@
                   <input id="tg" name="tg" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>HDL-C (mg/dL)</span>
-                  <input id="hdl" name="hdl" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
                   <span>총콜레스테롤 (mg/dL)</span>
                   <input id="totalChol" name="totalChol" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>LDL-C (mg/dL)</span>
-                  <input id="ldl" name="ldl" type="number" step="1" min="0" inputmode="decimal" />
+                  <span>HDL-C (mg/dL)</span>
+                  <input id="hdl" name="hdl" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>채혈 당시 식사 상태</span>
-                  <select id="mealStatus" name="mealStatus">
-                    <option value="">선택</option>
-                    <option>식후 4시간 미만</option>
-                    <option>식후 4~7시간</option>
-                    <option>8시간 이상 금식</option>
-                    <option>확인 불가</option>
-                  </select>
+                  <span>LDL-C (mg/dL)</span>
+                  <input id="ldl" name="ldl" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
               </div>
               <div class="computed-grid">
@@ -316,16 +306,16 @@
                   <input id="alt" name="alt" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
+                  <span>AST (U/L)</span>
+                  <input id="ast" name="ast" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
                   <span>GGT (U/L)</span>
                   <input id="ggt" name="ggt" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
                   <span>TBIL (mg/dL)</span>
                   <input id="tbil" name="tbil" type="number" step="0.1" min="0" inputmode="decimal" />
-                </label>
-                <label>
-                  <span>AST (U/L)</span>
-                  <input id="ast" name="ast" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
                   <span>ALP (U/L)</span>
@@ -404,16 +394,16 @@
                   <input id="pnsPercent" name="pnsPercent" type="number" step="0.1" min="0" max="100" inputmode="decimal" readonly />
                 </label>
                 <label>
-                  <span>안정 시 심박수 (bpm)</span>
-                  <input id="restingHr" name="restingHr" type="number" step="1" min="0" inputmode="decimal" />
-                </label>
-                <label>
                   <span>수축기 혈압 (mmHg)</span>
                   <input id="sbp" name="sbp" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
                 <label>
                   <span>이완기 혈압 (mmHg)</span>
                   <input id="dbp" name="dbp" type="number" step="1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>안정 시 심박수 (bpm)</span>
+                  <input id="restingHr" name="restingHr" type="number" step="1" min="0" inputmode="decimal" />
                 </label>
               </div>
             </fieldset>
@@ -428,16 +418,16 @@
                   <input id="currentWeight" name="currentWeight" type="number" step="0.1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>6개월 전 체중 (kg)</span>
+                  <span>평소 체중 (kg, 선택)</span>
                   <input id="previousWeight" name="previousWeight" type="number" step="0.1" min="0" inputmode="decimal" />
                 </label>
                 <label>
-                  <span>최근 체중감소</span>
+                  <span>최근 6개월 내 비의도적 체중감소</span>
                   <select id="weightLossContext" name="weightLossContext">
                     <option value="">선택</option>
                     <option value="없음">없음</option>
-                    <option value="의도적">의도적 감량</option>
-                    <option value="비의도적">비의도적 감소</option>
+                    <option value="있음">있음</option>
+                    <option value="모름">모름</option>
                   </select>
                 </label>
               </div>
@@ -812,7 +802,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=50" defer></script>
-    <script src="./tracking.js?v=16" defer></script>
+    <script src="./app.js?v=52" defer></script>
+    <script src="./tracking.js?v=18" defer></script>
   </body>
 </html>

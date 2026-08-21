@@ -42,6 +42,7 @@ const t = {
   compareButton: document.querySelector("#compareButton"),
   comparisonPrint: document.querySelector("#comparisonPrintButton"),
   comparisonReport: document.querySelector("#comparisonReport"),
+  newAssessmentLink: document.querySelector('.module-nav a[href="#inputHeading"]'),
   refreshMembers: document.querySelector("#refreshMembersButton"),
   memberInviteForm: document.querySelector("#memberInviteForm"),
   inviteMemberButton: document.querySelector("#inviteMemberButton"),
@@ -160,7 +161,8 @@ function physicalFunctionRecord(assessment) {
       : null
   );
   const lowBmi = bmi !== null && Number(bmi) < 18.5;
-  const weightLoss = raw.weightLossContext === "비의도적" && weightLossRate !== null && Number(weightLossRate) >= 5;
+  const weightLossReported = ["있음", "비의도적"].includes(raw.weightLossContext) || (!raw.weightLossContext && raw.weightLossStatus === "있음");
+  const weightLoss = weightLossReported && weightLossRate !== null && Number(weightLossRate) >= 5;
   const intakeIssue = Boolean(raw.appetiteReduced || raw.mealAmountReduced || raw.difficultyFinishingMeal || raw.lowProteinStatus === "있음");
   const digestionIssue = Boolean(raw.earlySatiety || raw.frequentIndigestion || raw.postMealDiscomfort || raw.reducedIntakeDueDigestion || raw.recurrentDiarrhea || raw.foodAvoidanceDueDiscomfort);
   const smiLow = Number.isFinite(Number(raw.smi)) && Number(raw.smi) > 0 && Boolean(sex) && Number(raw.smi) < (sex === "남성" ? 7 : 5.7);
@@ -396,14 +398,31 @@ function patientReportValues(patient, atDate = "") {
   };
 }
 
-function resetReportForPatient(patient) {
+function resetReportForPatient(patient, values = {}) {
   if (!patient) return;
-  const values = patientReportValues(patient);
+  const reportValues = { ...patientReportValues(patient), ...values };
   if (window.metabolicReportApp?.resetForPatient) {
-    window.metabolicReportApp.resetForPatient(values);
+    window.metabolicReportApp.resetForPatient(reportValues);
     return;
   }
-  window.metabolicReportApp?.setValues(values);
+  window.metabolicReportApp?.setValues(reportValues);
+}
+
+function latestStoredWeight() {
+  const assessment = latestAssessment();
+  if (!assessment?.assessmentDate) return "";
+  const measuredAt = new Date(`${assessment.assessmentDate}T00:00:00`);
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 6);
+  if (!Number.isFinite(measuredAt.getTime()) || measuredAt < cutoff) return "";
+  const value = Number(assessment.rawValues?.currentWeight);
+  return Number.isFinite(value) && value > 0 ? value : "";
+}
+
+function startNewAssessment() {
+  if (!tracking.selectedPatient) return;
+  resetReportForPatient(tracking.selectedPatient, { previousWeight: latestStoredWeight() });
+  setBanner("새 검사 입력을 시작합니다. 최근 저장 체중이 있으면 평소 체중에 반영했습니다.", "ok");
 }
 
 function showSelectedPatient(patient) {
@@ -657,7 +676,7 @@ async function saveAssessment() {
   const payload = {
     assessmentDate: snapshot.data.testDate || window.metabolicReportApp.localDateKey(),
     assessmentStage: snapshot.data.assessmentStage || "",
-    fastingStatus: snapshot.data.mealStatus || "",
+    fastingStatus: "",
     rawValues: rawForSave(snapshot.data),
     calculatedScores: snapshot.calculatedScores,
     scoreRuleVersion: snapshot.scoreRuleVersion,
@@ -859,9 +878,6 @@ function renderComparison() {
   const lowAxis = lowestAxis(compare);
   const rows = metricRows(base, compare);
   const totalDiff = compare.totalScore - base.totalScore;
-  const conditionNote = base.fastingStatus && compare.fastingStatus && base.fastingStatus !== compare.fastingStatus
-    ? `<p class="comparison-note">두 검사의 채혈 조건이 달라 TG 및 TG/HDL-C 변화 해석에 제한이 있을 수 있습니다. 기준 검사: ${escapeHtml(base.fastingStatus)}, 비교 검사: ${escapeHtml(compare.fastingStatus)}</p>`
-    : "";
   t.comparisonReport.innerHTML = `
     <div class="comparison-pages">
       <section class="comparison-page">
@@ -896,7 +912,7 @@ function renderComparison() {
       </section>
       <section class="comparison-page">
         <h3>해석 제한</h3>
-        ${conditionNote || "<p>두 검사 간 주요 측정조건 차이는 저장된 정보상 확인되지 않았습니다.</p>"}
+        <p>두 검사 간 측정조건과 생활환경 차이를 함께 고려해 변화를 해석합니다.</p>
         <p>본 비교는 동일 환자의 검사기록 추적을 돕는 관리도구이며, 진단이나 완치 판정을 대신하지 않습니다.</p>
       </section>
     </div>
@@ -1079,6 +1095,7 @@ t.editForm?.addEventListener("submit", updatePatient);
   });
 });
 t.refresh.addEventListener("click", loadPatients);
+t.newAssessmentLink?.addEventListener("click", startNewAssessment);
 const debouncedPatientSearch = debounce(() => loadPatients().catch((error) => setBanner(error.message, "warning")), 280);
 t.search.addEventListener("input", debouncedPatientSearch);
 t.typeFilter.addEventListener("change", () => loadPatients().catch((error) => setBanner(error.message, "warning")));
