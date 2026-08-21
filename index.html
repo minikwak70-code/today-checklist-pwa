@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=41" />
+    <link rel="stylesheet" href="./styles.css?v=43" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -71,7 +71,7 @@
                     <option>B. 인슐린 저항 우세형</option>
                     <option>C. 만성염증 우세형</option>
                     <option>D. 자율신경(스트레스) 우세형</option>
-                    <option>E. 근감소 우세형</option>
+                    <option>E. 신체기능저하형</option>
                     <option>F. 복합 대사위험형</option>
                     <option>0. 간관리 선행형</option>
                     <option>대사 균형형</option>
@@ -347,8 +347,15 @@
                 </label>
                 <label>
                   <span>허리둘레 (cm)</span>
-                  <input id="waist" name="waist" type="number" step="0.1" min="0" inputmode="decimal" />
+                  <input id="waist" name="waist" type="number" step="0.1" min="40" max="200" inputmode="decimal" />
                 </label>
+                <label>
+                  <span>키 (cm)</span>
+                  <input id="height" name="height" type="number" step="0.1" min="100" max="220" inputmode="decimal" />
+                </label>
+              </div>
+              <div class="computed-grid single">
+                <p id="whtrCalc">WHtR: 키와 허리둘레 입력 후 계산</p>
               </div>
             </fieldset>
 
@@ -411,13 +418,64 @@
               </div>
             </fieldset>
 
-            <fieldset>
-              <legend>근감소 평가</legend>
+            <fieldset class="physical-function-editor">
+              <legend>신체기능저하 평가</legend>
+
+              <p class="subsection-label">A. 체중 및 체중 변화</p>
               <div class="form-grid three">
+                <label>
+                  <span>현재 체중 (kg)</span>
+                  <input id="currentWeight" name="currentWeight" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>6개월 전 체중 (kg)</span>
+                  <input id="previousWeight" name="previousWeight" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>최근 체중감소</span>
+                  <select id="weightLossContext" name="weightLossContext">
+                    <option value="">선택</option>
+                    <option value="없음">없음</option>
+                    <option value="의도적">의도적 감량</option>
+                    <option value="비의도적">비의도적 감소</option>
+                  </select>
+                </label>
+              </div>
+              <div class="computed-grid single"><p id="physicalFunctionCalc">BMI와 체중감소율은 키와 체중 입력 후 계산됩니다.</p></div>
+
+              <p class="subsection-label">B. 섭취·소화 상태</p>
+              <div class="check-grid physical-question-grid">
+                <label><input id="appetiteReduced" type="checkbox" />최근 식욕이 뚜렷하게 감소했다</label>
+                <label><input id="mealAmountReduced" type="checkbox" />식사량이 예전보다 줄었다</label>
+                <label><input id="difficultyFinishingMeal" type="checkbox" />한 끼를 충분히 먹기 어렵다</label>
+                <label><input id="earlySatiety" type="checkbox" />조금만 먹어도 금방 배가 부른다</label>
+                <label><input id="frequentIndigestion" type="checkbox" />소화불량이 자주 있다</label>
+                <label><input id="postMealDiscomfort" type="checkbox" />식후 복부팽만이나 불편감이 심하다</label>
+                <label><input id="reducedIntakeDueDigestion" type="checkbox" />소화문제로 식사량을 줄이고 있다</label>
+                <label><input id="recurrentDiarrhea" type="checkbox" />반복적인 설사가 있다</label>
+                <label><input id="foodAvoidanceDueDiscomfort" type="checkbox" />섭취 후 불편감 때문에 여러 음식을 피한다</label>
+              </div>
+
+              <p class="subsection-label">C. 근육 및 근력</p>
+              <div class="form-grid two">
+                <label>
+                  <span>골격근량 (kg)</span>
+                  <input id="skeletalMuscleMass" name="skeletalMuscleMass" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
                 <label>
                   <span>SMI (kg/m²)</span>
                   <input id="smi" name="smi" type="number" step="0.01" min="0" inputmode="decimal" />
                 </label>
+                <label>
+                  <span>악력 (kg)</span>
+                  <input id="gripStrength" name="gripStrength" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+              </div>
+
+              <p class="subsection-label">D. 신체 수행능력·체력</p>
+              <div class="check-grid physical-question-grid">
+                <label><input id="fatigueActivityReduced" type="checkbox" />예전보다 쉽게 지치고 일상 활동을 오래 유지하기 어렵다</label>
+                <label><input id="walkingStairsDifficulty" type="checkbox" />계단을 오르거나 오래 걷는 것이 예전보다 힘들다</label>
               </div>
             </fieldset>
 
@@ -659,7 +717,7 @@
                   <div data-type-guide="insulin"><dt>인슐린 저항형</dt><dd>혈당 관련 대사 조절이 시급한 유형</dd></div>
                   <div data-type-guide="inflammation"><dt>만성염증형</dt><dd>만성염증으로 인해 면역력이 저하된 유형</dd></div>
                   <div data-type-guide="autonomic"><dt>자율신경(스트레스)형</dt><dd>스트레스 및 자율신경실조가 문제인 유형</dd></div>
-                  <div data-type-guide="sarcopenia"><dt>근감소형</dt><dd>근육 및 신체기능이 저하되어 있는 유형</dd></div>
+                  <div data-type-guide="sarcopenia"><dt>신체기능저하형</dt><dd>영양 섭취, 근육과 체력 등 전반적인 신체기능이 저하된 유형</dd></div>
                   <div data-type-guide="complex"><dt>복합대사위험형</dt><dd>여러 대사 문제가 겹쳐 있어 단계적인 관리가 시급한 유형</dd></div>
                   <div data-type-guide="liver"><dt>간관리 선행형</dt><dd>다른 문제보다도 간기능 개선이 시급한 유형</dd></div>
                 </dl>
@@ -705,6 +763,10 @@
                 <p class="section-title">세부 검사 결과</p>
                 <div id="detailTable" class="detail-table"></div>
               </div>
+              <section id="physicalFunctionReport" class="note-block physical-function-report" hidden>
+                <p class="section-title">신체기능저하 평가</p>
+                <div id="physicalFunctionBody"></div>
+              </section>
               <section class="note-block">
                 <p class="section-title">해석 시 참고사항</p>
                 <ul id="limitList" class="notes-list"></ul>
@@ -750,7 +812,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=47" defer></script>
-    <script src="./tracking.js?v=13" defer></script>
+    <script src="./app.js?v=50" defer></script>
+    <script src="./tracking.js?v=16" defer></script>
   </body>
 </html>

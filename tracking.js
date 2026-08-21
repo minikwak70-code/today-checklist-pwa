@@ -69,8 +69,171 @@ const metricMeta = [
   { key: "stressScore", label: "Stress 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "stressScore", "autonomic:Stress") },
   { key: "snsPercent", label: "SNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.snsPercent ?? calculatedValue(assessment, "snsPercent") },
   { key: "pnsPercent", label: "PNS 비율", unit: "%", direction: "center50", value: (raw, assessment) => raw.pnsPercent ?? calculatedValue(assessment, "pnsPercent") },
+  { key: "currentWeight", label: "체중", unit: "kg", direction: "context", value: (raw) => raw.currentWeight },
+  { key: "skeletalMuscleMass", label: "골격근량", unit: "kg", direction: "up", value: (raw) => raw.skeletalMuscleMass },
   { key: "smi", label: "SMI", unit: "kg/m²", direction: "up", value: (raw) => raw.smi },
+  { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
 ];
+
+function typeARecord(assessment) {
+  const raw = assessment?.rawValues || {};
+  const sex = raw.sex || tracking.selectedPatient?.sex || "";
+  const heightValid = Number.isFinite(Number(raw.height)) && Number(raw.height) >= 100 && Number(raw.height) <= 220;
+  const waistValid = Number.isFinite(Number(raw.waist)) && Number(raw.waist) >= 40 && Number(raw.waist) <= 200;
+  const visceralValid = Number.isFinite(Number(raw.visceralFat)) && Number(raw.visceralFat) >= 1 && Number(raw.visceralFat) <= 20;
+  const whtr = calculatedValue(assessment, "whtr") ?? (heightValid && waistValid ? Number(raw.waist) / Number(raw.height) : null);
+  const waistHigh = waistValid && (sex === "남성" ? Number(raw.waist) >= 90 : sex === "여성" ? Number(raw.waist) >= 85 : false);
+  const visceralHigh = visceralValid && Number(raw.visceralFat) >= 10;
+  const derivedScore = (whtr >= 0.5 ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const storedScore = calculatedValue(assessment, "typeAScore");
+  const score = storedScore ?? (whtr !== null || (waistValid && ["남성", "여성"].includes(sex)) || visceralValid ? derivedScore : null);
+  return {
+    height: heightValid ? Number(raw.height) : null,
+    waist: waistValid ? Number(raw.waist) : null,
+    whtr: whtr === null || whtr === undefined ? null : Number(whtr),
+    visceralFat: visceralValid ? Number(raw.visceralFat) : null,
+    score,
+  };
+}
+
+function typeAChangeLabel(key, before, after) {
+  const diff = after - before;
+  if (key === "waist") return `${diff > 0 ? "+" : ""}${numberText(diff, 1)}cm`;
+  if (key === "whtr") return Math.abs(diff) < 0.0005 ? "유지" : diff < 0 ? "개선" : "증가";
+  if (key === "visceralFat") {
+    if (before >= 10 && after < 10) return "정상범위 진입";
+    return Math.abs(diff) < 0.01 ? "유지" : diff < 0 ? "개선" : "증가";
+  }
+  return `${diff > 0 ? "+" : ""}${numberText(diff, 0)}점`;
+}
+
+function typeAComparison(base, compare) {
+  const before = typeARecord(base);
+  const after = typeARecord(compare);
+  const definitions = [
+    { key: "waist", label: "허리둘레", unit: "cm", digits: 1 },
+    { key: "whtr", label: "WHtR", unit: "", digits: 3 },
+    { key: "visceralFat", label: "내장지방레벨", unit: "", digits: 0 },
+    { key: "score", label: "Type A 점수", unit: "점", digits: 0 },
+  ];
+  const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => ({
+    ...item,
+    before: before[item.key],
+    after: after[item.key],
+    change: typeAChangeLabel(item.key, before[item.key], after[item.key]),
+  }));
+  if (!rows.length) return "";
+  const waistImproved = before.waist !== null && after.waist !== null && after.waist < before.waist;
+  const whtrImproved = before.whtr !== null && after.whtr !== null && after.whtr < before.whtr;
+  const visceralImproved = before.visceralFat !== null && after.visceralFat !== null && after.visceralFat < before.visceralFat;
+  let summary = "복부비만 관련 지표의 치료 전후 변화를 확인했습니다.";
+  if (waistImproved && whtrImproved && visceralImproved && after.visceralFat < 10) {
+    summary = "허리둘레와 허리-키 비율이 감소하고 InBody 내장지방레벨도 정상범위로 개선되었습니다.";
+  } else {
+    const improved = [waistImproved ? "허리둘레" : "", whtrImproved ? "허리-키 비율" : "", visceralImproved ? "내장지방레벨" : ""].filter(Boolean);
+    if (improved.length) summary = `${improved.join(" · ")}에서 개선이 확인되었습니다.`;
+  }
+  return `
+    <h3>복부비만 평가 변화</h3>
+    <table class="tracking-table compact-table type-a-comparison-table">
+      <thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr><td>${row.label}</td><td>${numberText(row.before, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${numberText(row.after, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${row.change}</td></tr>`).join("")}</tbody>
+    </table>
+    <p class="comparison-summary">${summary}</p>
+  `;
+}
+
+function physicalFunctionRecord(assessment) {
+  const raw = assessment?.rawValues || {};
+  const sex = raw.sex || tracking.selectedPatient?.sex || "";
+  const height = Number(raw.height);
+  const weight = Number(raw.currentWeight);
+  const previousWeight = Number(raw.previousWeight);
+  const bmi = calculatedValue(assessment, "bmi") ?? (
+    Number.isFinite(height) && height >= 100 && height <= 220 && Number.isFinite(weight) && weight > 0
+      ? weight / ((height / 100) ** 2)
+      : null
+  );
+  const weightLossRate = calculatedValue(assessment, "weightLossRate") ?? (
+    Number.isFinite(weight) && weight > 0 && Number.isFinite(previousWeight) && previousWeight > 0
+      ? Math.max(0, ((previousWeight - weight) / previousWeight) * 100)
+      : null
+  );
+  const lowBmi = bmi !== null && Number(bmi) < 18.5;
+  const weightLoss = raw.weightLossContext === "비의도적" && weightLossRate !== null && Number(weightLossRate) >= 5;
+  const intakeIssue = Boolean(raw.appetiteReduced || raw.mealAmountReduced || raw.difficultyFinishingMeal || raw.lowProteinStatus === "있음");
+  const digestionIssue = Boolean(raw.earlySatiety || raw.frequentIndigestion || raw.postMealDiscomfort || raw.reducedIntakeDueDigestion || raw.recurrentDiarrhea || raw.foodAvoidanceDueDiscomfort);
+  const smiLow = Number.isFinite(Number(raw.smi)) && Number(raw.smi) > 0 && Boolean(sex) && Number(raw.smi) < (sex === "남성" ? 7 : 5.7);
+  const gripLow = Number.isFinite(Number(raw.gripStrength)) && Number(raw.gripStrength) > 0 && Boolean(sex) && Number(raw.gripStrength) < (sex === "남성" ? 28 : 18);
+  const muscleCount = [smiLow, gripLow].filter(Boolean).length;
+  const fatigueIssue = Boolean(raw.fatigueActivityReduced || raw.functionalDeclineStatus === "있음");
+  const mobilityIssue = Boolean(raw.walkingStairsDifficulty);
+  const derivedScore = (lowBmi ? 1 : 0) + (weightLoss ? 1 : 0) + (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0)
+    + (muscleCount >= 2 ? 2 : muscleCount === 1 ? 1 : 0) + (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0);
+  const hasAnyMetric = [raw.currentWeight, raw.previousWeight, raw.skeletalMuscleMass, raw.smi, raw.gripStrength]
+    .some((value) => value !== null && value !== undefined && value !== "") || intakeIssue || digestionIssue || fatigueIssue || mobilityIssue;
+  const storedScore = calculatedValue(assessment, "physicalFunctionScore");
+  return {
+    score: storedScore ?? (hasAnyMetric ? derivedScore : null),
+    weight: Number.isFinite(weight) && weight > 0 ? weight : null,
+    bmi: bmi === null ? null : Number(bmi),
+    weightLossRate: weightLossRate === null ? null : Number(weightLossRate),
+    skeletalMuscleMass: Number.isFinite(Number(raw.skeletalMuscleMass)) && Number(raw.skeletalMuscleMass) > 0 ? Number(raw.skeletalMuscleMass) : null,
+    smi: Number.isFinite(Number(raw.smi)) && Number(raw.smi) > 0 ? Number(raw.smi) : null,
+    gripStrength: Number.isFinite(Number(raw.gripStrength)) && Number(raw.gripStrength) > 0 ? Number(raw.gripStrength) : null,
+    intakeIssue,
+    digestionIssue,
+    fatigueIssue,
+    mobilityIssue,
+  };
+}
+
+function stateChange(before, after, good, bad) {
+  if (before === after) return "유지";
+  return before && !after ? good : bad;
+}
+
+function physicalFunctionComparison(base, compare) {
+  const before = physicalFunctionRecord(base);
+  const after = physicalFunctionRecord(compare);
+  const definitions = [
+    { key: "score", label: "신체기능저하 점수", unit: "점", digits: 0, lowerBetter: true },
+    { key: "weight", label: "체중", unit: "kg", digits: 1 },
+    { key: "bmi", label: "BMI", unit: "", digits: 1 },
+    { key: "weightLossRate", label: "체중감소율", unit: "%", digits: 1, lowerBetter: true },
+    { key: "skeletalMuscleMass", label: "골격근량", unit: "kg", digits: 1, higherBetter: true },
+    { key: "smi", label: "SMI", unit: "kg/m²", digits: 2, higherBetter: true },
+    { key: "gripStrength", label: "악력", unit: "kg", digits: 1, higherBetter: true },
+  ];
+  const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => {
+    const diff = after[item.key] - before[item.key];
+    let change = `${diff > 0 ? "+" : ""}${numberText(diff, item.digits)}${item.unit ? ` ${item.unit}` : ""}`;
+    if (Math.abs(diff) < 0.001) change = "유지";
+    else if (item.lowerBetter) change = diff < 0 ? "개선" : "증가";
+    else if (item.higherBetter) change = diff > 0 ? "개선" : "감소";
+    return { ...item, before: before[item.key], after: after[item.key], change };
+  });
+  const stateRows = [
+    ["식욕·식사량", before.intakeIssue, after.intakeIssue],
+    ["소화증상", before.digestionIssue, after.digestionIssue],
+    ["피로", before.fatigueIssue, after.fatigueIssue],
+    ["걷기·계단", before.mobilityIssue, after.mobilityIssue],
+  ];
+  const hasState = stateRows.some(([, b, a]) => b || a);
+  if (!rows.length && !hasState) return "";
+  const scoreImproved = before.score !== null && after.score !== null && after.score < before.score;
+  const strengthImproved = before.gripStrength !== null && after.gripStrength !== null && after.gripStrength > before.gripStrength;
+  const performanceImproved = (before.fatigueIssue && !after.fatigueIssue) || (before.mobilityIssue && !after.mobilityIssue);
+  const summary = scoreImproved && (strengthImproved || performanceImproved)
+    ? "영양섭취와 체력 상태가 개선되었으며 근력과 신체수행능력도 회복되는 방향을 보이고 있습니다."
+    : "체중, 영양 섭취, 근육과 일상적인 신체기능의 변화를 함께 확인했습니다.";
+  return `
+    <h3>신체기능저하 평가 변화</h3>
+    ${rows.length ? `<table class="tracking-table compact-table"><thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.label}</td><td>${numberText(row.before, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${numberText(row.after, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${row.change}</td></tr>`).join("")}</tbody></table>` : ""}
+    <table class="tracking-table compact-table physical-state-table"><thead><tr><th>상태</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${stateRows.map(([label, b, a]) => `<tr><td>${label}</td><td>${b ? "문제 있음" : "없음"}</td><td>${a ? "문제 있음" : "없음"}</td><td>${stateChange(b, a, "개선", "확인 필요")}</td></tr>`).join("")}</tbody></table>
+    <p class="comparison-summary">${summary}</p>
+  `;
+}
 
 function setBanner(text, tone = "") {
   t.banner.textContent = text;
@@ -91,7 +254,7 @@ function displayTypeName(typeName) {
   return String(typeName || "")
     .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
     .split("+")
-    .map((part) => part.trim())
+    .map((part) => part.trim().replace(/근감소\s*우세형|근육저하형|근감소형/g, "신체기능저하형"))
     .filter(Boolean)
     .join(" + ");
 }
@@ -721,6 +884,8 @@ function renderComparison() {
           <thead><tr><th>축</th><th>기준</th><th>비교</th><th>변화</th></tr></thead>
           <tbody>${axisRows.map((row) => `<tr><td>${row.label}</td><td>${scoreText(row.before)}</td><td>${scoreText(row.after)}</td><td>${row.diff >= 0 ? "+" : ""}${numberText(row.diff)}점</td></tr>`).join("")}</tbody>
         </table>
+        ${typeAComparison(base, compare)}
+        ${physicalFunctionComparison(base, compare)}
         <h3>주요 검사 변화표</h3>
         <table class="tracking-table compact-table">
           <thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th><th>평가</th></tr></thead>

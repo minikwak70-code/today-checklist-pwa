@@ -1,4 +1,4 @@
-const SCORE_RULE_VERSION = "metabolic-score-v3.0";
+const SCORE_RULE_VERSION = "metabolic-score-v3.3";
 const DEFAULT_CLINIC_ID = "clinic_gongdeok_kyunghee";
 const DEFAULT_CLINIC_NAME = "공덕경희한의원";
 let schemaReadyPromise = null;
@@ -138,7 +138,7 @@ async function ensureSchema(db) {
     SCORE_RULE_VERSION,
     "2026-07-21",
     JSON.stringify({ source: "embedded-client-scoring", preservesSnapshot: true }),
-    "Current embedded metabolic score rules with hs-CRP, visceral fat and SMI reference logic.",
+    "Embedded metabolic score rules with Type A WHtR and physical-function subtype assessment.",
     now,
   ).run();
 }
@@ -455,10 +455,17 @@ async function handleApi(request, env) {
         AND COALESCE(p.is_deleted, 0) = 0
         AND (a.assessment_date IS NULL OR a.assessment_date >= ?)
         AND (p.name LIKE ? OR p.chart_number LIKE ?)
-        AND (? = '' OR a.primary_type = ?)
+        AND (
+          ? = ''
+          OR REPLACE(a.primary_type, 'E. ', '') = REPLACE(?, 'E. ', '')
+          OR (? LIKE '%신체기능저하%' AND (
+            a.primary_type LIKE '%근감소%'
+            OR a.primary_type LIKE '%근육저하%'
+          ))
+        )
       ORDER BY ${order}, p.updated_at DESC
     `;
-    const result = await db.prepare(query).bind(clinic.id, clinic.id, recentCutoffDate, search, search, type, type).all();
+    const result = await db.prepare(query).bind(clinic.id, clinic.id, recentCutoffDate, search, search, type, type, type).all();
     const patients = (result.results || []).map(patientRow);
     return json({ clinic, patients });
   }

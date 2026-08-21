@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v3.1";
+const SCORE_RULE_VERSION = "metabolic-score-v3.3";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -15,7 +15,7 @@ const TYPE_OPTIONS = [
   ["B. 인슐린 저항 우세형", "인슐린 저항 우세형"],
   ["C. 만성염증 우세형", "만성염증 우세형"],
   ["D. 자율신경(스트레스) 우세형", "자율신경(스트레스) 우세형"],
-  ["E. 근감소 우세형", "근감소 우세형"],
+  ["E. 신체기능저하형", "신체기능저하형"],
   ["F. 복합 대사위험형", "복합 대사위험형"],
   ["대사 균형형", "대사 균형형"],
   ["특정 우세형 없음", "특정 우세형 없음"],
@@ -74,6 +74,20 @@ const TREATMENT_FOCUS_FIELDS = [
   ["focusPlantFat", "식물성 지질 섭취"],
 ];
 
+const PHYSICAL_FUNCTION_CHECKBOX_FIELDS = [
+  "appetiteReduced",
+  "mealAmountReduced",
+  "difficultyFinishingMeal",
+  "earlySatiety",
+  "frequentIndigestion",
+  "postMealDiscomfort",
+  "reducedIntakeDueDigestion",
+  "recurrentDiarrhea",
+  "foodAvoidanceDueDiscomfort",
+  "fatigueActivityReduced",
+  "walkingStairsDifficulty",
+];
+
 let treatmentPlanUserEdited = false;
 let treatmentPlanApplyingAuto = false;
 let treatmentDurationUserEdited = false;
@@ -111,6 +125,10 @@ const elements = {
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
   tgHdlCalc: document.querySelector("#tgHdlCalc"),
   nonHdlCalc: document.querySelector("#nonHdlCalc"),
+  whtrCalc: document.querySelector("#whtrCalc"),
+  physicalFunctionCalc: document.querySelector("#physicalFunctionCalc"),
+  physicalFunctionReport: document.querySelector("#physicalFunctionReport"),
+  physicalFunctionBody: document.querySelector("#physicalFunctionBody"),
   generateTreatmentPlanButton: document.querySelector("#generateTreatmentPlanButton"),
   treatmentDirection: document.querySelector("#treatmentDirection"),
   treatmentProgramList: document.querySelector("#treatmentProgramList"),
@@ -148,12 +166,18 @@ const numberFields = new Set([
   "alp",
   "alpUln",
   "waist",
+  "height",
   "restingHr",
+  "currentWeight",
+  "previousWeight",
+  "skeletalMuscleMass",
   "smi",
+  "gripStrength",
 ]);
 
 const checkboxFields = new Set([
   ...TREATMENT_FOCUS_FIELDS.map(([id]) => id),
+  ...PHYSICAL_FUNCTION_CHECKBOX_FIELDS,
 ]);
 
 const allFields = [
@@ -169,6 +193,7 @@ const allFields = [
   "ansActivity",
   "snsActivity",
   "pnsActivity",
+  "weightLossContext",
   "manualPrimaryType",
   "manualSecondaryType",
   "clinicianNote",
@@ -205,6 +230,46 @@ function formatDecimal(value, digits = 2) {
   return Number(value).toFixed(digits).replace(/\.?0+$/, "");
 }
 
+function assessTypeA(data) {
+  const heightValid = present(data.height) && data.height >= 100 && data.height <= 220;
+  const waistValid = present(data.waist) && data.waist >= 40 && data.waist <= 200;
+  const vflValid = present(data.visceralFat) && data.visceralFat >= 1 && data.visceralFat <= 20;
+  const sexValid = data.sex === "남성" || data.sex === "여성";
+  const whtr = heightValid && waistValid ? data.waist / data.height : null;
+  const whtrHigh = present(whtr) && whtr >= 0.5;
+  const waistHigh = waistValid && sexValid && (data.sex === "남성" ? data.waist >= 90 : data.waist >= 85);
+  const visceralHigh = vflValid && data.visceralFat >= 10;
+  const score = (whtrHigh ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const hasAnyMetric = present(whtr) || (waistValid && sexValid) || vflValid;
+  const activated = score >= 2 && (present(whtr) || (waistHigh && visceralHigh));
+  let judgment = !hasAnyMetric
+    ? "판정 대기"
+    : [
+        "복부비만 소견 없음",
+        "복부지방 증가 가능성",
+        "복부비만 우세형 가능성 높음",
+        "복부비만 우세형",
+        "뚜렷한 복부비만 우세형",
+      ][score];
+  const complete = present(whtr) && sexValid && vflValid;
+  if (!complete && score === 0 && hasAnyMetric) judgment = "부분 판정 · 복부비만 소견 없음";
+  return {
+    score,
+    max: 4,
+    judgment,
+    activated,
+    hasAnyMetric,
+    complete,
+    whtr,
+    whtrHigh,
+    whtrLabel: !present(whtr) ? "계산 불가" : whtrHigh ? "높음" : "양호",
+    waistHigh,
+    waistLabel: !waistValid ? "미측정" : !sexValid ? "성별 확인 필요" : waistHigh ? "복부비만 기준 이상" : "정상범위",
+    visceralHigh,
+    visceralLabel: !vflValid ? "미측정" : visceralHigh ? "증가" : "정상범위",
+  };
+}
+
 function assessSmi(data) {
   if (!present(data.smi)) return { status: "missing", label: "미측정", valueText: "SMI 미측정", low: false, borderline: false, normal: false };
   if (data.smi <= 0) return { status: "invalid", label: "입력 오류", valueText: `SMI ${formatDecimal(data.smi)} kg/m²`, low: false, borderline: false, normal: false };
@@ -218,8 +283,101 @@ function assessSmi(data) {
   return { status: "normal", label: "근육량 기준 이상", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: false, borderline: false, normal: true };
 }
 
-function sarcopeniaInputsPresent(data) {
-  return present(data.smi);
+function assessGrip(data) {
+  if (!present(data.gripStrength)) return { label: "미측정", low: false, normal: false };
+  if (data.gripStrength <= 0) return { label: "입력 오류", low: false, normal: false };
+  if (!data.sex) return { label: "성별 확인 필요", low: false, normal: false };
+  const low = data.gripStrength < (data.sex === "남성" ? 28 : 18);
+  return { label: low ? "근력 저하 기준 해당" : "정상범위", low, normal: !low };
+}
+
+function assessPhysicalFunction(data) {
+  const heightValid = present(data.height) && data.height >= 100 && data.height <= 220;
+  const weightValid = present(data.currentWeight) && data.currentWeight > 0;
+  const previousWeightValid = present(data.previousWeight) && data.previousWeight > 0;
+  const bmi = heightValid && weightValid ? data.currentWeight / ((data.height / 100) ** 2) : null;
+  const weightLossRate = weightValid && previousWeightValid && data.previousWeight >= data.currentWeight
+    ? ((data.previousWeight - data.currentWeight) / data.previousWeight) * 100
+    : weightValid && previousWeightValid ? 0 : null;
+  const lowBmi = present(bmi) && bmi < 18.5;
+  const unintentionalWeightLoss = data.weightLossContext === "비의도적" && present(weightLossRate) && weightLossRate >= 5;
+
+  const intakeFields = ["appetiteReduced", "mealAmountReduced", "difficultyFinishingMeal"];
+  const digestionFields = [
+    "earlySatiety",
+    "frequentIndigestion",
+    "postMealDiscomfort",
+    "reducedIntakeDueDigestion",
+    "recurrentDiarrhea",
+    "foodAvoidanceDueDiscomfort",
+  ];
+  const intakeIssue = intakeFields.some((id) => Boolean(data[id]));
+  const digestionIssue = digestionFields.some((id) => Boolean(data[id]));
+
+  const smi = assessSmi(data);
+  const grip = assessGrip(data);
+  const abnormalMuscleCount = [smi.low, grip.low].filter(Boolean).length;
+  const muscleScore = abnormalMuscleCount >= 2 ? 2 : abnormalMuscleCount === 1 ? 1 : 0;
+  const fatigueIssue = Boolean(data.fatigueActivityReduced);
+  const mobilityIssue = Boolean(data.walkingStairsDifficulty);
+
+  const domainScores = {
+    weight: (lowBmi ? 1 : 0) + (unintentionalWeightLoss ? 1 : 0),
+    intake: (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0),
+    muscle: muscleScore,
+    function: (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0),
+  };
+  const score = Object.values(domainScores).reduce((sum, value) => sum + value, 0);
+  const judgment = score <= 1
+    ? "신체기능 양호"
+    : score <= 3
+      ? "신체기능 저하 경향"
+      : score <= 5
+        ? "신체기능저하형"
+        : "뚜렷한 신체기능저하형";
+  const tags = [
+    lowBmi ? "저체중" : "",
+    unintentionalWeightLoss ? "최근 체중감소" : "",
+    intakeIssue ? "섭취부족" : "",
+    digestionIssue ? "소화기능 저하" : "",
+    smi.low ? "근육량 저하" : "",
+    grip.low ? "근력 저하" : "",
+    mobilityIssue ? "신체수행능력 저하" : "",
+    fatigueIssue ? "체력 저하" : "",
+    abnormalMuscleCount === 2 ? "뚜렷한 근육·근력 저하" : "",
+  ].filter(Boolean);
+  const hasAnyMetric = [
+    bmi,
+    weightLossRate,
+    data.smi,
+    data.gripStrength,
+    data.skeletalMuscleMass,
+  ].some(present) || [...intakeFields, ...digestionFields, "fatigueActivityReduced", "walkingStairsDifficulty"].some((id) => Boolean(data[id]));
+
+  return {
+    score,
+    max: 8,
+    judgment,
+    activated: score >= 4,
+    hasAnyMetric,
+    bmi,
+    weightLossRate,
+    lowBmi,
+    unintentionalWeightLoss,
+    intakeIssue,
+    digestionIssue,
+    smi,
+    grip,
+    abnormalMuscleCount,
+    fatigueIssue,
+    mobilityIssue,
+    domainScores,
+    tags,
+  };
+}
+
+function physicalFunctionInputsPresent(data) {
+  return assessPhysicalFunction(data).hasAnyMetric;
 }
 
 function scored(score, max, label, extra = {}) {
@@ -529,6 +687,7 @@ function makeResults(data) {
   const ast = scoreUln(data.ast, getUln(data, "ast"), 0, [0, 0, 0, 0]);
   const alp = scoreUln(data.alp, getUln(data, "alp"), 0, [0, 0, 0, 0]);
   const waist = assessWaist(data.sex, data.waist);
+  const typeA = assessTypeA(data);
   const hsCrp = scoreHsCrp(data.hsCrp);
   const visceralFat = scoreVisceralFat(data.visceralFat);
   const restingHrValue = present(data.restingHr) ? data.restingHr : data.heartRate;
@@ -624,7 +783,7 @@ function makeResults(data) {
     };
   }
 
-  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, hsCrp, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
+  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, typeA, hsCrp, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
 }
 
 function validateInputs(data) {
@@ -642,6 +801,14 @@ function validateInputs(data) {
   if (present(data.totalChol) && present(data.hdl) && data.totalChol < data.hdl) addError("totalChol", "총콜레스테롤이 HDL-C보다 낮습니다.");
   if (present(data.sbp) && present(data.dbp) && data.dbp > data.sbp) addError("dbp", "이완기혈압이 수축기혈압보다 높습니다.");
   if (present(data.smi) && data.smi <= 0) addError("smi", "SMI는 0보다 큰 kg/m² 값을 입력해야 합니다.");
+  if (present(data.currentWeight) && data.currentWeight <= 0) addError("currentWeight", "현재 체중은 0보다 커야 합니다.");
+  if (present(data.previousWeight) && data.previousWeight <= 0) addError("previousWeight", "6개월 전 체중은 0보다 커야 합니다.");
+  if (present(data.gripStrength) && data.gripStrength <= 0) addError("gripStrength", "악력은 0보다 커야 합니다.");
+  if (present(data.height) && (data.height < 100 || data.height > 220)) addError("height", "키는 100~220cm 범위로 입력해 주세요.");
+  if (present(data.waist) && (data.waist < 40 || data.waist > 200)) addError("waist", "허리둘레는 40~200cm 범위로 입력해 주세요.");
+  if (present(data.visceralFat) && (data.visceralFat < 1 || data.visceralFat > 20)) addError("visceralFat", "내장지방레벨은 1~20 범위로 입력해 주세요.");
+  if (present(data.visceralFat) && !Number.isInteger(data.visceralFat)) addError("visceralFat", "내장지방레벨은 정수로 입력해 주세요.");
+  if (present(data.waist) && !["남성", "여성"].includes(data.sex)) addError("sex", "허리둘레 판정을 위해 성별을 선택해 주세요.");
   for (const id of ["altUln", "ggtUln", "tbilUln", "astUln", "alpUln"]) {
     if (present(data[id]) && data[id] <= 0) addError(id, "ULN은 0보다 커야 합니다.");
   }
@@ -652,6 +819,9 @@ function validateInputs(data) {
     if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값 또는 단위를 확인해 주세요.");
   }
   if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
+  if (data.weightLossContext === "비의도적" && (!present(data.currentWeight) || !present(data.previousWeight))) {
+    addWarning("previousWeight", "비의도적 체중감소율 계산을 위해 현재 체중과 6개월 전 체중을 모두 입력해 주세요.");
+  }
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
   return { errors, warnings };
@@ -711,9 +881,8 @@ function scoreTypes(data, results) {
     return unique.length ? unique.join(" + ") : "해당 없음";
   };
   const highTg = data.tg >= 150;
-  const lowHdl = (data.sex === "남성" && data.hdl < 40) || (data.sex === "여성" && data.hdl < 50);
   const visceralHigh = data.visceralFat >= 10;
-  const waistHigh = (data.sex === "남성" && data.waist >= 90) || (data.sex === "여성" && data.waist >= 85);
+  const typeA = results.parts.typeA || assessTypeA(data);
   const hba1cHigh = data.hba1c >= 5.7;
   const tgHdlHigh = results.parts.tgHdl?.ratio >= 3.5;
   const tgHdlModerate = results.parts.tgHdl?.ratio >= 2.5;
@@ -725,6 +894,7 @@ function scoreTypes(data, results) {
     (results.parts.tbil?.ratio > 1 && liverAbnormal);
 
   if (visceralHigh) tags.push("내장지방 증가");
+  if (typeA.score === 1) tags.push("복부지방 증가 경향");
   if (highTg) tags.push("고중성지방");
   if (data.sbp >= 130 || data.dbp >= 80) tags.push("혈압 경계");
   if (data.hsCrp >= 0.5 && data.hsCrp <= 10) tags.push("염증 관찰");
@@ -750,8 +920,8 @@ function scoreTypes(data, results) {
     };
   }
 
-  const aReasons = [visceralHigh, waistHigh, highTg, lowHdl].filter(Boolean);
-  addCandidate("A", "A. 복부비만 우세형", aReasons.length + (aReasons.length >= 2 && !hba1cHigh ? 1 : 0), aReasons);
+  const aReasons = [typeA.whtrHigh, typeA.waistHigh, typeA.visceralHigh].filter(Boolean);
+  if (typeA.activated) addCandidate("A", "A. 복부비만 우세형", typeA.score, aReasons);
 
   const bReasons = [tgHdlHigh, hba1cHigh, tgHdlModerate && hba1cHigh, tgHdlModerate && visceralHigh].filter(Boolean);
   addCandidate("B", "B. 인슐린 저항 우세형", bReasons.length + (tgHdlHigh ? 1 : 0), bReasons);
@@ -781,13 +951,11 @@ function scoreTypes(data, results) {
   addCandidate("D", "D. 자율신경(스트레스) 우세형", dReasons.length, dReasons);
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
 
-  const smi = assessSmi(data);
-  if (smi.low) tags.push("근육량 관리 필요");
-  if (smi.borderline) tags.push("근육량 경계");
-  const eRawStrength =
-    (smi.low ? 2 : 0) +
-    (smi.borderline ? 1 : 0);
-  addCandidate("E", "E. 근감소 우세형", smi.low ? eRawStrength : 0, [smi.low, smi.borderline].filter(Boolean));
+  const physicalFunction = assessPhysicalFunction(data);
+  physicalFunction.tags.forEach((tag) => addUnique(tags, tag));
+  if (physicalFunction.activated) {
+    addCandidate("E", "E. 신체기능저하형", physicalFunction.score, physicalFunction.tags);
+  }
 
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
@@ -847,7 +1015,7 @@ function displayTypeName(typeName) {
   return String(typeName || "")
     .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
     .split("+")
-    .map((part) => part.trim())
+    .map((part) => part.trim().replace(/근감소\s*우세형|근육저하형|근감소형/g, "신체기능저하형"))
     .filter(Boolean)
     .join(" + ");
 }
@@ -860,7 +1028,7 @@ function typeGuideKey(typeName) {
   if (name.includes("인슐린저항")) return "insulin";
   if (name.includes("만성염증")) return "inflammation";
   if (name.includes("자율신경")) return "autonomic";
-  if (name.includes("근감소")) return "sarcopenia";
+  if (name.includes("신체기능저하") || name.includes("근감소") || name.includes("근육저하")) return "sarcopenia";
   if (name.includes("복합대사위험")) return "complex";
   if (name.includes("대사균형")) return "balanced";
   return "";
@@ -992,6 +1160,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
   const inflammationScore = normalizedAxisScore(axisByKey(results, "inflammation"));
   const autonomicScore = normalizedAxisScore(axisByKey(results, "autonomic"));
   const severeAxisCount = [glucoseScore, lipidScore, liverScore, inflammationScore, autonomicScore].filter((score) => score !== null && score <= 10).length;
+  const physicalManagement = types.some((type) => /신체기능저하|근감소|근육저하/.test(type));
 
   if (types.some((type) => type.includes("간관리")) || liverScore !== null && liverScore <= 12) {
     addProgram("liver_function");
@@ -999,12 +1168,24 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     addFocus("focusAlcoholAvoidance");
     addFocus("focusSupplement");
   }
-  if (types.some((type) => type.includes("복부비만")) || lipidScore !== null && lipidScore <= 12 || data.visceralFat >= 10 || data.waist >= 85) {
+  const abdominalManagement = types.some((type) => type.includes("복부비만")) || results.parts.typeA?.score >= 1;
+  if (abdominalManagement) {
     addProgram("lean_diet");
-    addUnique(goals, "내장지방 및 체지방률 감소");
+    addUnique(goals, "복부지방 감소");
+    addUnique(goals, "12주 동안 허리둘레와 WHtR의 의미 있는 감소");
+    addUnique(goals, "전체 식사량과 식사구성 개선");
     addUnique(goals, "지질대사 개선");
     addFocus("focusCarbRestriction");
+    addFocus("focusAlcoholAvoidance");
     addFocus("focusSixteenHourFast");
+    addFocus("focusAerobicExercise");
+    addFocus("focusStrengthTraining");
+    addFocus("focusPlantFat");
+  }
+  if (!abdominalManagement && lipidScore !== null && lipidScore <= 12) {
+    addProgram("lean_diet");
+    addUnique(goals, "지질대사 개선");
+    addFocus("focusCarbRestriction");
     addFocus("focusAerobicExercise");
     addFocus("focusPlantFat");
   }
@@ -1030,11 +1211,17 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     addFocus("focusSleepHabit");
     addFocus("focusMelatonin");
   }
-  if (types.some((type) => type.includes("근감소"))) {
+  if (physicalManagement) {
     addProgram("herbal_medicine");
-    addUnique(goals, "근육량과 신체기능 저하 예방");
+    addUnique(goals, "먹고, 움직이고, 회복할 수 있는 신체기능 개선");
+    addUnique(goals, "충분한 에너지와 단백질 섭취");
+    addUnique(goals, "식욕과 소화기능 회복 및 무리한 체중감량 제한");
+    addUnique(goals, "근력운동, 걷기와 일상 활동량의 점진적 회복");
+    addUnique(goals, "충분한 수면과 휴식, 신체기능 변화 추적");
     addFocus("focusProteinIntake");
     addFocus("focusStrengthTraining");
+    addFocus("focusAerobicExercise");
+    addFocus("focusSleepHabit");
   }
   if (types.some((type) => type.includes("복합대사위험"))) {
     addProgram("lean_diet");
@@ -1056,6 +1243,10 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     addProgram("herbal_medicine");
     addUnique(goals, "개별 증상과 검사 변화 추적");
     addFocus("focusSleepHabit");
+  }
+  if (physicalManagement) {
+    const fastingIndex = focusIds.indexOf("focusSixteenHourFast");
+    if (fastingIndex >= 0) focusIds.splice(fastingIndex, 1);
   }
   if (data.sbp >= 130 || data.dbp >= 80) addFocus("focusSaltRestriction");
 
@@ -1223,12 +1414,17 @@ function makeTypeReason(data, results, primary) {
     return `${values || "간 관련 지표"}가 우선 확인 기준에 해당합니다. 대사 타입보다 간 관련 원인 확인을 먼저 고려하도록 표시합니다.`;
   }
   if (primary.startsWith("A.")) {
-    const values = [
-      present(data.visceralFat) ? `내장지방레벨 ${data.visceralFat}` : "",
-      present(data.waist) ? `허리둘레 ${data.waist} cm` : "",
-      present(data.tg) ? `중성지방 ${data.tg} mg/dL` : "",
-    ].filter(Boolean);
-    return `${joinKorean(values) || "복부비만 관련 지표"}에서 복부 지방 축적과 관련된 관리 필요 소견이 관찰됩니다. 혈당 수치만이 아니라 체지방 분포를 함께 관리할 필요가 있습니다.`;
+    const typeA = results.parts.typeA || assessTypeA(data);
+    const sentences = [
+      "체중 자체보다 복부에 지방이 얼마나 집중되어 있는지가 대사건강에서 중요합니다. 이번 검사에서는 허리-키 비율, 허리둘레, InBody 내장지방레벨을 함께 평가했습니다.",
+    ];
+    if (typeA.whtrHigh) sentences.push("키에 비해 허리둘레가 큰 편으로 복부지방 관리가 필요합니다.");
+    if (typeA.waistHigh) sentences.push("한국 성인의 복부비만 기준을 초과하고 있습니다.");
+    if (typeA.visceralHigh) sentences.push("InBody 검사에서 내장지방이 증가한 것으로 추정됩니다.");
+    if (typeA.whtrHigh && typeA.waistHigh && typeA.visceralHigh) {
+      sentences.push("세 가지 평가에서 모두 복부지방 증가가 확인되어 적극적인 복부지방 관리가 필요합니다.");
+    }
+    return sentences.join(" ");
   }
   if (primary.startsWith("B.")) {
     const values = [
@@ -1262,7 +1458,7 @@ function makeTypeReason(data, results, primary) {
     return `${joinKorean(values)} 결과에서 회복력과 신체적 스트레스 반응을 함께 살펴볼 필요가 있습니다. 측정 조건에 따라 변동될 수 있어 추적 비교가 중요합니다.`;
   }
   if (primary.startsWith("E.")) {
-    return makeSarcopeniaTypeSentence(data);
+    return makePhysicalFunctionTypeSentence(data);
   }
   if (primary.startsWith("F.")) {
     return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 관리 필요영역과 관련 관찰항목을 함께 보며 단계적으로 접근하는 것이 좋습니다.";
@@ -1279,15 +1475,18 @@ function makeTypeReason(data, results, primary) {
   return "주타입 판정에 필요한 보조 정보가 제한적입니다. 추가 검사값을 입력하면 판정 근거가 더 구체화됩니다.";
 }
 
-function makeSarcopeniaTypeSentence(data) {
-  const smi = assessSmi(data);
-  if (smi.low) {
-    return `${smi.valueText}로 낮은 근육량 기준에 해당합니다. 영양과 활동 상태를 함께 확인하는 것이 좋습니다.`;
+function makePhysicalFunctionTypeSentence(data) {
+  const assessment = assessPhysicalFunction(data);
+  const sentences = [
+    "혈당이나 콜레스테롤 같은 대사수치가 정상이어도 체중 감소, 식사량 저하, 근육과 근력 감소, 체력 저하가 있으면 건강관리가 필요할 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
+  ];
+  if (assessment.smi.low || assessment.grip.low) {
+    sentences.push("근육량이나 근력이 감소한 소견이 함께 확인되어 충분한 영양섭취와 적절한 근력운동이 중요합니다.");
   }
-  if (smi.borderline) {
-    return `${smi.valueText}로 근육량 경계구간입니다. 추적관찰이 필요합니다.`;
+  if (assessment.intakeIssue || assessment.digestionIssue) {
+    sentences.push("현재는 체중감량보다 충분한 영양섭취와 소화기능 회복을 우선하는 것이 중요합니다.");
   }
-  return "SMI 기준으로 근육량 상태를 참고합니다.";
+  return sentences.join(" ");
 }
 
 function renderComputed(data, results) {
@@ -1301,6 +1500,15 @@ function renderComputed(data, results) {
   elements.nonHdlCalc.textContent = present(results.parts.nonHdl?.value)
     ? `non-HDL-C: ${results.parts.nonHdl.value} mg/dL — ${results.parts.nonHdl.label}`
     : "non-HDL-C: 총콜레스테롤과 HDL-C 입력 후 계산";
+  elements.whtrCalc.textContent = present(results.parts.typeA?.whtr)
+    ? `WHtR: ${results.parts.typeA.whtr.toFixed(3)} — ${results.parts.typeA.whtrLabel}`
+    : "WHtR: 키와 허리둘레 입력 후 계산";
+  const physicalFunction = assessPhysicalFunction(data);
+  const bmiText = present(physicalFunction.bmi) ? `BMI ${physicalFunction.bmi.toFixed(1)}` : "BMI 계산 대기";
+  const weightLossText = present(physicalFunction.weightLossRate)
+    ? `체중감소율 ${physicalFunction.weightLossRate.toFixed(1)}%`
+    : "체중감소율 계산 대기";
+  elements.physicalFunctionCalc.textContent = `${bmiText} · ${weightLossText}`;
 }
 
 function renderRadar(axes) {
@@ -1426,8 +1634,42 @@ function axisTone(axis) {
   return "우선 관리";
 }
 
-function renderAxisCards(axes) {
-  elements.axisCards.replaceChildren(...axes.map((axis) => {
+function renderTypeACard(data, typeA) {
+  const card = document.createElement("article");
+  card.className = "axis-card type-a-card";
+  const whtrValue = present(typeA.whtr) ? typeA.whtr.toFixed(3) : "--";
+  const heightValue = present(data.height) ? `${formatDecimal(data.height, 1)} cm` : "--";
+  const waistValue = present(data.waist) ? `${formatDecimal(data.waist, 1)} cm` : "--";
+  const visceralValue = present(data.visceralFat) ? formatDecimal(data.visceralFat, 0) : "--";
+  let explanation = "키와 허리둘레, 내장지방레벨을 입력하면 복부지방 상태를 함께 평가합니다.";
+  if (typeA.whtrHigh && typeA.waistHigh && typeA.visceralHigh) {
+    explanation = "세 가지 평가에서 모두 복부지방 증가가 확인되어 적극적인 복부지방 관리가 필요합니다.";
+  } else if (typeA.whtrHigh) {
+    explanation = "키에 비해 허리둘레가 큰 편으로 복부지방 관리가 필요합니다.";
+  } else if (typeA.waistHigh) {
+    explanation = "한국 성인의 복부비만 기준을 초과하고 있습니다.";
+  } else if (typeA.visceralHigh) {
+    explanation = "InBody 검사에서 내장지방이 증가한 것으로 추정됩니다.";
+  } else if (typeA.complete) {
+    explanation = "세 가지 복부지방 평가 지표가 모두 정상범위입니다.";
+  }
+  card.innerHTML = `
+    <strong>복부비만 평가</strong>
+    <div class="axis-score"><small>Type A 점수</small>${typeA.hasAnyMetric ? `${typeA.score}/4` : "판정 대기"}</div>
+    <p class="type-a-judgment">${typeA.judgment}</p>
+    <p class="type-a-explanation">${explanation}</p>
+    <ul class="axis-key-values">
+      <li><span>키</span><strong>${heightValue}</strong></li>
+      <li><span>허리둘레</span><strong>${waistValue} · ${typeA.waistLabel}</strong></li>
+      <li><span>WHtR</span><strong>${whtrValue} · ${typeA.whtrLabel}</strong></li>
+      <li><span>내장지방레벨</span><strong>${visceralValue} · ${typeA.visceralLabel}</strong></li>
+    </ul>
+  `;
+  return card;
+}
+
+function renderAxisCards(axes, data, typeA) {
+  const cards = axes.map((axis) => {
     const card = document.createElement("article");
     card.className = `axis-card ${axis.status}`;
     const percent = axis.status === "unavailable" || axis.status === "hold" ? 0 : (axis.score / AXIS_MAX) * 100;
@@ -1484,7 +1726,8 @@ function renderAxisCards(axes) {
       ${keyValues ? `<ul class="axis-key-values">${keyValues}</ul>` : ""}
     `;
     return card;
-  }));
+  });
+  elements.axisCards.replaceChildren(renderTypeACard(data, typeA), ...cards);
 }
 
 function detailNeedsAttention(detail) {
@@ -1525,17 +1768,83 @@ function renderDetails(axes, data) {
   const rows = axes.flatMap((axis) => axis.details
     .filter((detail) => detail.value || (!detail.reference && detail.result && !detail.result.missing))
     .map((detail) => makeDetailTableRow(axis.label, detail)));
-  if (sarcopeniaInputsPresent(data)) {
-    const smi = assessSmi(data);
-    rows.push(makeDetailTableRow("근감소 평가", {
-      label: "SMI",
-      result: { score: null, max: 0, label: smi.label },
-      value: present(data.smi) ? `${formatDecimal(data.smi)} kg/m²` : null,
-      reference: true,
-    }));
+  if (physicalFunctionInputsPresent(data)) {
+    const assessment = assessPhysicalFunction(data);
+    const physicalRows = [
+      {
+        label: "체중·BMI",
+        value: [present(data.currentWeight) ? `${formatDecimal(data.currentWeight, 1)} kg` : "", present(assessment.bmi) ? `BMI ${assessment.bmi.toFixed(1)}` : ""].filter(Boolean).join(" · "),
+        result: { score: assessment.domainScores.weight, max: 2, label: assessment.lowBmi ? "저체중 기준 해당" : "체중 상태 확인" },
+      },
+      {
+        label: "6개월 체중 변화",
+        value: present(assessment.weightLossRate) ? `${assessment.weightLossRate.toFixed(1)}% 감소` : null,
+        result: { score: assessment.domainScores.weight, max: 2, label: assessment.unintentionalWeightLoss ? "비의도적 체중감소 기준 해당" : "기준 해당 없음" },
+        reference: true,
+      },
+      {
+        label: "섭취·소화 상태",
+        value: [assessment.intakeIssue ? "섭취 감소" : "", assessment.digestionIssue ? "소화 불편" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
+        result: { score: assessment.domainScores.intake, max: 2, label: assessment.intakeIssue || assessment.digestionIssue ? "관리 필요" : "특이 응답 없음" },
+      },
+      {
+        label: "골격근량",
+        value: present(data.skeletalMuscleMass) ? `${formatDecimal(data.skeletalMuscleMass, 1)} kg` : null,
+        result: { score: null, max: 0, label: "추적 참고" },
+        reference: true,
+      },
+      {
+        label: "SMI",
+        value: present(data.smi) ? `${formatDecimal(data.smi)} kg/m²` : null,
+        result: { score: null, max: 0, label: assessment.smi.label },
+        reference: true,
+      },
+      {
+        label: "악력",
+        value: present(data.gripStrength) ? `${formatDecimal(data.gripStrength, 1)} kg` : null,
+        result: { score: null, max: 0, label: assessment.grip.label },
+        reference: true,
+      },
+      {
+        label: "신체 수행능력·체력",
+        value: [assessment.fatigueIssue ? "쉽게 지침" : "", assessment.mobilityIssue ? "걷기·계단 어려움" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
+        result: { score: assessment.domainScores.function, max: 2, label: assessment.fatigueIssue || assessment.mobilityIssue ? "체력 저하 응답" : "특이 응답 없음" },
+      },
+    ];
+    physicalRows.filter((detail) => detail.value).forEach((detail) => rows.push(makeDetailTableRow("신체기능", detail)));
   }
   tbody.replaceChildren(...rows);
   elements.detailTable.replaceChildren(table);
+}
+
+function renderPhysicalFunction(data) {
+  const assessment = assessPhysicalFunction(data);
+  elements.physicalFunctionReport.hidden = !assessment.hasAnyMetric;
+  if (!assessment.hasAnyMetric) {
+    elements.physicalFunctionBody.replaceChildren();
+    return;
+  }
+  const domains = [
+    ["체중·체중 변화", assessment.domainScores.weight],
+    ["섭취·소화", assessment.domainScores.intake],
+    ["근육·근력", assessment.domainScores.muscle],
+    ["신체 수행능력·체력", assessment.domainScores.function],
+  ];
+  const explanation = assessment.activated
+    ? makePhysicalFunctionTypeSentence(data)
+    : "체중, 섭취·소화, 근육·근력, 신체 수행능력을 함께 확인한 참고 평가입니다.";
+  elements.physicalFunctionBody.innerHTML = `
+    <div class="physical-function-heading">
+      <strong>${assessment.score}/8점</strong>
+      <span>${assessment.judgment}</span>
+    </div>
+    <dl class="physical-domain-grid">
+      ${domains.map(([label, score]) => `<div><dt>${label}</dt><dd>${score}/2</dd></div>`).join("")}
+    </dl>
+    ${assessment.tags.length ? `<p class="physical-function-tags"><strong>주요 문제</strong> ${assessment.tags.join(" · ")}</p>` : ""}
+    <p class="physical-function-explanation">${explanation}</p>
+    <p class="physical-function-explanation"><strong>관리 방향</strong> 충분한 에너지와 단백질 섭취, 식욕과 소화기능 관리, 무리한 체중감량 제한, 점진적인 근력운동과 걷기, 충분한 수면과 휴식, 근육·근력·신체수행능력 추적</p>
+  `;
 }
 
 function liverNormalMessage(data, results) {
@@ -1620,8 +1929,8 @@ function renderType(typeResult, data, results) {
   elements.secondaryType.textContent = displayTypeName(secondary);
   elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 관찰항목 없음";
   const baseReason = makeTypeReason(data, results, primary);
-  elements.primaryTypeReason.textContent = !primary.startsWith("E.") && secondary.includes("E. 근감소")
-    ? `${baseReason} ${makeSarcopeniaTypeSentence(data)}`
+  elements.primaryTypeReason.textContent = !primary.startsWith("E.") && /E\. (신체기능저하|근감소|근육저하)/.test(secondary)
+    ? `${baseReason} ${makePhysicalFunctionTypeSentence(data)}`
     : baseReason;
   const primaryKey = typeGuideKey(primary);
   const secondaryKeys = new Set(typeGuideKeys(secondary));
@@ -1660,8 +1969,9 @@ function render() {
   renderFlags(flags);
   renderRadar(results.axes);
   renderPriority(results.axes);
-  renderAxisCards(results.axes);
+  renderAxisCards(results.axes, data, results.parts.typeA);
   renderDetails(results.axes, data);
+  renderPhysicalFunction(data);
   renderNotes(data, results, typeResult, validation);
   renderTreatmentPlan(data, treatmentSuggestion);
   return { data, results, flags, typeResult, validation };
@@ -1688,6 +1998,7 @@ function currentReportSnapshot() {
   const secondaryType = selectedSecondaryType(rendered.typeResult, rendered.data);
   const axes = axisScoreMap(rendered.results.axes);
   const itemScores = itemScoreMap(rendered.results.axes);
+  const physicalFunction = assessPhysicalFunction(rendered.data);
   const calculatedScores = {
     totalScore: rendered.results.total,
     maxScore: rendered.results.max,
@@ -1702,6 +2013,17 @@ function currentReportSnapshot() {
     snsPnsBalanceScore: itemScores["autonomic:SNS:PNS 균형"],
     snsPercent: rendered.data.snsPercent,
     pnsPercent: present(rendered.data.snsPercent) ? 100 - rendered.data.snsPercent : null,
+    whtr: rendered.results.parts.typeA.whtr,
+    typeAScore: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.score : null,
+    typeAJudgment: rendered.results.parts.typeA.judgment,
+    physicalFunctionScore: physicalFunction.hasAnyMetric ? physicalFunction.score : null,
+    physicalFunctionJudgment: physicalFunction.hasAnyMetric ? physicalFunction.judgment : "",
+    physicalWeightScore: physicalFunction.domainScores.weight,
+    physicalIntakeScore: physicalFunction.domainScores.intake,
+    physicalMuscleScore: physicalFunction.domainScores.muscle,
+    physicalPerformanceScore: physicalFunction.domainScores.function,
+    bmi: physicalFunction.bmi,
+    weightLossRate: physicalFunction.weightLossRate,
     itemScores,
   };
   return {
@@ -1723,6 +2045,23 @@ function currentReportSnapshot() {
         max: axis.max,
         status: axis.status,
       })),
+      typeA: {
+        height: rendered.data.height,
+        waist: rendered.data.waist,
+        whtr: rendered.results.parts.typeA.whtr,
+        visceralFat: rendered.data.visceralFat,
+        score: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.score : null,
+        judgment: rendered.results.parts.typeA.judgment,
+      },
+      physicalFunction: {
+        score: physicalFunction.hasAnyMetric ? physicalFunction.score : null,
+        max: physicalFunction.max,
+        judgment: physicalFunction.judgment,
+        domainScores: physicalFunction.domainScores,
+        tags: physicalFunction.tags,
+        bmi: physicalFunction.bmi,
+        weightLossRate: physicalFunction.weightLossRate,
+      },
       treatmentPlan: {
         primaryProgram: rendered.data.treatmentProgramPrimary,
         secondaryProgram: rendered.data.treatmentProgramSecondary,
@@ -1745,6 +2084,9 @@ function isTreatmentInputId(id) {
 
 function setValues(values) {
   const nextValues = { ...values };
+  if (!present(nextValues.weightLossContext) && nextValues.weightLossStatus === "있음") nextValues.weightLossContext = "비의도적";
+  if (!present(nextValues.mealAmountReduced) && nextValues.lowProteinStatus === "있음") nextValues.mealAmountReduced = true;
+  if (!present(nextValues.fatigueActivityReduced) && nextValues.functionalDeclineStatus === "있음") nextValues.fatigueActivityReduced = true;
   if (!present(nextValues.treatmentFocusCustom) && present(nextValues.treatmentPlan)) {
     nextValues.treatmentFocusCustom = nextValues.treatmentPlan;
   }
@@ -1807,6 +2149,8 @@ function fillSample() {
     tbil: 1.1,
     hsCrp: 2.4,
     visceralFat: 12,
+    waist: 92,
+    height: 170,
     sbp: 136,
     dbp: 86,
     hrvIndexValue: 18.6,
