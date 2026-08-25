@@ -249,16 +249,16 @@ function assessTypeA(data) {
   const hasAnyMetric = present(whtr) || (waistValid && sexValid) || vflValid;
   const activated = riskScore >= 2 && (present(whtr) || (waistHigh && visceralHigh));
   let judgment = !hasAnyMetric
-    ? "판정 대기"
+      ? "판정 대기"
     : [
-        "복부비만 소견 없음",
-        "복부지방 증가 가능성",
-        "복부비만 우세형 가능성 높음",
-        "복부비만 우세형",
-        "뚜렷한 복부비만 우세형",
+        "복부지방 상태 양호",
+        "복부지방 증가 경향",
+        "복부비만 관리 필요",
+        "적극적인 복부비만 관리 필요",
+        "집중적인 복부비만 관리 필요",
       ][riskScore];
   const complete = present(whtr) && sexValid && vflValid;
-  if (!complete && riskScore === 0 && hasAnyMetric) judgment = "부분 판정 · 복부비만 소견 없음";
+  if (!complete && riskScore === 0 && hasAnyMetric) judgment = "부분 판정 · 복부지방 상태 양호";
   return {
     score,
     max: 4,
