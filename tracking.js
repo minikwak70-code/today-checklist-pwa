@@ -648,6 +648,20 @@ async function loadAssessments() {
   renderAssessmentTable();
   renderAssessmentSelectors();
   renderTrend();
+  window.metabolicReportApp?.render?.();
+}
+
+function hasPriorHsCrpElevation(currentData = {}) {
+  const currentValue = Number(currentData.hsCrp);
+  const currentDate = new Date(`${currentData.testDate || ""}T00:00:00`);
+  if (!Number.isFinite(currentValue) || currentValue < 1 || currentValue > 10 || !Number.isFinite(currentDate.getTime())) return false;
+  const minimumIntervalMs = 14 * 24 * 60 * 60 * 1000;
+  return tracking.assessments.some((assessment) => {
+    const priorValue = Number(assessment.rawValues?.hsCrp);
+    const priorDate = new Date(`${assessment.assessmentDate || ""}T00:00:00`);
+    if (!Number.isFinite(priorValue) || priorValue < 1 || priorValue > 10 || !Number.isFinite(priorDate.getTime())) return false;
+    return currentDate.getTime() - priorDate.getTime() >= minimumIntervalMs;
+  });
 }
 
 function sortedAssessmentsAsc() {
@@ -1180,5 +1194,9 @@ setInterval(() => {
   loadPatients().catch(() => {});
   if (tracking.selectedPatient) loadAssessments().catch(() => {});
 }, 60000);
+
+window.metabolicTrackingContext = {
+  hasPriorHsCrpElevation,
+};
 
 loadMe();
