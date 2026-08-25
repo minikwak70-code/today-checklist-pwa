@@ -76,12 +76,16 @@ const metricMeta = [
   { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
 ];
 
-function usesHealthSubscores(assessment) {
+function scoreRuleAtLeast(assessment, targetMajor, targetMinor) {
   const match = String(assessment?.scoreRuleVersion || "").match(/metabolic-score-v(\d+)\.(\d+)/);
   if (!match) return false;
   const major = Number(match[1]);
   const minor = Number(match[2]);
-  return major > 3 || (major === 3 && minor >= 5);
+  return major > targetMajor || (major === targetMajor && minor >= targetMinor);
+}
+
+function usesHealthSubscores(assessment) {
+  return scoreRuleAtLeast(assessment, 3, 5);
 }
 
 function typeARecord(assessment) {
@@ -94,12 +98,15 @@ function typeARecord(assessment) {
   const waistHigh = waistValid && (sex === "남성" ? Number(raw.waist) >= 90 : sex === "여성" ? Number(raw.waist) >= 85 : false);
   const visceralHigh = visceralValid && Number(raw.visceralFat) >= 10;
   const riskScore = (whtr >= 0.5 ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
-  const derivedScore = 10 - (riskScore * 2.5);
+  const derivedScore = 4 - riskScore;
   const storedScore = calculatedValue(assessment, "typeAScore");
   const hasMetrics = whtr !== null || (waistValid && ["남성", "여성"].includes(sex)) || visceralValid;
-  const compatibleStoredScore = storedScore === null || storedScore === undefined
-    ? null
-    : usesHealthSubscores(assessment) ? Number(storedScore) : 10 - (Number(storedScore) * 2.5);
+  let compatibleStoredScore = null;
+  if (storedScore !== null && storedScore !== undefined) {
+    if (scoreRuleAtLeast(assessment, 3, 6)) compatibleStoredScore = Number(storedScore);
+    else if (usesHealthSubscores(assessment)) compatibleStoredScore = Number(storedScore) * 0.4;
+    else compatibleStoredScore = 4 - Number(storedScore);
+  }
   const score = hasMetrics ? derivedScore : compatibleStoredScore;
   return {
     height: heightValid ? Number(raw.height) : null,
@@ -129,7 +136,7 @@ function typeAComparison(base, compare) {
     { key: "waist", label: "허리둘레", unit: "cm", digits: 1 },
     { key: "whtr", label: "WHtR", unit: "", digits: 3 },
     { key: "visceralFat", label: "내장지방레벨", unit: "", digits: 0 },
-    { key: "score", label: "복부비만 평가점수", unit: "점", digits: 1 },
+    { key: "score", label: "복부비만 평가점수", unit: "점", digits: 0 },
   ];
   const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => ({
     ...item,
@@ -919,7 +926,6 @@ function renderComparison() {
           <tbody>${axisRows.map((row) => `<tr><td>${row.label}</td><td>${scoreText(row.before)}</td><td>${scoreText(row.after)}</td><td>${row.diff >= 0 ? "+" : ""}${numberText(row.diff)}점</td></tr>`).join("")}</tbody>
         </table>
         ${typeAComparison(base, compare)}
-        ${physicalFunctionComparison(base, compare)}
         <h3>주요 검사 변화표</h3>
         <table class="tracking-table compact-table">
           <thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th><th>평가</th></tr></thead>

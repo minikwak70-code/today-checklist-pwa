@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v3.5";
+const SCORE_RULE_VERSION = "metabolic-score-v3.6";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -15,7 +15,6 @@ const TYPE_OPTIONS = [
   ["B. 인슐린 저항 우세형", "인슐린 저항 우세형"],
   ["C. 만성염증 우세형", "만성염증 우세형"],
   ["D. 자율신경(스트레스) 우세형", "자율신경(스트레스) 우세형"],
-  ["E. 신체기능저하형", "신체기능저하형"],
   ["F. 복합 대사위험형", "복합 대사위험형"],
   ["대사 균형형", "대사 균형형"],
   ["특정 우세형 없음", "특정 우세형 없음"],
@@ -239,7 +238,7 @@ function assessTypeA(data) {
   const waistHigh = waistValid && sexValid && (data.sex === "남성" ? data.waist >= 90 : data.waist >= 85);
   const visceralHigh = vflValid && data.visceralFat >= 10;
   const riskScore = (whtrHigh ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
-  const score = 10 - (riskScore * 2.5);
+  const score = 4 - riskScore;
   const hasAnyMetric = present(whtr) || (waistValid && sexValid) || vflValid;
   const activated = riskScore >= 2 && (present(whtr) || (waistHigh && visceralHigh));
   let judgment = !hasAnyMetric
@@ -255,7 +254,7 @@ function assessTypeA(data) {
   if (!complete && riskScore === 0 && hasAnyMetric) judgment = "부분 판정 · 복부비만 소견 없음";
   return {
     score,
-    max: 10,
+    max: 4,
     riskScore,
     judgment,
     activated,
@@ -962,12 +961,6 @@ function scoreTypes(data, results) {
   addCandidate("D", "D. 자율신경(스트레스) 우세형", dReasons.length, dReasons);
   if ((data.sbp >= 130 || data.dbp >= 80) && !dReasons[0] && !dReasons[1]) tags.push("혈압 관리 필요");
 
-  const physicalFunction = assessPhysicalFunction(data);
-  physicalFunction.tags.forEach((tag) => addUnique(tags, tag));
-  if (physicalFunction.activated) {
-    addCandidate("E", "E. 신체기능저하형", physicalFunction.riskScore, physicalFunction.tags);
-  }
-
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
   if (strong.length >= 3 || (strong.length >= 2 && strong[0].strength === strong[1].strength && strong[0].strength >= 3)) {
     return {
@@ -1668,7 +1661,7 @@ function renderTypeACard(data, typeA) {
   }
   card.innerHTML = `
     <strong>복부비만 평가</strong>
-    <div class="axis-score">${typeA.hasAnyMetric ? `${formatDecimal(typeA.score, 1)}/10` : "판정 대기"}</div>
+    <div class="axis-score">${typeA.hasAnyMetric ? `${typeA.score}/4` : "판정 대기"}</div>
     <p class="type-a-judgment">${typeA.judgment}</p>
     <p class="type-a-explanation">${explanation}</p>
     <ul class="axis-key-values">
@@ -1781,93 +1774,13 @@ function renderDetails(axes, data) {
   const rows = axes.flatMap((axis) => axis.details
     .filter((detail) => detail.value || (!detail.reference && detail.result && !detail.result.missing))
     .map((detail) => makeDetailTableRow(axis.label, detail)));
-  if (physicalFunctionInputsPresent(data)) {
-    const assessment = assessPhysicalFunction(data);
-    const physicalRows = [
-      {
-        label: "체중·BMI",
-        value: [present(data.currentWeight) ? `${formatDecimal(data.currentWeight, 1)} kg` : "", present(assessment.bmi) ? `BMI ${assessment.bmi.toFixed(1)}` : ""].filter(Boolean).join(" · "),
-        result: { score: assessment.domainScores.weight, max: 5, label: assessment.lowBmi ? "저체중 기준 해당" : "체중 상태 확인" },
-      },
-      {
-        label: "최근 체중 변화",
-        value: present(assessment.weightLossRate)
-          ? `${assessment.weightLossRate.toFixed(1)}% 감소`
-          : assessment.suspectedWeightLoss ? "감소 응답 · 비율 미산출" : null,
-        result: {
-          score: assessment.domainScores.weight,
-          max: 5,
-          label: assessment.unintentionalWeightLoss
-            ? "비의도적 체중감소 기준 해당"
-            : assessment.suspectedWeightLoss
-              ? "최근 체중감소 의심 · 수치 확인 필요"
-              : "기준 해당 없음",
-        },
-        reference: true,
-      },
-      {
-        label: "섭취·소화 상태",
-        value: [assessment.intakeIssue ? "섭취 감소" : "", assessment.digestionIssue ? "소화 불편" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
-        result: { score: assessment.domainScores.intake, max: 5, label: assessment.intakeIssue || assessment.digestionIssue ? "관리 필요" : "특이 응답 없음" },
-      },
-      {
-        label: "골격근량",
-        value: present(data.skeletalMuscleMass) ? `${formatDecimal(data.skeletalMuscleMass, 1)} kg` : null,
-        result: { score: null, max: 0, label: "추적 참고" },
-        reference: true,
-      },
-      {
-        label: "SMI",
-        value: present(data.smi) ? `${formatDecimal(data.smi)} kg/m²` : null,
-        result: { score: null, max: 0, label: assessment.smi.label },
-        reference: true,
-      },
-      {
-        label: "악력",
-        value: present(data.gripStrength) ? `${formatDecimal(data.gripStrength, 1)} kg` : null,
-        result: { score: null, max: 0, label: assessment.grip.label },
-        reference: true,
-      },
-      {
-        label: "신체 수행능력·체력",
-        value: [assessment.fatigueIssue ? "쉽게 지침" : "", assessment.mobilityIssue ? "걷기·계단 어려움" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
-        result: { score: assessment.domainScores.function, max: 5, label: assessment.fatigueIssue || assessment.mobilityIssue ? "체력 저하 응답" : "특이 응답 없음" },
-      },
-    ];
-    physicalRows.filter((detail) => detail.value).forEach((detail) => rows.push(makeDetailTableRow("신체기능", detail)));
-  }
   tbody.replaceChildren(...rows);
   elements.detailTable.replaceChildren(table);
 }
 
-function renderPhysicalFunction(data) {
-  const assessment = assessPhysicalFunction(data);
-  elements.physicalFunctionReport.hidden = !assessment.hasAnyMetric;
-  if (!assessment.hasAnyMetric) {
-    elements.physicalFunctionBody.replaceChildren();
-    return;
-  }
-  const domains = [
-    ["체중·체중 변화", assessment.domainScores.weight],
-    ["섭취·소화", assessment.domainScores.intake],
-    ["근육·근력", assessment.domainScores.muscle],
-    ["신체 수행능력·체력", assessment.domainScores.function],
-  ];
-  const explanation = assessment.activated
-    ? makePhysicalFunctionTypeSentence(data)
-    : "체중, 섭취·소화, 근육·근력, 신체 수행능력을 함께 확인한 참고 평가입니다.";
-  elements.physicalFunctionBody.innerHTML = `
-    <div class="physical-function-heading">
-      <strong>${formatDecimal(assessment.score, 1)}/20점</strong>
-      <span>${assessment.judgment}</span>
-    </div>
-    <dl class="physical-domain-grid">
-      ${domains.map(([label, score]) => `<div><dt>${label}</dt><dd>${formatDecimal(score, 1)}/5</dd></div>`).join("")}
-    </dl>
-    ${assessment.tags.length ? `<p class="physical-function-tags"><strong>주요 문제</strong> ${assessment.tags.join(" · ")}</p>` : ""}
-    <p class="physical-function-explanation">${explanation}</p>
-    <p class="physical-function-explanation"><strong>관리 방향</strong> 충분한 에너지와 단백질 섭취, 식욕과 소화기능 관리, 무리한 체중감량 제한, 점진적인 근력운동과 걷기, 충분한 수면과 휴식, 근육·근력·신체수행능력 추적</p>
-  `;
+function renderPhysicalFunction() {
+  elements.physicalFunctionReport.hidden = true;
+  elements.physicalFunctionBody.replaceChildren();
 }
 
 function liverNormalMessage(data, results) {
