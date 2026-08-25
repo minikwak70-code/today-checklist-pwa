@@ -228,6 +228,12 @@ function formatDecimal(value, digits = 2) {
   return Number(value).toFixed(digits).replace(/\.?0+$/, "");
 }
 
+function typeAGrade(score) {
+  if (!Number.isFinite(Number(score))) return "";
+  const normalizedScore = Math.max(0, Math.min(4, Math.round(Number(score))));
+  return ["E", "D", "C", "B", "A"][normalizedScore];
+}
+
 function assessTypeA(data) {
   const heightValid = present(data.height) && data.height >= 100 && data.height <= 220;
   const waistValid = present(data.waist) && data.waist >= 40 && data.waist <= 200;
@@ -255,6 +261,7 @@ function assessTypeA(data) {
   return {
     score,
     max: 4,
+    grade: typeAGrade(score),
     riskScore,
     judgment,
     activated,
@@ -1661,7 +1668,7 @@ function renderTypeACard(data, typeA) {
   }
   card.innerHTML = `
     <strong>복부비만 평가</strong>
-    <div class="axis-score">${typeA.hasAnyMetric ? `${typeA.score}/4` : "판정 대기"}</div>
+    <div class="axis-score">${typeA.hasAnyMetric ? `${typeA.grade}등급` : "판정 대기"}</div>
     <p class="type-a-judgment">${typeA.judgment}</p>
     <p class="type-a-explanation">${explanation}</p>
     <ul class="axis-key-values">
@@ -1948,6 +1955,7 @@ function currentReportSnapshot() {
     pnsPercent: present(rendered.data.snsPercent) ? 100 - rendered.data.snsPercent : null,
     whtr: rendered.results.parts.typeA.whtr,
     typeAScore: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.score : null,
+    typeAGrade: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.grade : "",
     typeAJudgment: rendered.results.parts.typeA.judgment,
     physicalFunctionScore: physicalFunction.hasAnyMetric ? physicalFunction.score : null,
     physicalFunctionJudgment: physicalFunction.hasAnyMetric ? physicalFunction.judgment : "",
@@ -1984,6 +1992,7 @@ function currentReportSnapshot() {
         whtr: rendered.results.parts.typeA.whtr,
         visceralFat: rendered.data.visceralFat,
         score: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.score : null,
+        grade: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.grade : "",
         judgment: rendered.results.parts.typeA.judgment,
       },
       physicalFunction: {

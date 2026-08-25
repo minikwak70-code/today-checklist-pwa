@@ -88,6 +88,12 @@ function usesHealthSubscores(assessment) {
   return scoreRuleAtLeast(assessment, 3, 5);
 }
 
+function typeAGrade(score) {
+  if (!Number.isFinite(Number(score))) return "";
+  const normalizedScore = Math.max(0, Math.min(4, Math.round(Number(score))));
+  return ["E", "D", "C", "B", "A"][normalizedScore];
+}
+
 function typeARecord(assessment) {
   const raw = assessment?.rawValues || {};
   const sex = raw.sex || tracking.selectedPatient?.sex || "";
@@ -136,7 +142,7 @@ function typeAComparison(base, compare) {
     { key: "waist", label: "허리둘레", unit: "cm", digits: 1 },
     { key: "whtr", label: "WHtR", unit: "", digits: 3 },
     { key: "visceralFat", label: "내장지방레벨", unit: "", digits: 0 },
-    { key: "score", label: "복부비만 평가점수", unit: "점", digits: 0 },
+    { key: "score", label: "복부비만 평가등급", unit: "", digits: 0 },
   ];
   const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => ({
     ...item,
@@ -159,7 +165,11 @@ function typeAComparison(base, compare) {
     <h3>복부비만 평가 변화</h3>
     <table class="tracking-table compact-table type-a-comparison-table">
       <thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead>
-      <tbody>${rows.map((row) => `<tr><td>${row.label}</td><td>${numberText(row.before, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${numberText(row.after, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${row.change}</td></tr>`).join("")}</tbody>
+      <tbody>${rows.map((row) => {
+        const beforeText = row.key === "score" ? `${typeAGrade(row.before)}등급` : `${numberText(row.before, row.digits)}${row.unit ? ` ${row.unit}` : ""}`;
+        const afterText = row.key === "score" ? `${typeAGrade(row.after)}등급` : `${numberText(row.after, row.digits)}${row.unit ? ` ${row.unit}` : ""}`;
+        return `<tr><td>${row.label}</td><td>${beforeText}</td><td>${afterText}</td><td>${row.change}</td></tr>`;
+      }).join("")}</tbody>
     </table>
     <p class="comparison-summary">${summary}</p>
   `;
