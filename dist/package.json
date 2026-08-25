@@ -1,0 +1,6 @@
+{
+  "name": "metabolic-health-report",
+  "private": true,
+  "type": "module",
+  "main": "server/index.js"
+}

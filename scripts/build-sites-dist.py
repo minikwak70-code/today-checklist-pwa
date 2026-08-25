@@ -68,6 +68,20 @@ export default {{
 }};
 """
     (SERVER / "index.js").write_text(worker, encoding="utf-8")
+    (DIST / "package.json").write_text(
+        json.dumps(
+            {
+                "name": "metabolic-health-report",
+                "private": True,
+                "type": "module",
+                "main": "server/index.js",
+            },
+            ensure_ascii=True,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":
