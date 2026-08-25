@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=43" />
+    <link rel="stylesheet" href="./styles.css?v=44" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -67,15 +67,15 @@
                   <span>주타입 필터</span>
                   <select id="patientTypeFilter">
                     <option value="">전체</option>
-                    <option>A. 복부비만 우세형</option>
-                    <option>B. 인슐린 저항 우세형</option>
-                    <option>C. 만성염증 우세형</option>
-                    <option>D. 자율신경(스트레스) 우세형</option>
-                    <option>E. 신체기능저하형</option>
-                    <option>F. 복합 대사위험형</option>
-                    <option>0. 간관리 선행형</option>
-                    <option>대사 균형형</option>
-                    <option>특정 우세형 없음</option>
+                    <option value="A. 복부비만 우세형">복부비만형</option>
+                    <option value="B. 인슐린 저항 우세형">인슐린 저항형</option>
+                    <option value="C. 만성염증 우세형">만성염증형</option>
+                    <option value="D. 자율신경(스트레스) 우세형">자율신경(스트레스)형</option>
+                    <option value="E. 신체기능저하형">신체기능저하형</option>
+                    <option value="F. 복합 대사위험형">복합대사위험형</option>
+                    <option value="0. 간관리 선행형">간관리 선행형</option>
+                    <option value="대사 균형형">대사균형형</option>
+                    <option value="특정 우세형 없음">특정 타입 없음</option>
                   </select>
                 </label>
                 <label>
@@ -707,6 +707,7 @@
                   <div data-type-guide="insulin"><dt>인슐린 저항형</dt><dd>혈당 관련 대사 조절이 시급한 유형</dd></div>
                   <div data-type-guide="inflammation"><dt>만성염증형</dt><dd>만성염증으로 인해 면역력이 저하된 유형</dd></div>
                   <div data-type-guide="autonomic"><dt>자율신경(스트레스)형</dt><dd>스트레스 및 자율신경실조가 문제인 유형</dd></div>
+                  <div data-type-guide="sarcopenia"><dt>신체기능저하형</dt><dd>영양, 근육 및 일상 신체기능이 저하된 유형</dd></div>
                   <div data-type-guide="complex"><dt>복합대사위험형</dt><dd>여러 대사 문제가 겹쳐 있어 단계적인 관리가 시급한 유형</dd></div>
                   <div data-type-guide="liver"><dt>간관리 선행형</dt><dd>다른 문제보다도 간기능 개선이 시급한 유형</dd></div>
                 </dl>
@@ -801,7 +802,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=58" defer></script>
-    <script src="./tracking.js?v=23" defer></script>
+    <script src="./app.js?v=59" defer></script>
+    <script src="./tracking.js?v=24" defer></script>
   </body>
 </html>

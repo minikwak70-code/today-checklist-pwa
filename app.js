@@ -11,13 +11,14 @@ const DEFAULT_ULN = {
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
   ["0. 간관리 선행형", "간관리 선행형"],
-  ["A. 복부비만 우세형", "복부비만 우세형"],
-  ["B. 인슐린 저항 우세형", "인슐린 저항 우세형"],
-  ["C. 만성염증 우세형", "만성염증 우세형"],
-  ["D. 자율신경(스트레스) 우세형", "자율신경(스트레스) 우세형"],
-  ["F. 복합 대사위험형", "복합 대사위험형"],
-  ["대사 균형형", "대사 균형형"],
-  ["특정 우세형 없음", "특정 우세형 없음"],
+  ["A. 복부비만 우세형", "복부비만형"],
+  ["B. 인슐린 저항 우세형", "인슐린 저항형"],
+  ["C. 만성염증 우세형", "만성염증형"],
+  ["D. 자율신경(스트레스) 우세형", "자율신경(스트레스)형"],
+  ["E. 신체기능저하형", "신체기능저하형"],
+  ["F. 복합 대사위험형", "복합대사위험형"],
+  ["대사 균형형", "대사균형형"],
+  ["특정 우세형 없음", "특정 타입 없음"],
   ["해당 없음", "해당 없음"],
 ];
 
@@ -974,7 +975,7 @@ function scoreTypes(data, results) {
       primary: "F. 복합 대사위험형",
       secondary: secondaryFrom("F. 복합 대사위험형", [...strong.map((item) => item.name), ...supplementalTypes]),
       tags,
-      notes: [`세부 조합: ${strong.map((item) => item.name.replace(/^[A-E]\. /, "")).join(" + ")}`],
+      notes: [`세부 조합: ${strong.map((item) => displayTypeName(item.name)).join(" · ")}`],
       candidates: strong,
     };
   }
@@ -1022,18 +1023,33 @@ function priorityAxes(axes, count = 3) {
     .slice(0, count);
 }
 
-function displayTypeName(typeName) {
+function canonicalTypeName(typeName) {
+  const name = String(typeName || "").trim().replace(/^[A-Z0-9]\.\s*/, "");
+  return {
+    "복부비만 우세형": "복부비만형",
+    "인슐린 저항 우세형": "인슐린 저항형",
+    "만성염증 우세형": "만성염증형",
+    "자율신경(스트레스) 우세형": "자율신경(스트레스)형",
+    "근감소 우세형": "신체기능저하형",
+    "근육저하형": "신체기능저하형",
+    "근감소형": "신체기능저하형",
+    "복합 대사위험형": "복합대사위험형",
+    "대사 균형형": "대사균형형",
+    "특정 우세형 없음": "특정 타입 없음",
+  }[name] || name;
+}
+
+function displayTypeName(typeName, separator = " + ") {
   return String(typeName || "")
-    .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
     .split("+")
-    .map((part) => part.trim().replace(/근감소\s*우세형|근육저하형|근감소형/g, "신체기능저하형"))
+    .map(canonicalTypeName)
     .filter(Boolean)
-    .join(" + ");
+    .join(separator);
 }
 
 function typeGuideKey(typeName) {
   const name = displayTypeName(typeName).replace(/\s+/g, "");
-  if (!name || name === "해당없음" || name === "특정우세형없음") return "";
+  if (!name || name === "해당없음" || name === "특정타입없음") return "";
   if (name.includes("간관리선행")) return "liver";
   if (name.includes("복부비만")) return "abdominal";
   if (name.includes("인슐린저항")) return "insulin";
@@ -1271,7 +1287,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
   }
 
-  const directionBase = primaryName && primaryName !== "특정 우세형 없음"
+  const directionBase = primaryName && primaryName !== "특정 타입 없음"
     ? `현재 결과는 ${primaryName}${secondary && displayTypeName(secondary) !== "해당 없음" ? `과 ${displayTypeName(secondary)}` : ""} 양상이 관찰됩니다.`
     : "현재 결과는 특정 타입 하나보다 낮은 점수의 관리 필요영역을 중심으로 접근합니다.";
   const direction = `${directionBase} ${lowAxes.length ? `${lowAxes.join(" · ")} 개선을 중심으로 한 치료가 필요합니다.` : "전반적인 균형 유지와 정기 추적이 필요합니다."}`;
@@ -1865,8 +1881,8 @@ function renderValidation(validation) {
 function renderType(typeResult, data, results) {
   const primary = selectedPrimaryType(typeResult, data);
   const secondary = selectedSecondaryType(typeResult, data);
-  elements.primaryType.textContent = displayTypeName(primary);
-  elements.secondaryType.textContent = displayTypeName(secondary);
+  elements.primaryType.textContent = displayTypeName(primary, "\n");
+  elements.secondaryType.textContent = displayTypeName(secondary, "\n");
   elements.supportTags.textContent = typeResult.tags.length ? typeResult.tags.join(" · ") : "특이 관찰항목 없음";
   const baseReason = makeTypeReason(data, results, primary);
   elements.primaryTypeReason.textContent = !primary.startsWith("E.") && /E\. (신체기능저하|근감소|근육저하)/.test(secondary)

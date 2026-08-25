@@ -287,13 +287,28 @@ function escapeHtml(value) {
   }[char]));
 }
 
-function displayTypeName(typeName) {
+function canonicalTypeName(typeName) {
+  const name = String(typeName || "").trim().replace(/^[A-Z0-9]\.\s*/, "");
+  return {
+    "복부비만 우세형": "복부비만형",
+    "인슐린 저항 우세형": "인슐린 저항형",
+    "만성염증 우세형": "만성염증형",
+    "자율신경(스트레스) 우세형": "자율신경(스트레스)형",
+    "근감소 우세형": "신체기능저하형",
+    "근육저하형": "신체기능저하형",
+    "근감소형": "신체기능저하형",
+    "복합 대사위험형": "복합대사위험형",
+    "대사 균형형": "대사균형형",
+    "특정 우세형 없음": "특정 타입 없음",
+  }[name] || name;
+}
+
+function displayTypeName(typeName, separator = " + ") {
   return String(typeName || "")
-    .replace(/(^|\+)\s*[A-Z0-9]\.\s*/g, "$1")
     .split("+")
-    .map((part) => part.trim().replace(/근감소\s*우세형|근육저하형|근감소형/g, "신체기능저하형"))
+    .map(canonicalTypeName)
     .filter(Boolean)
-    .join(" + ");
+    .join(separator);
 }
 
 function roleLabel(role) {

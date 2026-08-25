@@ -953,6 +953,13 @@ button:disabled {
   border-bottom: 1px solid #dfe8e2;
 }
 
+#primaryType,
+#secondaryType {
+  display: block;
+  white-space: pre-line;
+  line-height: 1.45;
+}
+
 .type-reason {
   padding: 12px 14px;
   border-radius: 8px;
