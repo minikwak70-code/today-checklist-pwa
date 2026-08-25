@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v3.4";
+const SCORE_RULE_VERSION = "metabolic-score-v3.5";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -238,9 +238,10 @@ function assessTypeA(data) {
   const whtrHigh = present(whtr) && whtr >= 0.5;
   const waistHigh = waistValid && sexValid && (data.sex === "남성" ? data.waist >= 90 : data.waist >= 85);
   const visceralHigh = vflValid && data.visceralFat >= 10;
-  const score = (whtrHigh ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const riskScore = (whtrHigh ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const score = 10 - (riskScore * 2.5);
   const hasAnyMetric = present(whtr) || (waistValid && sexValid) || vflValid;
-  const activated = score >= 2 && (present(whtr) || (waistHigh && visceralHigh));
+  const activated = riskScore >= 2 && (present(whtr) || (waistHigh && visceralHigh));
   let judgment = !hasAnyMetric
     ? "판정 대기"
     : [
@@ -249,12 +250,13 @@ function assessTypeA(data) {
         "복부비만 우세형 가능성 높음",
         "복부비만 우세형",
         "뚜렷한 복부비만 우세형",
-      ][score];
+      ][riskScore];
   const complete = present(whtr) && sexValid && vflValid;
-  if (!complete && score === 0 && hasAnyMetric) judgment = "부분 판정 · 복부비만 소견 없음";
+  if (!complete && riskScore === 0 && hasAnyMetric) judgment = "부분 판정 · 복부비만 소견 없음";
   return {
     score,
-    max: 4,
+    max: 10,
+    riskScore,
     judgment,
     activated,
     hasAnyMetric,
@@ -322,18 +324,22 @@ function assessPhysicalFunction(data) {
   const fatigueIssue = Boolean(data.fatigueActivityReduced);
   const mobilityIssue = Boolean(data.walkingStairsDifficulty);
 
-  const domainScores = {
+  const domainRiskScores = {
     weight: (lowBmi ? 1 : 0) + (unintentionalWeightLoss ? 1 : 0),
     intake: (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0),
     muscle: muscleScore,
     function: (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0),
   };
-  const score = Object.values(domainScores).reduce((sum, value) => sum + value, 0);
-  const judgment = score <= 1
+  const riskScore = Object.values(domainRiskScores).reduce((sum, value) => sum + value, 0);
+  const domainScores = Object.fromEntries(
+    Object.entries(domainRiskScores).map(([key, value]) => [key, 5 - (value * 2.5)]),
+  );
+  const score = 20 - (riskScore * 2.5);
+  const judgment = riskScore <= 1
     ? "신체기능 양호"
-    : score <= 3
+    : riskScore <= 3
       ? "신체기능 저하 경향"
-      : score <= 5
+      : riskScore <= 5
         ? "신체기능저하형"
         : "뚜렷한 신체기능저하형";
   const tags = [
@@ -358,9 +364,10 @@ function assessPhysicalFunction(data) {
 
   return {
     score,
-    max: 8,
+    max: 20,
+    riskScore,
     judgment,
-    activated: score >= 4,
+    activated: riskScore >= 4,
     hasAnyMetric,
     bmi,
     weightLossRate,
@@ -375,6 +382,7 @@ function assessPhysicalFunction(data) {
     fatigueIssue,
     mobilityIssue,
     domainScores,
+    domainRiskScores,
     tags,
   };
 }
@@ -898,7 +906,7 @@ function scoreTypes(data, results) {
     (results.parts.tbil?.ratio > 1 && liverAbnormal);
 
   if (visceralHigh) tags.push("내장지방 증가");
-  if (typeA.score === 1) tags.push("복부지방 증가 경향");
+  if (typeA.riskScore === 1) tags.push("복부지방 증가 경향");
   if (highTg) tags.push("고중성지방");
   if (data.sbp >= 130 || data.dbp >= 80) tags.push("혈압 경계");
   if (data.hsCrp >= 0.5 && data.hsCrp <= 10) tags.push("염증 관찰");
@@ -925,7 +933,7 @@ function scoreTypes(data, results) {
   }
 
   const aReasons = [typeA.whtrHigh, typeA.waistHigh, typeA.visceralHigh].filter(Boolean);
-  if (typeA.activated) addCandidate("A", "A. 복부비만 우세형", typeA.score, aReasons);
+  if (typeA.activated) addCandidate("A", "A. 복부비만 우세형", typeA.riskScore, aReasons);
 
   const bReasons = [tgHdlHigh, hba1cHigh, tgHdlModerate && hba1cHigh, tgHdlModerate && visceralHigh].filter(Boolean);
   addCandidate("B", "B. 인슐린 저항 우세형", bReasons.length + (tgHdlHigh ? 1 : 0), bReasons);
@@ -957,7 +965,7 @@ function scoreTypes(data, results) {
   const physicalFunction = assessPhysicalFunction(data);
   physicalFunction.tags.forEach((tag) => addUnique(tags, tag));
   if (physicalFunction.activated) {
-    addCandidate("E", "E. 신체기능저하형", physicalFunction.score, physicalFunction.tags);
+    addCandidate("E", "E. 신체기능저하형", physicalFunction.riskScore, physicalFunction.tags);
   }
 
   const strong = candidates.filter((item) => item.strength >= 2).sort((a, b) => b.strength - a.strength);
@@ -1660,6 +1668,7 @@ function renderTypeACard(data, typeA) {
   }
   card.innerHTML = `
     <strong>복부비만 평가</strong>
+    <div class="axis-score">${typeA.hasAnyMetric ? `${formatDecimal(typeA.score, 1)}/10` : "판정 대기"}</div>
     <p class="type-a-judgment">${typeA.judgment}</p>
     <p class="type-a-explanation">${explanation}</p>
     <ul class="axis-key-values">
@@ -1778,7 +1787,7 @@ function renderDetails(axes, data) {
       {
         label: "체중·BMI",
         value: [present(data.currentWeight) ? `${formatDecimal(data.currentWeight, 1)} kg` : "", present(assessment.bmi) ? `BMI ${assessment.bmi.toFixed(1)}` : ""].filter(Boolean).join(" · "),
-        result: { score: assessment.domainScores.weight, max: 2, label: assessment.lowBmi ? "저체중 기준 해당" : "체중 상태 확인" },
+        result: { score: assessment.domainScores.weight, max: 5, label: assessment.lowBmi ? "저체중 기준 해당" : "체중 상태 확인" },
       },
       {
         label: "최근 체중 변화",
@@ -1787,7 +1796,7 @@ function renderDetails(axes, data) {
           : assessment.suspectedWeightLoss ? "감소 응답 · 비율 미산출" : null,
         result: {
           score: assessment.domainScores.weight,
-          max: 2,
+          max: 5,
           label: assessment.unintentionalWeightLoss
             ? "비의도적 체중감소 기준 해당"
             : assessment.suspectedWeightLoss
@@ -1799,7 +1808,7 @@ function renderDetails(axes, data) {
       {
         label: "섭취·소화 상태",
         value: [assessment.intakeIssue ? "섭취 감소" : "", assessment.digestionIssue ? "소화 불편" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
-        result: { score: assessment.domainScores.intake, max: 2, label: assessment.intakeIssue || assessment.digestionIssue ? "관리 필요" : "특이 응답 없음" },
+        result: { score: assessment.domainScores.intake, max: 5, label: assessment.intakeIssue || assessment.digestionIssue ? "관리 필요" : "특이 응답 없음" },
       },
       {
         label: "골격근량",
@@ -1822,7 +1831,7 @@ function renderDetails(axes, data) {
       {
         label: "신체 수행능력·체력",
         value: [assessment.fatigueIssue ? "쉽게 지침" : "", assessment.mobilityIssue ? "걷기·계단 어려움" : ""].filter(Boolean).join(" · ") || "특이 응답 없음",
-        result: { score: assessment.domainScores.function, max: 2, label: assessment.fatigueIssue || assessment.mobilityIssue ? "체력 저하 응답" : "특이 응답 없음" },
+        result: { score: assessment.domainScores.function, max: 5, label: assessment.fatigueIssue || assessment.mobilityIssue ? "체력 저하 응답" : "특이 응답 없음" },
       },
     ];
     physicalRows.filter((detail) => detail.value).forEach((detail) => rows.push(makeDetailTableRow("신체기능", detail)));
@@ -1849,11 +1858,11 @@ function renderPhysicalFunction(data) {
     : "체중, 섭취·소화, 근육·근력, 신체 수행능력을 함께 확인한 참고 평가입니다.";
   elements.physicalFunctionBody.innerHTML = `
     <div class="physical-function-heading">
-      <strong>${assessment.score}/8점</strong>
+      <strong>${formatDecimal(assessment.score, 1)}/20점</strong>
       <span>${assessment.judgment}</span>
     </div>
     <dl class="physical-domain-grid">
-      ${domains.map(([label, score]) => `<div><dt>${label}</dt><dd>${score}/2</dd></div>`).join("")}
+      ${domains.map(([label, score]) => `<div><dt>${label}</dt><dd>${formatDecimal(score, 1)}/5</dd></div>`).join("")}
     </dl>
     ${assessment.tags.length ? `<p class="physical-function-tags"><strong>주요 문제</strong> ${assessment.tags.join(" · ")}</p>` : ""}
     <p class="physical-function-explanation">${explanation}</p>

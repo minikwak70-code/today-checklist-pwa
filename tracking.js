@@ -76,6 +76,14 @@ const metricMeta = [
   { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
 ];
 
+function usesHealthSubscores(assessment) {
+  const match = String(assessment?.scoreRuleVersion || "").match(/metabolic-score-v(\d+)\.(\d+)/);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  return major > 3 || (major === 3 && minor >= 5);
+}
+
 function typeARecord(assessment) {
   const raw = assessment?.rawValues || {};
   const sex = raw.sex || tracking.selectedPatient?.sex || "";
@@ -85,9 +93,14 @@ function typeARecord(assessment) {
   const whtr = calculatedValue(assessment, "whtr") ?? (heightValid && waistValid ? Number(raw.waist) / Number(raw.height) : null);
   const waistHigh = waistValid && (sex === "남성" ? Number(raw.waist) >= 90 : sex === "여성" ? Number(raw.waist) >= 85 : false);
   const visceralHigh = visceralValid && Number(raw.visceralFat) >= 10;
-  const derivedScore = (whtr >= 0.5 ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const riskScore = (whtr >= 0.5 ? 2 : 0) + (waistHigh ? 1 : 0) + (visceralHigh ? 1 : 0);
+  const derivedScore = 10 - (riskScore * 2.5);
   const storedScore = calculatedValue(assessment, "typeAScore");
-  const score = storedScore ?? (whtr !== null || (waistValid && ["남성", "여성"].includes(sex)) || visceralValid ? derivedScore : null);
+  const hasMetrics = whtr !== null || (waistValid && ["남성", "여성"].includes(sex)) || visceralValid;
+  const compatibleStoredScore = storedScore === null || storedScore === undefined
+    ? null
+    : usesHealthSubscores(assessment) ? Number(storedScore) : 10 - (Number(storedScore) * 2.5);
+  const score = hasMetrics ? derivedScore : compatibleStoredScore;
   return {
     height: heightValid ? Number(raw.height) : null,
     waist: waistValid ? Number(raw.waist) : null,
@@ -105,6 +118,7 @@ function typeAChangeLabel(key, before, after) {
     if (before >= 10 && after < 10) return "정상범위 진입";
     return Math.abs(diff) < 0.01 ? "유지" : diff < 0 ? "개선" : "증가";
   }
+  if (key === "score") return Math.abs(diff) < 0.01 ? "유지" : diff > 0 ? "개선" : "감소";
   return `${diff > 0 ? "+" : ""}${numberText(diff, 0)}점`;
 }
 
@@ -115,6 +129,7 @@ function typeAComparison(base, compare) {
     { key: "waist", label: "허리둘레", unit: "cm", digits: 1 },
     { key: "whtr", label: "WHtR", unit: "", digits: 3 },
     { key: "visceralFat", label: "내장지방레벨", unit: "", digits: 0 },
+    { key: "score", label: "복부비만 평가점수", unit: "점", digits: 1 },
   ];
   const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => ({
     ...item,
@@ -169,13 +184,17 @@ function physicalFunctionRecord(assessment) {
   const muscleCount = [smiLow, gripLow].filter(Boolean).length;
   const fatigueIssue = Boolean(raw.fatigueActivityReduced || raw.functionalDeclineStatus === "있음");
   const mobilityIssue = Boolean(raw.walkingStairsDifficulty);
-  const derivedScore = (lowBmi ? 1 : 0) + (weightLoss ? 1 : 0) + (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0)
+  const riskScore = (lowBmi ? 1 : 0) + (weightLoss ? 1 : 0) + (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0)
     + (muscleCount >= 2 ? 2 : muscleCount === 1 ? 1 : 0) + (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0);
+  const derivedScore = 20 - (riskScore * 2.5);
   const hasAnyMetric = [raw.currentWeight, raw.previousWeight, raw.skeletalMuscleMass, raw.smi, raw.gripStrength]
     .some((value) => value !== null && value !== undefined && value !== "") || intakeIssue || digestionIssue || fatigueIssue || mobilityIssue;
   const storedScore = calculatedValue(assessment, "physicalFunctionScore");
+  const compatibleStoredScore = storedScore === null || storedScore === undefined
+    ? null
+    : usesHealthSubscores(assessment) ? Number(storedScore) : 20 - (Number(storedScore) * 2.5);
   return {
-    score: storedScore ?? (hasAnyMetric ? derivedScore : null),
+    score: hasAnyMetric ? derivedScore : compatibleStoredScore,
     weight: Number.isFinite(weight) && weight > 0 ? weight : null,
     bmi: bmi === null ? null : Number(bmi),
     weightLossRate: weightLossRate === null ? null : Number(weightLossRate),
@@ -198,7 +217,7 @@ function physicalFunctionComparison(base, compare) {
   const before = physicalFunctionRecord(base);
   const after = physicalFunctionRecord(compare);
   const definitions = [
-    { key: "score", label: "신체기능저하 점수", unit: "점", digits: 0, lowerBetter: true },
+    { key: "score", label: "신체기능 점수", unit: "점", digits: 1, higherBetter: true },
     { key: "weight", label: "체중", unit: "kg", digits: 1 },
     { key: "bmi", label: "BMI", unit: "", digits: 1 },
     { key: "weightLossRate", label: "체중감소율", unit: "%", digits: 1, lowerBetter: true },
@@ -222,7 +241,7 @@ function physicalFunctionComparison(base, compare) {
   ];
   const hasState = stateRows.some(([, b, a]) => b || a);
   if (!rows.length && !hasState) return "";
-  const scoreImproved = before.score !== null && after.score !== null && after.score < before.score;
+  const scoreImproved = before.score !== null && after.score !== null && after.score > before.score;
   const strengthImproved = before.gripStrength !== null && after.gripStrength !== null && after.gripStrength > before.gripStrength;
   const performanceImproved = (before.fatigueIssue && !after.fatigueIssue) || (before.mobilityIssue && !after.mobilityIssue);
   const summary = scoreImproved && (strengthImproved || performanceImproved)
