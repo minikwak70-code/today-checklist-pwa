@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v4.0";
+const SCORE_RULE_VERSION = "metabolic-score-v4.1";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -141,6 +141,7 @@ const elements = {
 const numberFields = new Set([
   "age",
   "hba1c",
+  "fastingGlucose",
   "tg",
   "hdl",
   "totalChol",
@@ -376,7 +377,9 @@ function assessPhysicalFunction(data) {
     max: 20,
     riskScore,
     judgment,
-    activated: objectiveCount >= 1 && supportCount >= 2,
+    activated:
+      (objectiveCount >= 1 && supportCount >= 2) ||
+      (objectiveCount >= 2 && supportCount >= 1),
     objectiveCount,
     supportCount,
     hasAnyMetric,
@@ -717,6 +720,18 @@ function getGrade(total, max, axes = [], critical = false) {
   return { label: "적극관리필요", text: "원인 확인과 적극적인 관리가 필요합니다.", short: "적극적인 관리가 필요한 상태" };
 }
 
+function applyPhysicalGradeOverride(grade, data, max) {
+  if (max !== 100 || !["건강", "양호"].includes(grade.label)) return grade;
+  const physical = assessPhysicalFunction(data);
+  if (!physical.activated) return grade;
+  return {
+    label: "대사수치 양호 · 신체기능 관리필요",
+    text: "대사축 수치는 양호하지만 신체기능 예비력 관리가 필요한 상태입니다.",
+    short: "신체기능 예비력 관리가 필요한 상태",
+    physicalOverride: true,
+  };
+}
+
 function makeResults(data) {
   const hrvLimited = hasHrvLimit(data);
   const hba1c = scoreHba1c(data.hba1c);
@@ -878,6 +893,19 @@ function makeRiskFlags(data, results, validation) {
   }
   if (data.ldl >= 190) add("warning", "LDL-C", `${data.ldl} mg/dL`, "중증 고콜레스테롤혈증 범위로 별도의 심혈관 위험 평가가 필요합니다.");
   else if (data.ldl >= 160) add("caution", "LDL-C", `${data.ldl} mg/dL`, "LDL-C 상승이 확인되어 전체 심혈관 위험과 함께 평가할 필요가 있습니다.");
+  if ((present(data.totalChol) && data.totalChol < 120) || (present(data.ldl) && data.ldl < 50)) {
+    const lowLipidValues = [
+      present(data.totalChol) && data.totalChol < 120 ? `총콜레스테롤 ${data.totalChol} mg/dL` : "",
+      present(data.ldl) && data.ldl < 50 ? `LDL-C ${data.ldl} mg/dL` : "",
+    ].filter(Boolean).join(", ");
+    add("caution", "낮은 지질수치", lowLipidValues, "복약, 갑상선 기능, 흡수 및 영양 상태 등과 함께 원인을 확인할 필요가 있습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
+  }
+  if (present(data.fastingGlucose) && data.fastingGlucose < 70) {
+    add("caution", "낮은 공복혈당", `${data.fastingGlucose} mg/dL`, "저혈당 증상과 채혈 조건을 확인하고 필요하면 반복 측정하는 것이 좋습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
+  }
+  if ((present(data.sbp) && data.sbp < 90) || (present(data.dbp) && data.dbp < 60)) {
+    add("caution", "낮은 혈압", `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`, "어지럼, 실신, 기립 시 불편감이 동반되는지 확인하고 반복 측정하는 것이 좋습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
+  }
   if (results.parts.nonHdl?.value >= 220) add("caution", "non-HDL-C", `${results.parts.nonHdl.value} mg/dL`, "죽상경화성 지단백 수치가 상당히 높은 범위입니다.");
   if (results.parts.alt?.ratio >= 3 || results.parts.ast?.ratio >= 3) {
     const liverValues = [
@@ -1455,8 +1483,11 @@ function makeSummary(data, results, grade, typeResult, flags) {
   const lowest = priorityAxes(results.axes, 2).map((axis) => axis.label);
   const limitedAxes = results.axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis) => axis.label);
   const primary = selectedPrimaryType(typeResult, data);
+  const scoreSentence = grade.physicalOverride
+    ? `대사축 종합점수는 ${scorePhrase(results)}으로 양호하지만, 신체기능 예비력 관리가 필요합니다.`
+    : `대사축 종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`;
   const sentences = [
-    `종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`,
+    scoreSentence,
     lowest.length ? `특히 ${joinKorean(lowest)} 영역부터 살펴보는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 살펴보는 것이 좋습니다.",
     `현재의 주된 대사 패턴은 ${displayTypeName(primary)}으로 평가됩니다.`,
   ];
@@ -1539,7 +1570,7 @@ function makeTypeReason(data, results, primary) {
 function makePhysicalFunctionTypeSentence(data) {
   const assessment = assessPhysicalFunction(data);
   const sentences = [
-    "혈당이나 콜레스테롤 같은 대사수치가 정상이어도 체중 감소, 식사량 저하, 근육과 근력 감소, 체력 저하가 있으면 건강관리가 필요할 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
+    "혈당·지질·간 수치는 대체로 양호하더라도 체중, 영양섭취, 근육·근력 또는 활동능력에서 신체기능 예비력 저하가 확인될 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
   ];
   if (assessment.smi.low || assessment.grip.low) {
     sentences.push("근육량이나 근력이 감소한 소견이 함께 확인되어 충분한 영양섭취와 적절한 근력운동이 중요합니다.");
@@ -1937,7 +1968,11 @@ function render() {
   const validation = validateInputs(data);
   const results = makeResults(data);
   const flags = makeRiskFlags(data, results, validation);
-  const grade = getGrade(results.total, results.max, results.axes, hasCriticalResult(data, results));
+  const grade = applyPhysicalGradeOverride(
+    getGrade(results.total, results.max, results.axes, hasCriticalResult(data, results)),
+    data,
+    results.max,
+  );
   const typeResult = scoreTypes(data, results);
   const treatmentSuggestion = makeTreatmentSuggestion(data, results, grade, typeResult);
   if (!treatmentPlanUserEdited) {
@@ -1951,9 +1986,10 @@ function render() {
   renderValidation(validation);
   renderType(typeResult, data, results);
   elements.patientLine.textContent = patientLine(data);
-  elements.scoreTitle.textContent = results.max === 100 ? "대사건강 종합점수" : "측정 완료 점수";
+  elements.scoreTitle.textContent = results.max === 100 ? "대사축 종합점수" : "측정 완료 점수";
   elements.totalScore.textContent = results.max ? scorePhrase(results) : "--";
   elements.gradeLabel.textContent = grade.label;
+  elements.gradeLabel.classList.toggle("is-long", grade.label.length > 10);
   elements.gradeHelp.textContent = grade.short || grade.text;
   elements.summaryComment.textContent = makeSummary(data, results, grade, typeResult, flags);
 
@@ -2228,7 +2264,11 @@ function regenerateTreatmentPlan() {
   const data = readForm();
   const validation = validateInputs(data);
   const results = makeResults(data);
-  const grade = getGrade(results.total, results.max, results.axes, hasCriticalResult(data, results));
+  const grade = applyPhysicalGradeOverride(
+    getGrade(results.total, results.max, results.axes, hasCriticalResult(data, results)),
+    data,
+    results.max,
+  );
   const typeResult = scoreTypes(data, results);
   fillTreatmentFields(makeTreatmentSuggestion(data, results, grade, typeResult));
   treatmentPlanUserEdited = true;

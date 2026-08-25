@@ -942,6 +942,7 @@ button:disabled {
   color: #34433d;
   font-size: 12px;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
 }
 
 .criteria-table th,
@@ -971,10 +972,85 @@ button:disabled {
   font-weight: 850;
 }
 
-.score-table th:nth-child(3),
-.score-table td:nth-child(3) {
-  width: 74px;
+.axis-overview-table th:last-child,
+.axis-overview-table td:last-child {
+  width: 84px;
   text-align: center;
+}
+
+.score-table {
+  table-layout: fixed;
+}
+
+.score-table th,
+.score-table td {
+  vertical-align: middle;
+}
+
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(1) {
+  width: 24%;
+}
+
+.score-table:not(.score-table--autonomic) th:nth-last-child(3),
+.score-table:not(.score-table--autonomic) td:nth-last-child(3),
+.score-table:not(.score-table--autonomic) th:nth-last-child(2),
+.score-table:not(.score-table--autonomic) td:nth-last-child(2) {
+  text-align: center;
+}
+
+.score-table:not(.score-table--autonomic) th:last-child,
+.score-table:not(.score-table--autonomic) td:last-child {
+  text-align: center;
+}
+
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(3) {
+  width: 84px;
+}
+
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(4) {
+  width: 25%;
+}
+
+.score-table--inflammation th:nth-child(1) {
+  width: 34%;
+}
+
+.score-table--inflammation th:nth-child(2) {
+  width: 110px;
+}
+
+.score-table--inflammation th:nth-child(3) {
+  width: auto;
+}
+
+.score-table--autonomic th:nth-child(1) {
+  width: 32%;
+}
+
+.score-table--autonomic th:nth-last-child(2),
+.score-table--autonomic td:nth-last-child(2) {
+  width: auto;
+  text-align: center;
+}
+
+.score-table--autonomic th:last-child,
+.score-table--autonomic td:last-child {
+  width: 110px;
+  text-align: center;
+}
+
+.score-table--physical th:nth-child(1) {
+  width: 18%;
+}
+
+.score-table--physical th:nth-child(3),
+.score-table--physical td:nth-child(3) {
+  width: 150px;
+  text-align: center;
+}
+
+.score-table--physical th:nth-child(4) {
+  width: 28%;
 }
 
 .type-criteria-table th:first-child,
@@ -1282,6 +1358,12 @@ button:disabled {
   font-style: normal;
   font-size: 13px;
   font-weight: 850;
+}
+
+.score-badge em.is-long {
+  max-width: 126px;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 .score-badge small {
