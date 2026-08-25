@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=44" />
+    <link rel="stylesheet" href="./styles.css?v=45" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -21,6 +21,7 @@
         <nav class="module-nav" aria-label="추적관리 메뉴">
           <a href="#patientManagement">환자 관리</a>
           <a href="#inputHeading">새 검사</a>
+          <a href="#criteriaReference">평가기준</a>
           <a href="#historyPanel">검사 이력</a>
           <a href="#trendPanel">변화 그래프</a>
           <a href="#comparisonPanel">비교 리포트</a>
@@ -573,6 +574,190 @@
               <p id="generateStatus" aria-live="polite">입력값은 자동 계산되며, 버튼을 누르면 출력용 리포트로 이동합니다.</p>
             </div>
           </form>
+        </section>
+
+        <section id="criteriaReference" class="criteria-reference no-print" aria-labelledby="criteriaReferenceHeading">
+          <details>
+            <summary>
+              <span>
+                <strong id="criteriaReferenceHeading">평가기준 참고</strong>
+                <small>5개 대사축의 점수 구간과 8가지 타입 분류 기준</small>
+              </span>
+              <span class="criteria-summary-action" aria-hidden="true"></span>
+            </summary>
+            <div class="criteria-reference-body">
+              <div class="criteria-intro">
+                <h2>현재 웹앱에 적용된 기준</h2>
+                <p>아래 내용은 의료진 확인용입니다. 점수가 높을수록 양호하며, 참고지표는 결과에 표시되지만 해당 대사축 20점에는 합산되지 않습니다.</p>
+              </div>
+
+              <section class="criteria-group" aria-labelledby="axisStructureHeading">
+                <h3 id="axisStructureHeading">5개 대사축 구성</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table">
+                    <thead><tr><th>대사축</th><th>점수지표</th><th>참고지표</th><th>배점</th></tr></thead>
+                    <tbody>
+                      <tr><td>당대사</td><td>HbA1c 10점 + TG/HDL-C 10점</td><td>-</td><td>20점</td></tr>
+                      <tr><td>지질대사</td><td>TG 10점 + non-HDL-C 10점</td><td>총콜레스테롤, HDL-C, LDL-C</td><td>20점</td></tr>
+                      <tr><td>간대사</td><td>ALT 10점 + GGT 6점 + TBIL 4점</td><td>AST, ALP</td><td>20점</td></tr>
+                      <tr><td>만성염증</td><td>hs-CRP 20점</td><td>내장지방레벨, 허리둘레</td><td>20점</td></tr>
+                      <tr><td>자율신경(스트레스)</td><td>HRV-Index, ANS Activity, Stress, SNS:PNS 균형 각 5점</td><td>혈압, 안정 시 심박수</td><td>20점</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="criteria-note-grid">
+                  <p><strong>종합점수:</strong> 85~100 건강 · 70~84 양호 · 55~69 관리필요 · 0~54 적극관리필요</p>
+                  <p><strong>부분 판정:</strong> 미입력 축은 총점과 만점에서 제외되며, 100점 만점이 아니면 부분 판정으로 표시됩니다.</p>
+                </div>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="glucoseCriteriaHeading">
+                <h3 id="glucoseCriteriaHeading">당대사 20점</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>지표</th><th>구간</th><th>점수</th><th>표시</th></tr></thead>
+                    <tbody>
+                      <tr><td rowspan="5">HbA1c (%)</td><td>&lt;5.4</td><td>10</td><td>양호</td></tr>
+                      <tr><td>5.4~5.6</td><td>8</td><td>정상범위 상단</td></tr>
+                      <tr><td>5.7~5.9</td><td>6</td><td>당뇨병 전단계 범위</td></tr>
+                      <tr><td>6.0~6.4</td><td>3</td><td>혈당 관리 필요</td></tr>
+                      <tr><td>≥6.5</td><td>0</td><td>당뇨병 진단범위</td></tr>
+                      <tr><td rowspan="5">TG/HDL-C</td><td>≤2.00</td><td>10</td><td>지질대사 균형 양호</td></tr>
+                      <tr><td>&gt;2.00~2.49</td><td>8</td><td>지질대사 균형 관찰</td></tr>
+                      <tr><td>2.50~2.99</td><td>6</td><td>인슐린 저항 관련 지표 관찰</td></tr>
+                      <tr><td>3.00~3.49</td><td>3</td><td>지질대사 관리 필요</td></tr>
+                      <tr><td>≥3.50</td><td>0</td><td>지질대사 집중 관리 필요</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="lipidCriteriaHeading">
+                <h3 id="lipidCriteriaHeading">지질대사 20점</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>지표</th><th>구간 (mg/dL)</th><th>점수</th><th>표시</th></tr></thead>
+                    <tbody>
+                      <tr><td rowspan="6">TG</td><td>&lt;100</td><td>10</td><td>양호</td></tr>
+                      <tr><td>100~149</td><td>8</td><td>정상범위 상단</td></tr>
+                      <tr><td>150~174</td><td>6</td><td>경계</td></tr>
+                      <tr><td>175~199</td><td>4</td><td>식사 영향 가능</td></tr>
+                      <tr><td>200~439</td><td>2</td><td>높음</td></tr>
+                      <tr><td>≥440</td><td>0</td><td>공복 재검 또는 별도 평가</td></tr>
+                      <tr><td rowspan="5">non-HDL-C</td><td>&lt;130</td><td>10</td><td>양호</td></tr>
+                      <tr><td>130~154</td><td>8</td><td>권장범위 상단</td></tr>
+                      <tr><td>155~184</td><td>6</td><td>상승</td></tr>
+                      <tr><td>185~219</td><td>3</td><td>높음</td></tr>
+                      <tr><td>≥220</td><td>0</td><td>상당히 높음</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="criteria-footnote">non-HDL-C = 총콜레스테롤 - HDL-C. LDL-C는 세부 검사결과와 위험 알림에 사용되지만 지질대사 20점에는 합산되지 않습니다.</p>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="liverCriteriaHeading">
+                <h3 id="liverCriteriaHeading">간대사 20점</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>지표</th><th>구간</th><th>점수</th><th>표시</th></tr></thead>
+                    <tbody>
+                      <tr><td rowspan="5">ALT (기준상한 40 U/L)</td><td>≤40</td><td>10</td><td>정상범위 이내</td></tr>
+                      <tr><td>&gt;40~60</td><td>8</td><td>경도 상승</td></tr>
+                      <tr><td>&gt;60~80</td><td>5</td><td>상승</td></tr>
+                      <tr><td>&gt;80~120</td><td>2</td><td>추가 평가</td></tr>
+                      <tr><td>&gt;120</td><td>0</td><td>원인 확인 우선</td></tr>
+                      <tr><td rowspan="5">GGT (기준상한 60 U/L)</td><td>≤60</td><td>6</td><td>정상범위 이내</td></tr>
+                      <tr><td>&gt;60~90</td><td>5</td><td>경도 상승</td></tr>
+                      <tr><td>&gt;90~120</td><td>3</td><td>상승</td></tr>
+                      <tr><td>&gt;120~180</td><td>1</td><td>추가 평가</td></tr>
+                      <tr><td>&gt;180</td><td>0</td><td>원인 확인 우선</td></tr>
+                      <tr><td rowspan="5">TBIL (기준상한 1.2 mg/dL)</td><td>≤1.2</td><td>4</td><td>정상범위 이내</td></tr>
+                      <tr><td>&gt;1.2~1.8</td><td>3</td><td>경도 상승</td></tr>
+                      <tr><td>&gt;1.8~2.4</td><td>2</td><td>상승</td></tr>
+                      <tr><td>&gt;2.4~3.6</td><td>1</td><td>추가 평가</td></tr>
+                      <tr><td>&gt;3.6</td><td>0</td><td>원인 확인 우선</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="criteria-footnote">AST(기준상한 40 U/L)와 ALP(기준상한 120 U/L)는 참고지표이며, 간관리 선행형의 안전성 판정에는 사용됩니다.</p>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="inflammationCriteriaHeading">
+                <h3 id="inflammationCriteriaHeading">만성염증 20점</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>hs-CRP (mg/L)</th><th>점수</th><th>표시</th></tr></thead>
+                    <tbody>
+                      <tr><td>≤0.20</td><td>20</td><td>최적 수준</td></tr>
+                      <tr><td>&gt;0.20~0.30</td><td>18</td><td>낮은 수준</td></tr>
+                      <tr><td>&gt;0.30~0.40</td><td>16</td><td>낮은 수준</td></tr>
+                      <tr><td>&gt;0.40~0.50</td><td>14</td><td>저강도 염증 관찰</td></tr>
+                      <tr><td>&gt;0.50~0.60</td><td>12</td><td>저강도 염증 관찰</td></tr>
+                      <tr><td>&gt;0.60~0.70</td><td>10</td><td>저강도 염증 관찰</td></tr>
+                      <tr><td>&gt;0.70~0.80</td><td>8</td><td>경도 상승</td></tr>
+                      <tr><td>&gt;0.80~0.99</td><td>5</td><td>경도 상승</td></tr>
+                      <tr><td>1.00~1.99</td><td>2</td><td>지속 염증 확인 필요</td></tr>
+                      <tr><td>2.00~10.00</td><td>0</td><td>염증 수치 상승</td></tr>
+                      <tr><td>&gt;10.00</td><td>판정 보류</td><td>급성 염증원 확인 후 재검</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="autonomicCriteriaHeading">
+                <h3 id="autonomicCriteriaHeading">자율신경(스트레스) 20점</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>지표</th><th>측정 등급 또는 구간</th><th>점수</th></tr></thead>
+                    <tbody>
+                      <tr><td rowspan="5">HRV-Index / ANS Activity</td><td>매우높음</td><td>5</td></tr>
+                      <tr><td>높음</td><td>4</td></tr>
+                      <tr><td>보통</td><td>3</td></tr>
+                      <tr><td>낮음</td><td>2</td></tr>
+                      <tr><td>매우낮음</td><td>1</td></tr>
+                      <tr><td rowspan="5">Stress</td><td>매우낮음</td><td>5</td></tr>
+                      <tr><td>낮음</td><td>4</td></tr>
+                      <tr><td>보통</td><td>3</td></tr>
+                      <tr><td>높음</td><td>2</td></tr>
+                      <tr><td>매우높음</td><td>1</td></tr>
+                      <tr><td rowspan="5">SNS:PNS 균형<br />(SNS와 50%의 차이)</td><td>≤2%p</td><td>5</td></tr>
+                      <tr><td>&gt;2~4%p</td><td>4</td></tr>
+                      <tr><td>&gt;4~6%p</td><td>3</td></tr>
+                      <tr><td>&gt;6~8%p</td><td>2</td></tr>
+                      <tr><td>&gt;8%p</td><td>1</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="criteria-note-grid">
+                  <p><strong>혈압 참고:</strong> &lt;120/80 정상 · 120~129 및 &lt;80 주의 · 130~139 또는 80~89 전단계 · 140~159 또는 90~99 고혈압 범위 · 그 이상 매우 높은 범위</p>
+                  <p><strong>안정 시 심박수 참고:</strong> &lt;50 낮은 심박수 확인 · 50~59 낮은 범위 · 60~89 참고범위 · 90~99 상승 · ≥100 높은 범위</p>
+                </div>
+              </section>
+
+              <section class="criteria-group" aria-labelledby="typeCriteriaHeading">
+                <h3 id="typeCriteriaHeading">8가지 타입 분류 기준</h3>
+                <div class="criteria-table-wrap">
+                  <table class="criteria-table type-criteria-table">
+                    <thead><tr><th>타입</th><th>자동 분류 기준</th><th>참고</th></tr></thead>
+                    <tbody>
+                      <tr><td>대사균형형</td><td>5개 축이 모두 측정되어 총 만점이 100점이고, 각 축이 모두 15점 이상</td><td>간관리 선행 기준이 없을 때 적용</td></tr>
+                      <tr><td>복부비만형</td><td>WHtR ≥0.50: 2점 · 남성 허리 ≥90cm 또는 여성 ≥85cm: 1점 · 내장지방레벨 ≥10: 1점. 위험점수 2점 이상이며 WHtR 계산이 가능하거나 허리둘레와 내장지방이 모두 높으면 활성화</td><td>A=위험 0점 · B=1점 · C=2점 · D=3점 · E=4점. 복부비만 등급은 100점 총점에 합산하지 않음</td></tr>
+                      <tr><td>인슐린 저항형</td><td>TG/HDL-C ≥3.50이면 활성화. 또는 HbA1c ≥5.7%이면서 TG/HDL-C ≥2.50이면 활성화</td><td>HbA1c 상승, TG/HDL-C 2.50 이상, 내장지방 증가는 후보 강도에 반영</td></tr>
+                      <tr><td>만성염증형</td><td>hs-CRP 2.00~10.00 mg/L이면 직접 활성화</td><td>1.00~1.99는 단독 직접 활성화하지 않음. &gt;10은 급성 염증 가능성으로 판정 보류</td></tr>
+                      <tr><td>자율신경(스트레스)형</td><td>다음 중 2개 이상: HRV-Index 낮음/매우낮음 · ANS Activity 낮음/매우낮음 · Stress 높음/매우높음 · SNS가 50%에서 6%p 초과 이탈 · 안정 시 심박수 ≥90</td><td>혈압은 관찰항목이며 직접 활성화 조건에는 포함하지 않음</td></tr>
+                      <tr><td>신체기능저하형</td><td>내부 참고평가 위험점수 4점 이상: 저체중/비의도적 체중감소 2점, 섭취/소화 문제 2점, SMI/악력 저하 2점, 피로/보행·계단 저하 2점</td><td>현재 환자 리포트와 자동 주·동반 타입 판정에서는 제외되어 있으며 수동 선택만 가능</td></tr>
+                      <tr><td>복합대사위험형</td><td>복부비만·인슐린 저항·만성염증·자율신경 후보 중 활성 후보가 3개 이상이거나, 2개 이상이 동일한 강도 3 이상으로 겹칠 때</td><td>여러 활성 타입을 동반타입으로 함께 표시</td></tr>
+                      <tr><td>간관리 선행형</td><td>ALT ≥120 U/L 또는 AST ≥120 U/L, 또는 TBIL &gt;1.2 mg/dL이면서 ALT &gt;40·GGT &gt;60·ALP &gt;120 중 하나 이상</td><td>다른 타입보다 먼저 판정하며 충족 시 주타입으로 단독 표시</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="criteria-note-grid">
+                  <p><strong>관리 필요영역 보조 분류:</strong> 16점 이하인 축 중 낮은 순서대로 최대 3개를 타입 후보에 보완합니다. 당·지질→인슐린 저항형, 간→간관리 선행형, 염증→만성염증형, 자율신경→자율신경(스트레스)형으로 연결됩니다.</p>
+                  <p><strong>주·동반 타입:</strong> 직접 활성 후보 중 강도가 가장 높은 타입이 주타입이 되며, 나머지 활성 후보와 관리 필요영역 연계 타입은 중복을 제거해 동반타입으로 표시됩니다.</p>
+                </div>
+              </section>
+            </div>
+          </details>
         </section>
 
         <section id="historyPanel" class="tracking-panel no-print" aria-labelledby="historyHeading">
