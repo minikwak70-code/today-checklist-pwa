@@ -115,7 +115,6 @@ function typeAComparison(base, compare) {
     { key: "waist", label: "허리둘레", unit: "cm", digits: 1 },
     { key: "whtr", label: "WHtR", unit: "", digits: 3 },
     { key: "visceralFat", label: "내장지방레벨", unit: "", digits: 0 },
-    { key: "score", label: "Type A 점수", unit: "점", digits: 0 },
   ];
   const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => ({
     ...item,

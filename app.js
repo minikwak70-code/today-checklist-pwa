@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v3.3";
+const SCORE_RULE_VERSION = "metabolic-score-v3.4";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -26,7 +26,7 @@ const AXIS_SHORT_COMMENTS = {
   glucose: "혈당 상태와 인슐린 저항성 관련 패턴",
   lipid: "중성지방과 HDL-C 균형",
   liver: "간수치와 빌리루빈 상태",
-  inflammation: "저강도 염증과 내장지방 상태",
+  inflammation: "hs-CRP로 확인한 저강도 염증 상태",
   autonomic: "혈압, HRV와 신체적 스트레스 반응",
 };
 
@@ -468,12 +468,16 @@ function getUln(data, key) {
 }
 
 function scoreHsCrp(value) {
-  if (!present(value)) return missing(14);
-  if (value > 10) return hold(14, "급성 염증원 확인 후 재검");
-  return scoreByRanges(value, 14, [
-    { test: (v) => v < 0.2, score: 14, label: "최적 수준" },
-    { test: (v) => v <= 0.39, score: 11, label: "낮은 수준" },
-    { test: (v) => v <= 0.59, score: 8, label: "저강도 염증 관찰" },
+  if (!present(value)) return missing(20);
+  if (value > 10) return hold(20, "급성 염증원 확인 후 재검");
+  return scoreByRanges(value, 20, [
+    { test: (v) => v <= 0.2, score: 20, label: "최적 수준" },
+    { test: (v) => v <= 0.3, score: 18, label: "낮은 수준" },
+    { test: (v) => v <= 0.4, score: 16, label: "낮은 수준" },
+    { test: (v) => v <= 0.5, score: 14, label: "저강도 염증 관찰" },
+    { test: (v) => v <= 0.6, score: 12, label: "저강도 염증 관찰" },
+    { test: (v) => v <= 0.7, score: 10, label: "저강도 염증 관찰" },
+    { test: (v) => v <= 0.8, score: 8, label: "경도 상승" },
     { test: (v) => v <= 0.99, score: 5, label: "경도 상승" },
     { test: (v) => v <= 1.99, score: 2, label: "지속 염증 확인 필요" },
     { test: (v) => v <= 10, score: 0, label: "염증 수치 상승" },
@@ -745,11 +749,11 @@ function makeResults(data) {
       "만성염증",
       [
         { label: "hs-CRP", result: hsCrp, value: present(data.hsCrp) ? `${data.hsCrp} mg/L` : null },
-        { label: "내장지방레벨", result: visceralFat, value: present(data.visceralFat) ? `${data.visceralFat}` : null },
+        { label: "내장지방레벨", result: visceralFat, value: present(data.visceralFat) ? `${data.visceralFat}` : null, reference: true },
         { label: "허리둘레", result: waist, value: present(data.waist) ? `${data.waist} cm` : null, reference: true },
       ],
-      "저강도 염증과 내장지방 상태를 함께 반영합니다.",
-      !present(data.hsCrp) && !present(data.visceralFat),
+      "hs-CRP로 저강도 염증 상태를 평가합니다.",
+      !present(data.hsCrp),
       hsCrp.hold,
     ),
     makeAxis(
@@ -932,7 +936,6 @@ function scoreTypes(data, results) {
   const inflammationHold = (data.hsCrp > 10) || (hsCrpElevated && acuteInflammation);
   const cReasons = [
     hsCrpOnePlus,
-    hsCrpElevated && visceralHigh,
     hsCrpTwoPlus && !acuteInflammation,
   ].filter(Boolean);
   if (inflammationHold) {
@@ -1657,7 +1660,6 @@ function renderTypeACard(data, typeA) {
   }
   card.innerHTML = `
     <strong>복부비만 평가</strong>
-    <div class="axis-score"><small>Type A 점수</small>${typeA.hasAnyMetric ? `${typeA.score}/4` : "판정 대기"}</div>
     <p class="type-a-judgment">${typeA.judgment}</p>
     <p class="type-a-explanation">${explanation}</p>
     <ul class="axis-key-values">
@@ -1710,13 +1712,13 @@ function renderAxisCards(axes, data, typeA) {
     const cardComment = axis.key === "inflammation" && axis.status === "hold"
       ? "급성 염증 가능성을 먼저 확인한 뒤 재검이 필요합니다."
       : axis.key === "inflammation" && axis.score >= 17
-        ? "양호 · 저강도 염증과 내장지방 상태가 전반적으로 양호합니다."
+        ? "양호 · hs-CRP가 낮은 수준입니다."
         : axis.key === "inflammation" && axis.score >= 14
-          ? "경계 관찰 · 저강도 염증 또는 내장지방 증가 경향을 확인합니다."
+          ? "경계 관찰 · hs-CRP의 변화를 확인합니다."
           : axis.key === "inflammation" && axis.score >= 10
-            ? "개선 필요 · 저강도 염증과 내장지방 상태를 함께 관리할 필요가 있습니다."
+            ? "개선 필요 · hs-CRP 상승 요인을 확인할 필요가 있습니다."
             : axis.key === "inflammation"
-              ? "우선 관리 · 염증 수치가 높거나 내장지방 관리가 필요해 원인 확인과 적극적인 관리가 필요합니다."
+              ? "우선 관리 · hs-CRP 상승 원인을 확인하고 추적할 필요가 있습니다."
               : axis.key === "liver" && axis.score >= 17
       ? "현재 측정한 간수치는 대체로 양호합니다."
       : `${axisTone(axis)} · ${AXIS_SHORT_COMMENTS[axis.key] || axis.comment}`;
