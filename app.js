@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v4.1";
+const SCORE_RULE_VERSION = "metabolic-score-v4.2";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -76,13 +76,8 @@ const TREATMENT_FOCUS_FIELDS = [
 
 const PHYSICAL_FUNCTION_CHECKBOX_FIELDS = [
   "appetiteReduced",
-  "mealAmountReduced",
-  "difficultyFinishingMeal",
   "earlySatiety",
   "frequentIndigestion",
-  "postMealDiscomfort",
-  "reducedIntakeDueDigestion",
-  "recurrentDiarrhea",
   "foodAvoidanceDueDiscomfort",
   "fatigueActivityReduced",
   "walkingStairsDifficulty",
@@ -313,13 +308,10 @@ function assessPhysicalFunction(data) {
   const unintentionalWeightLoss = weightLossReported && present(weightLossRate) && weightLossRate >= 5;
   const suspectedWeightLoss = weightLossReported && !unintentionalWeightLoss;
 
-  const intakeFields = ["appetiteReduced", "mealAmountReduced", "difficultyFinishingMeal"];
+  const intakeFields = ["appetiteReduced"];
   const digestionFields = [
     "earlySatiety",
     "frequentIndigestion",
-    "postMealDiscomfort",
-    "reducedIntakeDueDigestion",
-    "recurrentDiarrhea",
     "foodAvoidanceDueDiscomfort",
   ];
   const intakeIssue = intakeFields.some((id) => Boolean(data[id]));
@@ -726,8 +718,8 @@ function applyPhysicalGradeOverride(grade, data, max) {
   if (!physical.activated) return grade;
   return {
     label: "대사수치 양호 · 신체기능 관리필요",
-    text: "대사축 수치는 양호하지만 신체기능 예비력 관리가 필요한 상태입니다.",
-    short: "신체기능 예비력 관리가 필요한 상태",
+    text: "대사축 수치는 양호하지만 신체기능상태 관리가 필요한 상태입니다.",
+    short: "신체기능상태 관리가 필요한 상태",
     physicalOverride: true,
   };
 }
@@ -1484,7 +1476,7 @@ function makeSummary(data, results, grade, typeResult, flags) {
   const limitedAxes = results.axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis) => axis.label);
   const primary = selectedPrimaryType(typeResult, data);
   const scoreSentence = grade.physicalOverride
-    ? `대사축 종합점수는 ${scorePhrase(results)}으로 양호하지만, 신체기능 예비력 관리가 필요합니다.`
+    ? `대사축 종합점수는 ${scorePhrase(results)}으로 양호하지만, 신체기능상태 관리가 필요합니다.`
     : `대사축 종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`;
   const sentences = [
     scoreSentence,
@@ -1570,7 +1562,7 @@ function makeTypeReason(data, results, primary) {
 function makePhysicalFunctionTypeSentence(data) {
   const assessment = assessPhysicalFunction(data);
   const sentences = [
-    "혈당·지질·간 수치는 대체로 양호하더라도 체중, 영양섭취, 근육·근력 또는 활동능력에서 신체기능 예비력 저하가 확인될 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
+    "혈당·지질·간 수치는 대체로 양호하더라도 체중, 영양섭취, 근육·근력 또는 활동능력에서 신체기능상태 저하가 확인될 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
   ];
   if (assessment.smi.low || assessment.grip.low) {
     sentences.push("근육량이나 근력이 감소한 소견이 함께 확인되어 충분한 영양섭취와 적절한 근력운동이 중요합니다.");
@@ -2111,12 +2103,29 @@ function isTreatmentInputId(id) {
   return TREATMENT_FIELD_IDS.includes(id) || TREATMENT_FOCUS_FIELDS.some(([fieldId]) => fieldId === id);
 }
 
+function normalizePhysicalFunctionValues(values) {
+  return {
+    ...values,
+    appetiteReduced: Boolean(
+      values.appetiteReduced ||
+      values.mealAmountReduced ||
+      values.difficultyFinishingMeal ||
+      values.lowProteinStatus === "있음"
+    ),
+    frequentIndigestion: Boolean(values.frequentIndigestion || values.postMealDiscomfort),
+    foodAvoidanceDueDiscomfort: Boolean(
+      values.foodAvoidanceDueDiscomfort ||
+      values.reducedIntakeDueDigestion ||
+      values.recurrentDiarrhea
+    ),
+  };
+}
+
 function setValues(values) {
-  const nextValues = { ...values };
+  const nextValues = normalizePhysicalFunctionValues(values);
   if (!present(nextValues.weightLossContext) && nextValues.weightLossStatus === "있음") nextValues.weightLossContext = "있음";
   if (nextValues.weightLossContext === "비의도적") nextValues.weightLossContext = "있음";
   if (nextValues.weightLossContext === "의도적") nextValues.weightLossContext = "없음";
-  if (!present(nextValues.mealAmountReduced) && nextValues.lowProteinStatus === "있음") nextValues.mealAmountReduced = true;
   if (!present(nextValues.fatigueActivityReduced) && nextValues.functionalDeclineStatus === "있음") nextValues.fatigueActivityReduced = true;
   if (!present(nextValues.treatmentFocusCustom) && present(nextValues.treatmentPlan)) {
     nextValues.treatmentFocusCustom = nextValues.treatmentPlan;

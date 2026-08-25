@@ -987,7 +987,7 @@ button:disabled {
   vertical-align: middle;
 }
 
-.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(1) {
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic):not(.score-table--physical) th:nth-child(1) {
   width: 24%;
 }
 
@@ -1003,11 +1003,11 @@ button:disabled {
   text-align: center;
 }
 
-.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(3) {
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic):not(.score-table--physical) th:nth-child(3) {
   width: 84px;
 }
 
-.score-table:not(.score-table--inflammation):not(.score-table--autonomic) th:nth-child(4) {
+.score-table:not(.score-table--inflammation):not(.score-table--autonomic):not(.score-table--physical) th:nth-child(4) {
   width: 25%;
 }
 
@@ -1039,18 +1039,15 @@ button:disabled {
   text-align: center;
 }
 
-.score-table--physical th:nth-child(1) {
-  width: 18%;
+.score-table.score-table--physical th:nth-child(1) {
+  width: 22%;
 }
 
-.score-table--physical th:nth-child(3),
-.score-table--physical td:nth-child(3) {
-  width: 150px;
+.score-table.score-table--physical th:nth-child(3),
+.score-table.score-table--physical td:nth-child(3) {
+  width: 170px;
   text-align: center;
-}
-
-.score-table--physical th:nth-child(4) {
-  width: 28%;
+  white-space: nowrap;
 }
 
 .type-criteria-table th:first-child,
