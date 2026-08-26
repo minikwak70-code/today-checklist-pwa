@@ -783,6 +783,42 @@ input::placeholder {
   line-height: 1.4;
 }
 
+.symptom-question-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.symptom-question-grid label {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1px solid #dae4de;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.symptom-question-grid label > span {
+  color: #46554f;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.symptom-question-grid label > span strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--green-dark);
+  font-size: 12px;
+}
+
+.symptom-question-grid select {
+  width: 100%;
+  min-width: 0;
+}
+
 .validation-summary {
   display: grid;
   gap: 6px;
@@ -1668,6 +1704,35 @@ button:disabled {
   line-height: 1.45;
 }
 
+.inflammation-axis-card .inflammation-subtype {
+  color: var(--green-dark);
+}
+
+.inflammation-axis-card .inflammation-subtype strong {
+  display: inline;
+  margin-left: 5px;
+  font-size: 12px;
+}
+
+.inflammation-axis-card .subsection-label {
+  margin: 10px 0 5px;
+}
+
+.inflammation-key-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.inflammation-key-areas li {
+  width: auto;
+  padding: 4px 7px;
+}
+
+.inflammation-key-areas strong {
+  font-size: 11px;
+}
+
 .type-a-card {
   border-color: rgba(35, 116, 90, 0.28);
   background: #f6faf8;
@@ -2163,7 +2228,12 @@ button:disabled {
   .treatment-goal-list,
   .inline-actions,
   .check-grid,
+  .symptom-question-grid,
   .axis-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .symptom-question-grid label {
     grid-template-columns: 1fr;
   }
 

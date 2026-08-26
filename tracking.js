@@ -64,6 +64,8 @@ const metricMeta = [
   { key: "tgHdl", label: "TG/HDL-C", unit: "", direction: "down", value: (raw) => raw.tg && raw.hdl ? raw.tg / raw.hdl : null },
   { key: "nonHdl", label: "non-HDL-C", unit: "mg/dL", direction: "down", value: (raw) => raw.totalChol && raw.hdl ? raw.totalChol - raw.hdl : null },
   { key: "hsCrp", label: "hs-CRP", unit: "mg/L", direction: "down", value: (raw) => raw.hsCrp },
+  { key: "nlr", label: "NLR", unit: "", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).nlr },
+  { key: "inflammationSymptoms", label: "염증 관련 증상점수", unit: "점", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).symptomScore },
   { key: "visceralFat", label: "내장지방레벨", unit: "", direction: "down", value: (raw) => raw.visceralFat },
   { key: "hrvIndexScore", label: "HRV-Index 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "hrvIndexScore", "autonomic:HRV-Index") },
   { key: "ansActivityScore", label: "ANS Activity 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "ansActivityScore", "autonomic:ANS Activity") },
@@ -74,6 +76,17 @@ const metricMeta = [
   { key: "skeletalMuscleMass", label: "골격근량", unit: "kg", direction: "up", value: (raw) => raw.skeletalMuscleMass },
   { key: "smi", label: "SMI", unit: "kg/m²", direction: "up", value: (raw) => raw.smi },
   { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
+];
+
+const inflammationSymptomMeta = [
+  ["inflammationFatigue", "피로"],
+  ["inflammationRecovery", "회복력"],
+  ["inflammationMusculoskeletal", "근육·관절"],
+  ["inflammationOral", "구강·치주"],
+  ["inflammationRespiratory", "호흡기·알레르기"],
+  ["inflammationSkin", "피부"],
+  ["inflammationGut", "위장관"],
+  ["inflammationInfectionRecovery", "감염·회복"],
 ];
 
 function scoreRuleAtLeast(assessment, targetMajor, targetMinor) {
@@ -172,6 +185,74 @@ function typeAComparison(base, compare) {
       }).join("")}</tbody>
     </table>
     <p class="comparison-summary">${summary}</p>
+  `;
+}
+
+function inflammationRecord(assessment) {
+  const raw = assessment?.rawValues || {};
+  const neutrophil = Number(raw.neutrophil);
+  const lymphocyte = Number(raw.lymphocyte);
+  const directNlr = Number(raw.nlrDirect);
+  const calculatedNlr = calculatedValue(assessment, "nlr");
+  const nlr = calculatedNlr !== null && calculatedNlr !== undefined
+    ? Number(calculatedNlr)
+    : Number.isFinite(neutrophil) && Number.isFinite(lymphocyte) && lymphocyte > 0
+      ? neutrophil / lymphocyte
+      : Number.isFinite(directNlr) && directNlr >= 0
+        ? directNlr
+        : null;
+  const answers = inflammationSymptomMeta.map(([key, label]) => ({
+    key,
+    label,
+    value: raw[key] === null || raw[key] === undefined || raw[key] === "" ? null : Number(raw[key]),
+  }));
+  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= 3);
+  const storedSymptomScore = calculatedValue(assessment, "inflammationSymptomScore");
+  const symptomScore = storedSymptomScore !== null && storedSymptomScore !== undefined
+    ? Number(storedSymptomScore)
+    : answered.length
+      ? answered.reduce((sum, item) => sum + item.value, 0)
+      : null;
+  const complete = answered.length === answers.length;
+  const hsCrp = raw.hsCrp === null || raw.hsCrp === undefined || raw.hsCrp === "" ? null : Number(raw.hsCrp);
+  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1 || nlr !== null && nlr >= 2.5;
+  const symptomHigh = complete && symptomScore >= 12;
+  let derivedSubtype = "해당 없음";
+  if (hsCrp !== null && hsCrp > 10) derivedSubtype = "판정 보류";
+  else if (objectiveElevated && symptomHigh) derivedSubtype = "만성염증형(종합형)";
+  else if (objectiveElevated) derivedSubtype = "만성염증형(수치형)";
+  else if (symptomHigh) derivedSubtype = "만성염증형(증상형)";
+  return {
+    hsCrp,
+    nlr,
+    score: calculatedValue(assessment, "inflammationScore") ?? assessment?.inflammationScore ?? null,
+    symptomScore,
+    answers,
+    keyAreas: answered.filter((item) => item.value >= 2).map((item) => item.label),
+    subtype: calculatedValue(assessment, "inflammationSubtype") || assessment?.reportSnapshot?.inflammation?.subtype || derivedSubtype,
+  };
+}
+
+function inflammationComparison(base, compare) {
+  const before = inflammationRecord(base);
+  const after = inflammationRecord(compare);
+  const rows = [
+    ["hs-CRP", before.hsCrp, after.hsCrp, "mg/L", 2, false],
+    ["NLR", before.nlr, after.nlr, "", 2, false],
+    ["만성염증 건강점수", before.score, after.score, "점", 0, true],
+    ["염증 관련 증상점수", before.symptomScore, after.symptomScore, "/24", 0, false],
+  ].filter(([, b, a]) => b !== null && b !== undefined && a !== null && a !== undefined);
+  if (!rows.length && before.subtype === "해당 없음" && after.subtype === "해당 없음") return "";
+  const rowHtml = rows.map(([label, b, a, unit, digits, higherBetter]) => {
+    const improved = higherBetter ? a > b : a < b;
+    const same = Math.abs(a - b) < 0.001;
+    return `<tr><td>${label}</td><td>${numberText(b, digits)}${unit ? ` ${unit}` : ""}</td><td>${numberText(a, digits)}${unit ? ` ${unit}` : ""}</td><td>${same ? "유지" : improved ? "개선" : "변화"}</td></tr>`;
+  }).join("");
+  return `
+    <h3>만성염증 평가 변화</h3>
+    ${rowHtml ? `<table class="tracking-table compact-table"><thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${rowHtml}</tbody></table>` : ""}
+    <p><strong>세부유형:</strong> ${escapeHtml(before.subtype)} → ${escapeHtml(after.subtype)}</p>
+    <p class="comparison-summary">hs-CRP와 NLR, 염증 관련 증상 부담의 변화를 함께 확인했습니다.</p>
   `;
 }
 
@@ -651,19 +732,6 @@ async function loadAssessments() {
   window.metabolicReportApp?.render?.();
 }
 
-function hasPriorHsCrpElevation(currentData = {}) {
-  const currentValue = Number(currentData.hsCrp);
-  const currentDate = new Date(`${currentData.testDate || ""}T00:00:00`);
-  if (!Number.isFinite(currentValue) || currentValue < 1 || currentValue > 10 || !Number.isFinite(currentDate.getTime())) return false;
-  const minimumIntervalMs = 14 * 24 * 60 * 60 * 1000;
-  return tracking.assessments.some((assessment) => {
-    const priorValue = Number(assessment.rawValues?.hsCrp);
-    const priorDate = new Date(`${assessment.assessmentDate || ""}T00:00:00`);
-    if (!Number.isFinite(priorValue) || priorValue < 1 || priorValue > 10 || !Number.isFinite(priorDate.getTime())) return false;
-    return currentDate.getTime() - priorDate.getTime() >= minimumIntervalMs;
-  });
-}
-
 function sortedAssessmentsAsc() {
   return [...tracking.assessments].sort((a, b) => `${a.assessmentDate}${a.createdAt}`.localeCompare(`${b.assessmentDate}${b.createdAt}`));
 }
@@ -965,6 +1033,7 @@ function renderComparison() {
           <tbody>${axisRows.map((row) => `<tr><td>${row.label}</td><td>${scoreText(row.before)}</td><td>${scoreText(row.after)}</td><td>${row.diff >= 0 ? "+" : ""}${numberText(row.diff)}점</td></tr>`).join("")}</tbody>
         </table>
         ${typeAComparison(base, compare)}
+        ${inflammationComparison(base, compare)}
         <h3>주요 검사 변화표</h3>
         <table class="tracking-table compact-table">
           <thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th><th>평가</th></tr></thead>
@@ -1194,9 +1263,5 @@ setInterval(() => {
   loadPatients().catch(() => {});
   if (tracking.selectedPatient) loadAssessments().catch(() => {});
 }, 60000);
-
-window.metabolicTrackingContext = {
-  hasPriorHsCrpElevation,
-};
 
 loadMe();

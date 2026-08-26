@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v4.2";
+const SCORE_RULE_VERSION = "metabolic-score-v4.3";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -26,7 +26,7 @@ const AXIS_SHORT_COMMENTS = {
   glucose: "혈당 상태와 인슐린 저항성 관련 패턴",
   lipid: "중성지방과 죽상경화성 지단백 상태",
   liver: "ALT와 GGT로 확인한 간대사 상태",
-  inflammation: "hs-CRP로 확인한 저강도 염증 상태",
+  inflammation: "hs-CRP와 NLR로 확인한 염증 관련 수치 상태",
   autonomic: "HRV와 신체적 스트레스 반응",
 };
 
@@ -83,6 +83,17 @@ const PHYSICAL_FUNCTION_CHECKBOX_FIELDS = [
   "walkingStairsDifficulty",
 ];
 
+const INFLAMMATION_SYMPTOM_FIELDS = [
+  ["inflammationFatigue", "피로"],
+  ["inflammationRecovery", "회복력"],
+  ["inflammationMusculoskeletal", "근육·관절"],
+  ["inflammationOral", "구강·치주"],
+  ["inflammationRespiratory", "호흡기·알레르기"],
+  ["inflammationSkin", "피부"],
+  ["inflammationGut", "위장관"],
+  ["inflammationInfectionRecovery", "감염·회복"],
+];
+
 let treatmentPlanUserEdited = false;
 let treatmentPlanApplyingAuto = false;
 let treatmentDurationUserEdited = false;
@@ -120,6 +131,7 @@ const elements = {
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
   tgHdlCalc: document.querySelector("#tgHdlCalc"),
   nonHdlCalc: document.querySelector("#nonHdlCalc"),
+  nlrCalc: document.querySelector("#nlrCalc"),
   whtrCalc: document.querySelector("#whtrCalc"),
   physicalFunctionCalc: document.querySelector("#physicalFunctionCalc"),
   physicalFunctionReport: document.querySelector("#physicalFunctionReport"),
@@ -148,6 +160,9 @@ const numberFields = new Set([
   "tbil",
   "tbilUln",
   "hsCrp",
+  "neutrophil",
+  "lymphocyte",
+  "nlrDirect",
   "visceralFat",
   "sbp",
   "dbp",
@@ -169,6 +184,7 @@ const numberFields = new Set([
   "skeletalMuscleMass",
   "smi",
   "gripStrength",
+  ...INFLAMMATION_SYMPTOM_FIELDS.map(([id]) => id),
 ]);
 
 const checkboxFields = new Set([
@@ -481,20 +497,93 @@ function getUln(data, key) {
 }
 
 function scoreHsCrp(value) {
-  if (!present(value)) return missing(20);
-  if (value > 10) return hold(20, "급성 염증원 확인 후 재검");
-  return scoreByRanges(value, 20, [
-    { test: (v) => v <= 0.2, score: 20, label: "최적 수준" },
-    { test: (v) => v <= 0.3, score: 18, label: "낮은 수준" },
-    { test: (v) => v <= 0.4, score: 16, label: "낮은 수준" },
-    { test: (v) => v <= 0.5, score: 14, label: "저강도 염증 관찰" },
-    { test: (v) => v <= 0.6, score: 12, label: "저강도 염증 관리" },
-    { test: (v) => v <= 0.8, score: 10, label: "저강도 염증 관리" },
-    { test: (v) => v <= 1, score: 8, label: "상승 관찰" },
-    { test: (v) => v <= 2, score: 5, label: "원인 및 지속 여부 확인" },
+  if (!present(value)) return missing(12);
+  if (value > 10) return hold(12, "급성 염증원 확인 후 재검");
+  return scoreByRanges(value, 12, [
+    { test: (v) => v <= 0.2, score: 12, label: "최적 수준" },
+    { test: (v) => v <= 0.3, score: 11, label: "낮은 수준" },
+    { test: (v) => v <= 0.4, score: 10, label: "낮은 수준" },
+    { test: (v) => v <= 0.5, score: 9, label: "저강도 염증 관찰" },
+    { test: (v) => v <= 0.6, score: 8, label: "저강도 염증 관리" },
+    { test: (v) => v <= 0.8, score: 7, label: "저강도 염증 관리" },
+    { test: (v) => v <= 1, score: 6, label: "상승 관찰" },
+    { test: (v) => v <= 2, score: 4, label: "원인 및 지속 여부 확인" },
     { test: (v) => v <= 3, score: 2, label: "뚜렷한 상승" },
     { test: (v) => v <= 10, score: 0, label: "재검 및 원인 확인" },
   ]);
+}
+
+function calculateNlr(data) {
+  const neutrophil = Number(data.neutrophil);
+  const lymphocyte = Number(data.lymphocyte);
+  if (present(data.neutrophil) && present(data.lymphocyte) && neutrophil >= 0 && lymphocyte > 0) {
+    return { value: neutrophil / lymphocyte, source: "auto" };
+  }
+  const direct = Number(data.nlrDirect);
+  if (present(data.nlrDirect) && direct >= 0) return { value: direct, source: "direct" };
+  return { value: null, source: "" };
+}
+
+function scoreNlr(value) {
+  return scoreByRanges(value, 8, [
+    { test: (v) => v < 1.8, score: 8, label: "양호" },
+    { test: (v) => v < 2.5, score: 6, label: "경계" },
+    { test: (v) => v < 3.5, score: 3, label: "상승" },
+    { test: (v) => v >= 3.5, score: 0, label: "높은 상승" },
+  ]);
+}
+
+function assessInflammationSymptoms(data) {
+  const answers = INFLAMMATION_SYMPTOM_FIELDS.map(([id, label]) => ({
+    id,
+    label,
+    value: present(data[id]) ? Number(data[id]) : null,
+  }));
+  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= 3);
+  const score = answered.reduce((sum, item) => sum + item.value, 0);
+  const complete = answered.length === answers.length;
+  const burden = !answered.length
+    ? "평가 대기"
+    : !complete
+      ? "문진 미완료"
+      : score <= 6
+        ? "증상 부담 낮음"
+        : score <= 11
+          ? "증상 부담 경계"
+          : "염증 관련 증상 부담 높음";
+  return {
+    answers,
+    answeredCount: answered.length,
+    score,
+    max: 24,
+    complete,
+    burden,
+    high: complete && score >= 12,
+    keyAreas: answered.filter((item) => item.value >= 2).map((item) => item.label),
+  };
+}
+
+function assessInflammation(data, hsCrp, nlr) {
+  const nlrValue = calculateNlr(data).value;
+  const symptoms = assessInflammationSymptoms(data);
+  const holdResult = present(data.hsCrp) && data.hsCrp > 10;
+  const objectiveElevated = !holdResult && (
+    (present(data.hsCrp) && data.hsCrp >= 1) ||
+    (present(nlrValue) && nlrValue >= 2.5)
+  );
+  const borderline = !objectiveElevated && !holdResult && (
+    (present(data.hsCrp) && data.hsCrp >= 0.6 && data.hsCrp < 1) ||
+    (present(nlrValue) && nlrValue >= 1.8 && nlrValue < 2.5)
+  );
+  let subtype = "해당 없음";
+  if (holdResult) subtype = "판정 보류";
+  else if (objectiveElevated && symptoms.high) subtype = "만성염증형(종합형)";
+  else if (objectiveElevated) subtype = "만성염증형(수치형)";
+  else if (symptoms.high) subtype = "만성염증형(증상형)";
+  const numericScore = [hsCrp, nlr]
+    .filter((result) => result && !result.missing && !result.hold)
+    .reduce((sum, result) => sum + result.score, 0);
+  return { nlrValue, symptoms, hold: holdResult, objectiveElevated, borderline, subtype, score: numericScore };
 }
 
 function scoreVisceralFat(value) {
@@ -738,6 +827,9 @@ function makeResults(data) {
   const waist = assessWaist(data.sex, data.waist);
   const typeA = assessTypeA(data);
   const hsCrp = scoreHsCrp(data.hsCrp);
+  const nlrCalculation = calculateNlr(data);
+  const nlr = scoreNlr(nlrCalculation.value);
+  const inflammation = assessInflammation(data, hsCrp, nlr);
   const visceralFat = scoreVisceralFat(data.visceralFat);
   const restingHrValue = present(data.restingHr) ? data.restingHr : data.heartRate;
   const restingHr = assessRestingHr(restingHrValue);
@@ -791,11 +883,10 @@ function makeResults(data) {
       "만성염증",
       [
         { label: "hs-CRP", result: hsCrp, value: present(data.hsCrp) ? `${data.hsCrp} mg/L` : null },
-        { label: "내장지방레벨", result: visceralFat, value: present(data.visceralFat) ? `${data.visceralFat}` : null, reference: true },
-        { label: "허리둘레", result: waist, value: present(data.waist) ? `${data.waist} cm` : null, reference: true },
+        { label: "NLR", result: nlr, value: present(nlrCalculation.value) ? nlrCalculation.value.toFixed(2) : null },
       ],
-      "hs-CRP로 저강도 염증 상태를 평가합니다.",
-      !present(data.hsCrp),
+      "hs-CRP와 NLR로 염증 관련 수치 변화를 평가합니다.",
+      !present(data.hsCrp) && !present(nlrCalculation.value),
       hsCrp.hold,
     ),
     makeAxis(
@@ -832,7 +923,10 @@ function makeResults(data) {
     };
   }
 
-  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, typeA, hsCrp, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
+  const inflammationAxis = axes.find((axis) => axis.key === "inflammation");
+  if (inflammationAxis) inflammationAxis.inflammation = inflammation;
+
+  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, typeA, hsCrp, nlr, inflammation, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
 }
 
 function validateInputs(data) {
@@ -868,6 +962,14 @@ function validateInputs(data) {
     if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값 또는 단위를 확인해 주세요.");
   }
   if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
+  if (present(data.lymphocyte) && data.lymphocyte <= 0) addError("lymphocyte", "Lymphocyte는 0보다 커야 NLR을 계산할 수 있습니다.");
+  if (present(data.neutrophil) && present(data.lymphocyte) && ((data.neutrophil > 100) !== (data.lymphocyte > 100))) {
+    addWarning("lymphocyte", "Neutrophil과 Lymphocyte는 같은 단위(% 또는 절대수)로 입력해 주세요.");
+  }
+  if (present(data.nlrDirect) && data.nlrDirect > 50) addWarning("nlrDirect", "NLR 직접 입력값과 단위를 확인해 주세요.");
+  for (const [id] of INFLAMMATION_SYMPTOM_FIELDS) {
+    if (present(data[id]) && (!Number.isInteger(data[id]) || data[id] < 0 || data[id] > 3)) addError(id, "증상 빈도는 0~3 중에서 선택해 주세요.");
+  }
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
   return { errors, warnings };
@@ -908,13 +1010,11 @@ function makeRiskFlags(data, results, validation) {
   }
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
   if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
+  const nlrValue = results.parts.inflammation?.nlrValue;
+  if (present(nlrValue) && nlrValue >= 3.5) add("caution", "NLR", nlrValue.toFixed(2), "NLR이 높습니다. 만성적인 염증 부담뿐 아니라 감염, 과로, 스트레스, 수면 부족 등의 일시적인 영향도 받을 수 있으므로 다른 검사 결과와 함께 평가합니다.");
   if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "안정 후 즉시 다시 측정하고 진료 상담이 필요합니다. 흉통, 호흡곤란, 신경학적 증상이 있으면 응급평가가 우선입니다.");
   if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경(스트레스) 축 판정을 보류합니다.");
   return flags;
-}
-
-function hasPriorHsCrpElevation(data) {
-  return Boolean(window.metabolicTrackingContext?.hasPriorHsCrpElevation?.(data));
 }
 
 function scoreTypes(data, results) {
@@ -936,6 +1036,7 @@ function scoreTypes(data, results) {
   const visceralHigh = data.visceralFat >= 10;
   const typeA = results.parts.typeA || assessTypeA(data);
   const physical = assessPhysicalFunction(data);
+  const inflammation = results.parts.inflammation || assessInflammation(data, results.parts.hsCrp, results.parts.nlr);
   const hba1cHigh = data.hba1c >= 5.7;
   const tgHdlHigh = results.parts.tgHdl?.ratio >= 3.5;
   const tgHdlModerate = results.parts.tgHdl?.ratio >= 2.5;
@@ -974,6 +1075,7 @@ function scoreTypes(data, results) {
     results.max === 100 &&
     results.axes.every((axis) => axis.status === "complete" && axis.score >= 15) &&
     typeA.riskScore <= 1 &&
+    inflammation.subtype === "해당 없음" &&
     !physicalActive &&
     !critical
   ) {
@@ -1000,15 +1102,18 @@ function scoreTypes(data, results) {
     addCandidate("B", "B. 인슐린 저항 우세형", strength, bReasons, Math.min(glucoseAxis?.score ?? 20, lipidAxis?.score ?? 20));
   }
 
-  const hsCrpElevated = data.hsCrp >= 1 && data.hsCrp <= 10;
-  const inflammationRepeated = hsCrpElevated && hasPriorHsCrpElevation(data);
-  if (data.hsCrp > 10) {
+  if (inflammation.hold) {
     tags.push("만성염증형 판정 보류 — 급성 염증 가능성 확인 후 재검");
-  } else if (hsCrpElevated && !inflammationRepeated) {
-    tags.push("hs-CRP 상승 · 반복 확인 필요");
-  } else if (inflammationRepeated) {
-    const strength = data.hsCrp > 3 ? 3 : data.hsCrp > 2 ? 2 : 1;
-    addCandidate("C", "C. 만성염증 우세형", strength, [true], results.parts.hsCrp?.score ?? 20);
+  } else {
+    if (inflammation.borderline) tags.push("염증 관련 수치 경계");
+    if (inflammation.objectiveElevated) tags.push("염증 관련 수치 상승");
+    if (inflammation.symptoms.high) tags.push("염증 관련 증상 부담 높음");
+    if (inflammation.subtype !== "해당 없음") {
+      const severeLab = data.hsCrp > 3 || inflammation.nlrValue >= 3.5;
+      const strength = severeLab ? 3 : inflammation.subtype.includes("종합형") ? 2 : 1;
+      const inflammationAxis = results.axes.find((axis) => axis.key === "inflammation");
+      addCandidate("C", `C. ${inflammation.subtype}`, strength, [inflammation.objectiveElevated, inflammation.symptoms.high], inflammationAxis?.score ?? 20);
+    }
   }
 
   const dReasons = [
@@ -1529,8 +1634,18 @@ function makeTypeReason(data, results, primary) {
     return `${values.join(", ")} 지표에서 인슐린 저항과 관련된 지질대사 불균형이 관찰됩니다. ${hba1cNote} 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
   }
   if (primary.startsWith("C.")) {
-    const value = present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "염증 관련 지표";
-    return `${value} 상승이 2주 이상 간격의 검사에서 반복 확인되어 지속적인 염증 상태를 살펴볼 필요가 있습니다. 급성 감염이나 다른 염증 원인이 의심되면 원인 확인과 재평가가 우선입니다.`;
+    const inflammation = results.parts.inflammation;
+    if (primary.includes("종합형")) {
+      return "혈액검사와 증상평가에서 모두 염증 부담을 시사하는 변화가 확인됩니다. 염증과 관련된 생활습관 및 원인 요인을 종합적으로 평가하고 관리할 필요가 있습니다.";
+    }
+    if (primary.includes("증상형")) {
+      return "혈액검사에서는 뚜렷한 전신 염증 상승이 확인되지 않았지만, 염증과 관련될 수 있는 증상들이 반복적으로 나타나고 있습니다. 구강, 피부, 위장관, 알레르기 및 생활습관 등 증상의 원인을 함께 평가할 필요가 있습니다.";
+    }
+    const values = [
+      present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "",
+      present(inflammation?.nlrValue) ? `NLR ${inflammation.nlrValue.toFixed(2)}` : "",
+    ].filter(Boolean).join(", ");
+    return `${values || "혈액검사"}에서 염증 부담을 시사하는 변화가 확인됩니다. 현재 느끼는 증상이 크지 않더라도 생활습관과 대사상태를 함께 점검할 필요가 있습니다.`;
   }
   if (primary.startsWith("D.")) {
     const values = [
@@ -1584,6 +1699,10 @@ function renderComputed(data, results) {
   elements.nonHdlCalc.textContent = present(results.parts.nonHdl?.value)
     ? `non-HDL-C: ${results.parts.nonHdl.value} mg/dL — ${results.parts.nonHdl.label}`
     : "non-HDL-C: 총콜레스테롤과 HDL-C 입력 후 계산";
+  const nlrCalculation = calculateNlr(data);
+  elements.nlrCalc.textContent = present(nlrCalculation.value)
+    ? `NLR: ${nlrCalculation.value.toFixed(2)} — ${results.parts.nlr.label}${nlrCalculation.source === "auto" ? " · 자동 계산" : " · 직접 입력"}`
+    : "NLR: Neutrophil과 Lymphocyte 또는 NLR 직접 입력 후 계산";
   elements.whtrCalc.textContent = present(results.parts.typeA?.whtr)
     ? `WHtR: ${results.parts.typeA.whtr.toFixed(3)} — ${results.parts.typeA.whtrLabel}`
     : "WHtR: 키와 허리둘레 입력 후 계산";
@@ -1708,9 +1827,10 @@ function axisTone(axis) {
   if (axis.status === "unavailable") return "입력값 부족";
   if (axis.key === "inflammation" && axis.status === "hold") return "급성 염증 배제 후 재검";
   if (axis.key === "inflammation") {
-    if (axis.score >= 16) return "양호";
-    if (axis.score >= 12) return "경계 관찰";
-    if (axis.score >= 8) return "개선 필요";
+    const normalized = axis.max ? (axis.score / axis.max) * AXIS_MAX : 0;
+    if (normalized >= 16) return "양호";
+    if (normalized >= 12) return "경계 관찰";
+    if (normalized >= 8) return "개선 필요";
     return "우선 관리";
   }
   if (axis.status === "hold") return "해석 제한";
@@ -1781,6 +1901,35 @@ function renderAxisCards(axes, data, typeA) {
         <ul class="axis-key-values">${detailRows}</ul>
         <p class="subsection-label">세부유형</p>
         <ul class="axis-key-values autonomic-patterns">${patterns}</ul>
+      `;
+      return card;
+    }
+    if (axis.key === "inflammation") {
+      const inflammation = axis.inflammation;
+      const symptoms = inflammation.symptoms;
+      const symptomText = symptoms.answeredCount
+        ? `${symptoms.score}/24 · ${symptoms.burden}`
+        : "미입력";
+      const keyAreas = symptoms.keyAreas.length
+        ? symptoms.keyAreas.map((area) => `<li><strong>${area}</strong></li>`).join("")
+        : `<li><strong>${symptoms.answeredCount ? "주요 증상 영역 없음" : "입력 후 표시"}</strong></li>`;
+      const hsCrpText = present(data.hsCrp) ? `${formatDecimal(data.hsCrp, 2)} mg/L · ${axis.details[0].result.label}` : "미입력";
+      const nlrText = present(inflammation.nlrValue) ? `${inflammation.nlrValue.toFixed(2)} · ${axis.details[1].result.label}` : "미입력";
+      card.classList.add("inflammation-axis-card");
+      card.innerHTML = `
+        <strong>만성염증</strong>
+        <div class="axis-score">건강점수 ${axisDisplay(axis)}</div>
+        <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
+        <p class="inflammation-subtype">현재 유형 <strong>${inflammation.subtype}</strong></p>
+        <p class="subsection-label">혈액검사</p>
+        <ul class="axis-key-values">
+          <li><span>hs-CRP</span><strong>${hsCrpText}</strong></li>
+          <li><span>NLR</span><strong>${nlrText}</strong></li>
+        </ul>
+        <p class="subsection-label">증상평가</p>
+        <ul class="axis-key-values"><li><span>최근 4주</span><strong>${symptomText}</strong></li></ul>
+        <p class="subsection-label">주요 증상 영역</p>
+        <ul class="axis-key-values inflammation-key-areas">${keyAreas}</ul>
       `;
       return card;
     }
@@ -1884,12 +2033,20 @@ function hsCrpInterpretationNotes(data) {
   if (data.hsCrp > 0.2 && data.hsCrp < 1) {
     notes.push("hs-CRP 0.20 mg/L 이하는 공덕경희한의원의 생활관리용 최적 목표이며 질병 진단 경계값은 아닙니다. 현재 수치는 변화 추적과 생활습관 관리에 활용합니다.");
   } else if (data.hsCrp >= 1 && data.hsCrp <= 10) {
-    if (hasPriorHsCrpElevation(data)) {
-      notes.push("2주 이상 간격의 이전 검사에서도 hs-CRP 상승이 확인되어 지속적인 염증 상태를 살펴볼 필요가 있습니다.");
-    } else {
-      notes.push("hs-CRP가 상승했지만 한 번의 검사만으로 만성염증형을 확정하지 않습니다. 급성 원인을 확인하고 안정된 상태에서 2주 이상 간격으로 재검을 권고합니다.");
-    }
+    notes.push("hs-CRP 상승은 현재 염증 부담을 살펴보는 관리지표이며, 감염이나 다른 염증 원인이 의심되면 원인 확인과 재평가가 우선입니다.");
     if (data.hsCrp > 3) notes.push("hs-CRP가 3 mg/L를 초과해 감염, 치주질환, 외상, 수술, 염증성 질환 등 다른 원인을 함께 확인해야 합니다.");
+  }
+  return notes;
+}
+
+function inflammationInterpretationNotes(data, results) {
+  const notes = hsCrpInterpretationNotes(data);
+  const inflammation = results.parts.inflammation;
+  if (present(inflammation?.nlrValue)) {
+    notes.push("NLR은 감염, 과로, 스트레스, 수면 부족 등 여러 요인의 영향을 받는 비특이적 보조지표이며, 단독으로 질병을 진단하지 않습니다.");
+  }
+  if (inflammation?.symptoms.answeredCount) {
+    notes.push("염증 관련 증상평가는 진단용 문진이 아니며, 증상 부담과 치료 전후 변화를 살펴보기 위한 보조평가입니다.");
   }
   return notes;
 }
@@ -1906,11 +2063,10 @@ function renderList(element, items) {
 function renderNotes(data, results, typeResult, validation) {
   const limits = [];
   limits.push(...liverNormalMessage(data, results));
-  limits.push(...hsCrpInterpretationNotes(data));
+  limits.push(...inflammationInterpretationNotes(data, results));
   if (results.parts.tbil?.ratio > 1 && !((results.parts.alt?.ratio > 1) || (results.parts.ggt?.ratio > 1) || (results.parts.alp?.ratio > 1))) {
     limits.push("총빌리루빈 단독 상승입니다. 직접·간접 빌리루빈 분획을 확인하세요.");
   }
-  if (data.hsCrp > 10) limits.push("hs-CRP가 10 mg/L를 초과해 급성 염증 가능성을 확인한 뒤 안정된 상태에서 재검을 권고합니다.");
   if (typeResult.notes.length) limits.push(...typeResult.notes);
   if (validation.warnings.length) limits.push(...validation.warnings.map((warning) => warning.text));
   if (!limits.length) limits.push("이번 결과에서 별도의 해석 제한은 표시되지 않았습니다.");
@@ -2018,6 +2174,7 @@ function currentReportSnapshot() {
   const axes = axisScoreMap(rendered.results.axes);
   const itemScores = itemScoreMap(rendered.results.axes);
   const physicalFunction = assessPhysicalFunction(rendered.data);
+  const inflammation = rendered.results.parts.inflammation;
   const calculatedScores = {
     totalScore: rendered.results.total,
     maxScore: rendered.results.max,
@@ -2025,6 +2182,10 @@ function currentReportSnapshot() {
     lipidScore: axes.lipid,
     liverScore: axes.liver,
     inflammationScore: axes.inflammation,
+    nlr: inflammation.nlrValue,
+    inflammationSymptomScore: inflammation.symptoms.answeredCount ? inflammation.symptoms.score : null,
+    inflammationSymptomBurden: inflammation.symptoms.burden,
+    inflammationSubtype: inflammation.subtype,
     autonomicScore: axes.autonomic,
     hrvIndexScore: itemScores["autonomic:HRV-Index"],
     ansActivityScore: itemScores["autonomic:ANS Activity"],
@@ -2073,6 +2234,16 @@ function currentReportSnapshot() {
         score: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.score : null,
         grade: rendered.results.parts.typeA.hasAnyMetric ? rendered.results.parts.typeA.grade : "",
         judgment: rendered.results.parts.typeA.judgment,
+      },
+      inflammation: {
+        hsCrp: rendered.data.hsCrp,
+        nlr: inflammation.nlrValue,
+        score: axes.inflammation,
+        symptomScore: inflammation.symptoms.answeredCount ? inflammation.symptoms.score : null,
+        symptomMax: inflammation.symptoms.max,
+        symptomBurden: inflammation.symptoms.burden,
+        keyAreas: inflammation.symptoms.keyAreas,
+        subtype: inflammation.subtype,
       },
       physicalFunction: {
         score: physicalFunction.hasAnyMetric ? physicalFunction.score : null,

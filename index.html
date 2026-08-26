@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=48" />
+    <link rel="stylesheet" href="./styles.css?v=49" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -337,6 +337,18 @@
                   <input id="hsCrp" name="hsCrp" type="number" step="0.1" min="0" inputmode="decimal" />
                 </label>
                 <label>
+                  <span>Neutrophil (% 또는 절대수)</span>
+                  <input id="neutrophil" name="neutrophil" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>Lymphocyte (% 또는 절대수)</span>
+                  <input id="lymphocyte" name="lymphocyte" type="number" step="0.1" min="0" inputmode="decimal" />
+                </label>
+                <label>
+                  <span>NLR 직접 입력 (선택)</span>
+                  <input id="nlrDirect" name="nlrDirect" type="number" step="0.01" min="0" inputmode="decimal" />
+                </label>
+                <label>
                   <span>내장지방레벨</span>
                   <input id="visceralFat" name="visceralFat" type="number" step="1" min="1" max="20" inputmode="numeric" />
                 </label>
@@ -349,8 +361,24 @@
                   <input id="height" name="height" type="number" step="0.1" min="100" max="220" inputmode="decimal" />
                 </label>
               </div>
-              <div class="computed-grid single">
+              <div class="computed-grid">
+                <p id="nlrCalc">NLR: Neutrophil과 Lymphocyte 또는 NLR 직접 입력 후 계산</p>
                 <p id="whtrCalc">WHtR: 키와 허리둘레 입력 후 계산</p>
+              </div>
+            </fieldset>
+
+            <fieldset class="inflammation-symptom-editor">
+              <legend>만성염증 증상평가</legend>
+              <p class="field-help">최근 4주간 다음 증상이 얼마나 자주 있었습니까?</p>
+              <div class="symptom-question-grid">
+                <label><span><strong>피로</strong> 충분히 쉬거나 잠을 자도 피로가 잘 회복되지 않는다.</span><select id="inflammationFatigue"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>회복력</strong> 운동·과로·스트레스 이후 몸 상태가 쉽게 나빠지고 회복하는 데 오래 걸린다.</span><select id="inflammationRecovery"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>근육·관절</strong> 특별한 이유 없이 몸 여러 곳이 자주 뻐근하거나 쑤시고, 아침에 몸이나 관절이 뻣뻣한 경우가 있다.</span><select id="inflammationMusculoskeletal"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>구강·치주</strong> 양치할 때 잇몸에서 피가 나거나 잇몸이 붓고, 구내염이 반복되는 경우가 있다.</span><select id="inflammationOral"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>호흡기·알레르기</strong> 비염·축농증·알레르기 증상이 반복적으로 나타난다.</span><select id="inflammationRespiratory"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>피부</strong> 피부의 가려움, 붉어짐, 습진, 두드러기 등 피부 염증 증상이 반복된다.</span><select id="inflammationSkin"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>위장관</strong> 복부팽만, 복통, 설사 또는 묽은 변 등 위장 증상이 반복된다.</span><select id="inflammationGut"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
+                <label><span><strong>감염·회복</strong> 감기에 자주 걸리거나 감염 후 몸 상태가 회복되는 데 오래 걸린다.</span><select id="inflammationInfectionRecovery"><option value="">선택</option><option value="0">거의 없음</option><option value="1">가끔</option><option value="2">자주</option><option value="3">거의 항상</option></select></label>
               </div>
             </fieldset>
 
@@ -679,24 +707,32 @@
               <section class="criteria-group" aria-labelledby="inflammationCriteriaHeading">
                 <h3 id="inflammationCriteriaHeading">만성염증 20점</h3>
                 <div class="criteria-table-wrap">
-                  <table class="criteria-table score-table score-table--inflammation">
-                    <thead><tr><th>hs-CRP (mg/L)</th><th>점수</th><th>표시</th></tr></thead>
+                  <table class="criteria-table score-table">
+                    <thead><tr><th>지표</th><th>구간</th><th>점수</th><th>표시</th></tr></thead>
                     <tbody>
-                      <tr><td>≤0.20</td><td>20</td><td>최적 수준</td></tr>
-                      <tr><td>&gt;0.20~0.30</td><td>18</td><td>낮은 수준</td></tr>
-                      <tr><td>&gt;0.30~0.40</td><td>16</td><td>낮은 수준</td></tr>
-                      <tr><td>&gt;0.40~0.50</td><td>14</td><td>저강도 염증 관찰</td></tr>
-                      <tr><td>&gt;0.50~0.60</td><td>12</td><td>저강도 염증 관리</td></tr>
-                      <tr><td>&gt;0.60~0.80</td><td>10</td><td>저강도 염증 관리</td></tr>
-                      <tr><td>&gt;0.80~1.00</td><td>8</td><td>상승 관찰</td></tr>
-                      <tr><td>&gt;1.00~2.00</td><td>5</td><td>원인 및 지속 여부 확인</td></tr>
+                      <tr><td rowspan="11">hs-CRP (12점)</td><td>≤0.20</td><td>12</td><td>최적 수준</td></tr>
+                      <tr><td>&gt;0.20~0.30</td><td>11</td><td>낮은 수준</td></tr>
+                      <tr><td>&gt;0.30~0.40</td><td>10</td><td>낮은 수준</td></tr>
+                      <tr><td>&gt;0.40~0.50</td><td>9</td><td>저강도 염증 관찰</td></tr>
+                      <tr><td>&gt;0.50~0.60</td><td>8</td><td>저강도 염증 관리</td></tr>
+                      <tr><td>&gt;0.60~0.80</td><td>7</td><td>저강도 염증 관리</td></tr>
+                      <tr><td>&gt;0.80~1.00</td><td>6</td><td>상승 관찰</td></tr>
+                      <tr><td>&gt;1.00~2.00</td><td>4</td><td>원인 및 지속 여부 확인</td></tr>
                       <tr><td>&gt;2.00~3.00</td><td>2</td><td>뚜렷한 상승</td></tr>
                       <tr><td>&gt;3.00~10.00</td><td>0</td><td>재검 및 원인 확인</td></tr>
                       <tr><td>&gt;10.00</td><td>판정 보류</td><td>급성 염증원 확인 후 재검</td></tr>
+                      <tr><td rowspan="4">NLR (8점)</td><td>&lt;1.80</td><td>8</td><td>양호</td></tr>
+                      <tr><td>1.80~2.49</td><td>6</td><td>경계</td></tr>
+                      <tr><td>2.50~3.49</td><td>3</td><td>상승</td></tr>
+                      <tr><td>≥3.50</td><td>0</td><td>높은 상승</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <p class="criteria-footnote">0.20 mg/L 이하는 생활관리용 내부 최적 목표이며 질병 진단 경계값이 아닙니다. 만성염증형은 안정된 상태에서 2주 이상 간격으로 hs-CRP 1.0 mg/L 이상이 반복 확인될 때 활성화합니다.</p>
+                <div class="criteria-note-grid">
+                  <p><strong>증상평가:</strong> 최근 4주간 8개 영역을 0~3점으로 평가합니다. 0~6점은 부담 낮음, 7~11점은 경계, 12점 이상은 염증 관련 증상 부담 높음으로 표시하며 20점 건강점수에는 합산하지 않습니다.</p>
+                  <p><strong>세부유형:</strong> hs-CRP ≥1.0 또는 NLR ≥2.5이면 수치형, 증상점수 ≥12이면 증상형, 두 조건을 모두 충족하면 종합형으로 표시합니다.</p>
+                </div>
+                <p class="criteria-footnote">0.20 mg/L 이하는 생활관리용 내부 최적 목표이며 질병 진단 경계값이 아닙니다. NLR과 증상평가는 단독으로 질병을 진단하지 않으며 다른 검사와 임상 상태를 함께 확인합니다.</p>
               </section>
 
               <section class="criteria-group" aria-labelledby="autonomicCriteriaHeading">
@@ -737,7 +773,7 @@
                       <tr><td>대사균형형</td><td>5개 축이 모두 측정되고 각 축이 15점 이상이며, 복부비만 등급이 A 또는 B</td><td>신체기능저하형과 중요 안전 경고가 없을 때 적용</td></tr>
                       <tr><td>복부비만형</td><td>WHtR ≥0.50: 2점 · 남성 허리 ≥90cm 또는 여성 ≥85cm: 1점 · 내장지방레벨 ≥10: 1점. 위험점수 2점 이상이며 WHtR 계산이 가능하거나 허리둘레와 내장지방이 모두 높으면 활성화</td><td>A=위험 0점 · B=1점 · C=2점 · D=3점 · E=4점. 복부비만 등급은 100점 총점에 합산하지 않음</td></tr>
                       <tr><td>인슐린 저항형</td><td>HbA1c ≥5.7%이면서 TG/HDL-C ≥2.50, 또는 TG/HDL-C ≥3.50이면서 복부비만 C~E등급</td><td>HbA1c나 TG/HDL-C 하나만으로 자동 확정하지 않음</td></tr>
-                      <tr><td>만성염증형</td><td>안정된 상태에서 2주 이상 간격으로 hs-CRP ≥1.0 mg/L이 반복 확인된 경우</td><td>단일 상승은 재검 관찰항목으로 표시하고, &gt;10은 판정 보류</td></tr>
+                      <tr><td>만성염증형</td><td>hs-CRP ≥1.0 mg/L 또는 NLR ≥2.5, 혹은 염증 관련 증상점수 ≥12</td><td>수치형·증상형·종합형으로 구분하며, hs-CRP &gt;10 mg/L이면 급성 원인 확인 후 판정 보류</td></tr>
                       <tr><td>자율신경(스트레스)형</td><td>다음 중 2개 이상: HRV-Index 낮음/매우낮음 · ANS Activity 낮음/매우낮음 · Stress 높음/매우높음 · SNS가 50%에서 6%p 초과 이탈</td><td>혈압과 안정 시 심박수는 참고·안전성 항목</td></tr>
                       <tr><td>신체기능저하형</td><td>객관지표 1개 이상 + 보조지표 2개 이상, 또는 객관지표 2개 이상 + 보조지표 1개 이상</td><td>객관지표: 저체중·비의도적 체중감소·SMI 저하·악력 저하 / 보조지표: 섭취·소화·피로·보행 문제</td></tr>
                       <tr><td>복합대사위험형</td><td>활성 타입이 3개 이상이거나, 강도 3의 뚜렷한 활성 타입이 2개 이상</td><td>동률 여부와 관계없이 여러 활성 타입을 동반타입으로 표시</td></tr>
@@ -904,7 +940,7 @@
                   <div data-type-guide="balanced"><dt>대사균형형</dt><dd>전반적인 균형이 좋은 상태</dd></div>
                   <div data-type-guide="abdominal"><dt>복부비만형</dt><dd>내장지방 감량이 시급한 유형</dd></div>
                   <div data-type-guide="insulin"><dt>인슐린 저항형</dt><dd>혈당 관련 대사 조절이 시급한 유형</dd></div>
-                  <div data-type-guide="inflammation"><dt>만성염증형</dt><dd>hs-CRP 상승이 반복되어 지속적인 염증 관리가 필요한 유형</dd></div>
+                  <div data-type-guide="inflammation"><dt>만성염증형</dt><dd>혈액검사 또는 관련 증상에서 염증 부담 관리가 필요한 유형</dd></div>
                   <div data-type-guide="autonomic"><dt>자율신경(스트레스)형</dt><dd>스트레스 및 자율신경실조가 문제인 유형</dd></div>
                   <div data-type-guide="sarcopenia"><dt>신체기능저하형</dt><dd>영양, 근육 및 활동능력 상태가 저하된 유형</dd></div>
                   <div data-type-guide="complex"><dt>복합대사위험형</dt><dd>여러 대사 문제가 겹쳐 있어 단계적인 관리가 시급한 유형</dd></div>
@@ -1001,7 +1037,7 @@
       </main>
     </div>
 
-    <script src="./app.js?v=63" defer></script>
-    <script src="./tracking.js?v=25" defer></script>
+    <script src="./app.js?v=64" defer></script>
+    <script src="./tracking.js?v=26" defer></script>
   </body>
 </html>
