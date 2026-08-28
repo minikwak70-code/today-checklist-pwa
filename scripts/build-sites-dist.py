@@ -72,7 +72,7 @@ export default {{
         json.dumps(
             {
                 "name": "metabolic-health-report",
-                "version": "4.2.0",
+                "version": "4.7.0",
                 "private": True,
                 "type": "module",
                 "main": "server/index.js",

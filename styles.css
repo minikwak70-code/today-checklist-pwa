@@ -778,45 +778,103 @@ input::placeholder {
   gap: 9px 10px;
 }
 
-.physical-question-grid label {
-  min-height: 48px;
-  line-height: 1.4;
-}
-
 .symptom-question-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-.symptom-question-grid label {
+.symptom-scale {
   min-width: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
-  align-items: center;
-  gap: 12px;
   padding: 11px 12px;
   border: 1px solid #dae4de;
   border-radius: 8px;
   background: #fff;
 }
 
-.symptom-question-grid label > span {
+.symptom-scale > p {
+  min-height: 53px;
+  margin: 0 0 10px;
   color: #46554f;
   font-size: 12px;
   line-height: 1.45;
 }
 
-.symptom-question-grid label > span strong {
+.symptom-scale > p strong {
   display: block;
   margin-bottom: 3px;
   color: var(--green-dark);
   font-size: 12px;
 }
 
-.symptom-question-grid select {
-  width: 100%;
-  min-width: 0;
+.symptom-scale-options {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  align-items: start;
+}
+
+.symptom-scale-options::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  left: 8.333%;
+  right: 8.333%;
+  height: 2px;
+  background: #cbd9d2;
+}
+
+.symptom-scale-option {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.symptom-scale-option input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 2px solid #aabeb4;
+  border-radius: 50%;
+  appearance: none;
+  background: #fff;
+  cursor: pointer;
+}
+
+.symptom-scale-option input:checked {
+  border: 5px solid var(--green);
+  box-shadow: 0 0 0 2px rgba(35, 116, 90, 0.12);
+}
+
+.symptom-scale-option input:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
+}
+
+.symptom-scale-option span {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.symptom-scale-option input:checked + span {
+  color: var(--green-dark);
+}
+
+.symptom-scale-anchors {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 2px;
+  color: #73817b;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .validation-summary {
@@ -1718,6 +1776,62 @@ button:disabled {
   margin: 10px 0 5px;
 }
 
+.metric-info {
+  position: relative;
+  width: 17px;
+  height: 17px;
+  margin-left: 4px;
+  padding: 0;
+  border: 1px solid rgba(35, 116, 90, 0.45);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 15px;
+  vertical-align: 1px;
+  cursor: help;
+}
+
+.metric-info::after {
+  position: absolute;
+  z-index: 20;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: 250px;
+  max-width: min(250px, 70vw);
+  padding: 8px 10px;
+  border-radius: 5px;
+  background: #183f34;
+  color: #fff;
+  content: attr(data-tooltip);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+
+.metric-info:hover::after,
+.metric-info:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.inflammation-axis-card .metric-interpretation {
+  margin-top: 7px;
+  padding: 7px 8px;
+  border-left: 2px solid rgba(35, 116, 90, 0.3);
+  background: #f6faf8;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .inflammation-key-areas {
   display: flex;
   flex-wrap: wrap;
@@ -2230,10 +2344,6 @@ button:disabled {
   .check-grid,
   .symptom-question-grid,
   .axis-cards {
-    grid-template-columns: 1fr;
-  }
-
-  .symptom-question-grid label {
     grid-template-columns: 1fr;
   }
 

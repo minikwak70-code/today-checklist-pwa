@@ -64,8 +64,8 @@ const metricMeta = [
   { key: "tgHdl", label: "TG/HDL-C", unit: "", direction: "down", value: (raw) => raw.tg && raw.hdl ? raw.tg / raw.hdl : null },
   { key: "nonHdl", label: "non-HDL-C", unit: "mg/dL", direction: "down", value: (raw) => raw.totalChol && raw.hdl ? raw.totalChol - raw.hdl : null },
   { key: "hsCrp", label: "hs-CRP", unit: "mg/L", direction: "down", value: (raw) => raw.hsCrp },
-  { key: "nlr", label: "NLR", unit: "", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).nlr },
-  { key: "inflammationSymptoms", label: "염증 관련 증상점수", unit: "점", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).symptomScore },
+  { key: "graLymRatio", label: "GRA/LYM 비율", unit: "", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).graLymRatio },
+  { key: "inflammationSymptoms", label: "염증 관련 증상부담률", unit: "%", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).symptomPercent },
   { key: "visceralFat", label: "내장지방레벨", unit: "", direction: "down", value: (raw) => raw.visceralFat },
   { key: "hrvIndexScore", label: "HRV-Index 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "hrvIndexScore", "autonomic:HRV-Index") },
   { key: "ansActivityScore", label: "ANS Activity 점수", unit: "점", direction: "up", value: (_, assessment) => calculatedValue(assessment, "ansActivityScore", "autonomic:ANS Activity") },
@@ -75,7 +75,7 @@ const metricMeta = [
   { key: "currentWeight", label: "체중", unit: "kg", direction: "context", value: (raw) => raw.currentWeight },
   { key: "skeletalMuscleMass", label: "골격근량", unit: "kg", direction: "up", value: (raw) => raw.skeletalMuscleMass },
   { key: "smi", label: "SMI", unit: "kg/m²", direction: "up", value: (raw) => raw.smi },
-  { key: "gripStrength", label: "악력", unit: "kg", direction: "up", value: (raw) => raw.gripStrength },
+  { key: "representativeGripStrength", label: "대표 악력", unit: "kg", direction: "up", value: (raw, assessment) => gripRecord(assessment).representativeGripStrength },
 ];
 
 const inflammationSymptomMeta = [
@@ -89,12 +89,36 @@ const inflammationSymptomMeta = [
   ["inflammationInfectionRecovery", "감염·회복"],
 ];
 
-function scoreRuleAtLeast(assessment, targetMajor, targetMinor) {
-  const match = String(assessment?.scoreRuleVersion || "").match(/metabolic-score-v(\d+)\.(\d+)/);
+const physicalFunctionScaleMeta = [
+  ["appetiteReduced", "식욕·식사량"],
+  ["earlySatiety", "조기포만"],
+  ["frequentIndigestion", "소화불편"],
+  ["foodAvoidanceDueDiscomfort", "섭취 제한"],
+  ["fatigueActivityReduced", "피로·활동 유지"],
+  ["walkingStairsDifficulty", "걷기·계단"],
+];
+
+function scoreVersionAtLeast(scoreRuleVersion, targetMajor, targetMinor) {
+  const match = String(scoreRuleVersion || "").match(/metabolic-score-v(\d+)\.(\d+)/);
   if (!match) return false;
   const major = Number(match[1]);
   const minor = Number(match[2]);
   return major > targetMajor || (major === targetMajor && minor >= targetMinor);
+}
+
+function symptomsForCurrentEditor(rawValues, scoreRuleVersion) {
+  const values = { ...(rawValues || {}) };
+  if (scoreVersionAtLeast(scoreRuleVersion, 4, 6)) return values;
+  const legacyToCurrent = [0, 2, 3, 5];
+  inflammationSymptomMeta.forEach(([key]) => {
+    const legacyValue = Number(values[key]);
+    if (Number.isInteger(legacyValue) && legacyValue >= 0 && legacyValue <= 3) values[key] = legacyToCurrent[legacyValue];
+  });
+  return values;
+}
+
+function scoreRuleAtLeast(assessment, targetMajor, targetMinor) {
+  return scoreVersionAtLeast(assessment?.scoreRuleVersion, targetMajor, targetMinor);
 }
 
 function usesHealthSubscores(assessment) {
@@ -190,23 +214,34 @@ function typeAComparison(base, compare) {
 
 function inflammationRecord(assessment) {
   const raw = assessment?.rawValues || {};
-  const neutrophil = Number(raw.neutrophil);
-  const lymphocyte = Number(raw.lymphocyte);
-  const directNlr = Number(raw.nlrDirect);
-  const calculatedNlr = calculatedValue(assessment, "nlr");
-  const nlr = calculatedNlr !== null && calculatedNlr !== undefined
-    ? Number(calculatedNlr)
-    : Number.isFinite(neutrophil) && Number.isFinite(lymphocyte) && lymphocyte > 0
-      ? neutrophil / lymphocyte
-      : Number.isFinite(directNlr) && directNlr >= 0
-        ? directNlr
+  const numeric = (value) => value === null || value === undefined || value === "" ? null : Number(value);
+  const storedRatio = calculatedValue(assessment, "graLymRatio") ?? assessment?.reportSnapshot?.inflammation?.graLymRatio;
+  const graPercent = numeric(raw.graPercent);
+  const lymPercent = numeric(raw.lymPercent);
+  const derivedRatio = graPercent !== null && lymPercent !== null && Number.isFinite(graPercent) && Number.isFinite(lymPercent) && graPercent >= 0 && lymPercent > 0
+    ? graPercent / lymPercent
+    : null;
+  const graLymRatio = storedRatio !== null && storedRatio !== undefined ? Number(storedRatio) : derivedRatio;
+  const legacyNeutrophil = numeric(raw.neutrophil);
+  const legacyLymphocyte = numeric(raw.lymphocyte);
+  const legacyDirectNlr = numeric(raw.nlrDirect);
+  const storedLegacyNlr = calculatedValue(assessment, "nlr") ?? assessment?.reportSnapshot?.inflammation?.nlr;
+  const legacyNlr = storedLegacyNlr !== null && storedLegacyNlr !== undefined
+    ? Number(storedLegacyNlr)
+    : legacyNeutrophil !== null && legacyLymphocyte !== null && Number.isFinite(legacyNeutrophil) && Number.isFinite(legacyLymphocyte) && legacyLymphocyte > 0
+      ? legacyNeutrophil / legacyLymphocyte
+      : legacyDirectNlr !== null && Number.isFinite(legacyDirectNlr) && legacyDirectNlr >= 0
+        ? legacyDirectNlr
         : null;
   const answers = inflammationSymptomMeta.map(([key, label]) => ({
     key,
     label,
     value: raw[key] === null || raw[key] === undefined || raw[key] === "" ? null : Number(raw[key]),
   }));
-  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= 3);
+  const usesNewSymptomScale = scoreRuleAtLeast(assessment, 4, 6);
+  const symptomMax = Number(calculatedValue(assessment, "inflammationSymptomMax") ?? assessment?.reportSnapshot?.inflammation?.symptomMax) || (usesNewSymptomScale ? 40 : 24);
+  const itemMax = symptomMax === 40 ? 5 : 3;
+  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= itemMax);
   const storedSymptomScore = calculatedValue(assessment, "inflammationSymptomScore");
   const symptomScore = storedSymptomScore !== null && storedSymptomScore !== undefined
     ? Number(storedSymptomScore)
@@ -215,8 +250,9 @@ function inflammationRecord(assessment) {
       : null;
   const complete = answered.length === answers.length;
   const hsCrp = raw.hsCrp === null || raw.hsCrp === undefined || raw.hsCrp === "" ? null : Number(raw.hsCrp);
-  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1 || nlr !== null && nlr >= 2.5;
-  const symptomHigh = complete && symptomScore >= 12;
+  const historicalRatio = graLymRatio !== null ? graLymRatio : legacyNlr;
+  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1 || historicalRatio !== null && historicalRatio >= 2.5;
+  const symptomHigh = complete && symptomScore >= (symptomMax / 2);
   let derivedSubtype = "해당 없음";
   if (hsCrp !== null && hsCrp > 10) derivedSubtype = "판정 보류";
   else if (objectiveElevated && symptomHigh) derivedSubtype = "만성염증형(종합형)";
@@ -224,11 +260,14 @@ function inflammationRecord(assessment) {
   else if (symptomHigh) derivedSubtype = "만성염증형(증상형)";
   return {
     hsCrp,
-    nlr,
+    graLymRatio,
+    legacyNlr: graLymRatio === null ? legacyNlr : null,
     score: calculatedValue(assessment, "inflammationScore") ?? assessment?.inflammationScore ?? null,
     symptomScore,
+    symptomMax,
+    symptomPercent: symptomScore === null ? null : (symptomScore / symptomMax) * 100,
     answers,
-    keyAreas: answered.filter((item) => item.value >= 2).map((item) => item.label),
+    keyAreas: answered.filter((item) => item.value >= (itemMax === 5 ? 3 : 2)).map((item) => item.label),
     subtype: calculatedValue(assessment, "inflammationSubtype") || assessment?.reportSnapshot?.inflammation?.subtype || derivedSubtype,
   };
 }
@@ -238,26 +277,61 @@ function inflammationComparison(base, compare) {
   const after = inflammationRecord(compare);
   const rows = [
     ["hs-CRP", before.hsCrp, after.hsCrp, "mg/L", 2, false],
-    ["NLR", before.nlr, after.nlr, "", 2, false],
+    ["GRA/LYM 비율", before.graLymRatio, after.graLymRatio, "", 2, false],
+    ["기존 NLR", before.legacyNlr, after.legacyNlr, "", 2, false],
     ["만성염증 건강점수", before.score, after.score, "점", 0, true],
-    ["염증 관련 증상점수", before.symptomScore, after.symptomScore, "/24", 0, false],
+    ["염증 관련 증상점수", before.symptomScore, after.symptomScore, "", 0, false],
   ].filter(([, b, a]) => b !== null && b !== undefined && a !== null && a !== undefined);
   if (!rows.length && before.subtype === "해당 없음" && after.subtype === "해당 없음") return "";
   const rowHtml = rows.map(([label, b, a, unit, digits, higherBetter]) => {
     const improved = higherBetter ? a > b : a < b;
     const same = Math.abs(a - b) < 0.001;
-    return `<tr><td>${label}</td><td>${numberText(b, digits)}${unit ? ` ${unit}` : ""}</td><td>${numberText(a, digits)}${unit ? ` ${unit}` : ""}</td><td>${same ? "유지" : improved ? "개선" : "변화"}</td></tr>`;
+    const beforeText = label === "염증 관련 증상점수" ? `${numberText(b, digits)}/${before.symptomMax}` : `${numberText(b, digits)}${unit ? ` ${unit}` : ""}`;
+    const afterText = label === "염증 관련 증상점수" ? `${numberText(a, digits)}/${after.symptomMax}` : `${numberText(a, digits)}${unit ? ` ${unit}` : ""}`;
+    const changeText = label === "염증 관련 증상점수" && before.symptomMax !== after.symptomMax
+      ? "척도 변경"
+      : same ? "유지" : improved ? "개선" : "변화";
+    return `<tr><td>${label}</td><td>${beforeText}</td><td>${afterText}</td><td>${changeText}</td></tr>`;
   }).join("");
   return `
     <h3>만성염증 평가 변화</h3>
     ${rowHtml ? `<table class="tracking-table compact-table"><thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${rowHtml}</tbody></table>` : ""}
     <p><strong>세부유형:</strong> ${escapeHtml(before.subtype)} → ${escapeHtml(after.subtype)}</p>
-    <p class="comparison-summary">hs-CRP와 NLR, 염증 관련 증상 부담의 변화를 함께 확인했습니다.</p>
+    <p class="comparison-summary">hs-CRP와 GRA/LYM 비율(NLR 참고값), 염증 관련 증상 부담의 변화를 함께 확인했습니다.${before.graLymRatio === null && after.graLymRatio !== null || before.graLymRatio !== null && after.graLymRatio === null ? " CBC 지표 변경 전후의 NLR과 GRA/LYM 비율은 서로 다른 지표이므로 직접 비교하지 않았습니다." : ""}</p>
   `;
+}
+
+function gripRecord(assessment) {
+  const raw = assessment?.rawValues || {};
+  const numeric = (value) => value === null || value === undefined || value === "" || !Number.isFinite(Number(value)) || Number(value) <= 0 ? null : Number(value);
+  const rightGripStrength = numeric(raw.rightGripStrength);
+  const leftGripStrength = numeric(raw.leftGripStrength);
+  const legacyGripStrength = numeric(raw.gripStrength);
+  const bothMeasured = rightGripStrength !== null && leftGripStrength !== null;
+  const derivedRepresentative = rightGripStrength !== null || leftGripStrength !== null
+    ? Math.max(...[rightGripStrength, leftGripStrength].filter((value) => value !== null))
+    : legacyGripStrength;
+  const storedRepresentative = calculatedValue(assessment, "representativeGripStrength") ?? assessment?.reportSnapshot?.physicalFunction?.representativeGripStrength;
+  const representativeGripStrength = numeric(storedRepresentative) ?? derivedRepresentative;
+  const derivedDifferenceKg = bothMeasured ? Math.abs(rightGripStrength - leftGripStrength) : null;
+  const storedDifferenceKg = calculatedValue(assessment, "gripDifferenceKg") ?? assessment?.reportSnapshot?.physicalFunction?.gripDifferenceKg;
+  const gripDifferenceKg = bothMeasured ? (storedDifferenceKg === null || storedDifferenceKg === undefined ? derivedDifferenceKg : Number(storedDifferenceKg)) : null;
+  const derivedDifferencePercent = bothMeasured && representativeGripStrength > 0 ? (derivedDifferenceKg / representativeGripStrength) * 100 : null;
+  const storedDifferencePercent = calculatedValue(assessment, "gripDifferencePercent") ?? assessment?.reportSnapshot?.physicalFunction?.gripDifferencePercent;
+  const gripDifferencePercent = bothMeasured ? (storedDifferencePercent === null || storedDifferencePercent === undefined ? derivedDifferencePercent : Number(storedDifferencePercent)) : null;
+  return {
+    rightGripStrength,
+    leftGripStrength,
+    representativeGripStrength,
+    gripDifferenceKg,
+    gripDifferencePercent,
+    legacyGripStrength: rightGripStrength === null && leftGripStrength === null ? legacyGripStrength : null,
+  };
 }
 
 function physicalFunctionRecord(assessment) {
   const raw = assessment?.rawValues || {};
+  const grip = gripRecord(assessment);
   const sex = raw.sex || tracking.selectedPatient?.sex || "";
   const height = Number(raw.height);
   const weight = Number(raw.currentWeight);
@@ -274,19 +348,35 @@ function physicalFunctionRecord(assessment) {
   );
   const lowBmi = bmi !== null && Number(bmi) < 18.5;
   const weightLossReported = ["있음", "비의도적"].includes(raw.weightLossContext) || (!raw.weightLossContext && raw.weightLossStatus === "있음");
-  const weightLoss = weightLossReported && weightLossRate !== null && Number(weightLossRate) >= 5;
-  const intakeIssue = Boolean(raw.appetiteReduced || raw.mealAmountReduced || raw.difficultyFinishingMeal || raw.lowProteinStatus === "있음");
-  const digestionIssue = Boolean(raw.earlySatiety || raw.frequentIndigestion || raw.postMealDiscomfort || raw.reducedIntakeDueDigestion || raw.recurrentDiarrhea || raw.foodAvoidanceDueDiscomfort);
+  const weightLoss = weightLossReported && (weightLossRate === null || Number(weightLossRate) >= 5);
+  const scaleValue = (key, legacyTriggered = false) => {
+    const value = raw[key];
+    if (value === true) return 5;
+    if (value === false) return 0;
+    if (value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value))) {
+      return Math.max(0, Math.min(5, Math.round(Number(value))));
+    }
+    return legacyTriggered ? 5 : null;
+  };
+  const appetiteReduced = scaleValue("appetiteReduced", raw.mealAmountReduced || raw.difficultyFinishingMeal || raw.lowProteinStatus === "있음");
+  const earlySatiety = scaleValue("earlySatiety");
+  const frequentIndigestion = scaleValue("frequentIndigestion", raw.postMealDiscomfort);
+  const foodAvoidanceDueDiscomfort = scaleValue("foodAvoidanceDueDiscomfort", raw.reducedIntakeDueDigestion || raw.recurrentDiarrhea);
+  const fatigueActivityReduced = scaleValue("fatigueActivityReduced", raw.functionalDeclineStatus === "있음");
+  const walkingStairsDifficulty = scaleValue("walkingStairsDifficulty");
+  const intakeIssue = appetiteReduced !== null && appetiteReduced >= 3;
+  const digestionIssue = [earlySatiety, frequentIndigestion, foodAvoidanceDueDiscomfort].some((value) => value !== null && value >= 3);
   const smiLow = Number.isFinite(Number(raw.smi)) && Number(raw.smi) > 0 && Boolean(sex) && Number(raw.smi) < (sex === "남성" ? 7 : 5.7);
-  const gripLow = Number.isFinite(Number(raw.gripStrength)) && Number(raw.gripStrength) > 0 && Boolean(sex) && Number(raw.gripStrength) < (sex === "남성" ? 28 : 18);
+  const gripLow = grip.representativeGripStrength !== null && Boolean(sex) && grip.representativeGripStrength < (sex === "남성" ? 28 : 18);
   const muscleCount = [smiLow, gripLow].filter(Boolean).length;
-  const fatigueIssue = Boolean(raw.fatigueActivityReduced || raw.functionalDeclineStatus === "있음");
-  const mobilityIssue = Boolean(raw.walkingStairsDifficulty);
-  const riskScore = (lowBmi ? 1 : 0) + (weightLoss ? 1 : 0) + (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0)
+  const fatigueIssue = fatigueActivityReduced !== null && fatigueActivityReduced >= 3;
+  const mobilityIssue = walkingStairsDifficulty !== null && walkingStairsDifficulty >= 3;
+  const riskScore = (weightLoss ? 1 : 0) + (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0)
     + (muscleCount >= 2 ? 2 : muscleCount === 1 ? 1 : 0) + (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0);
   const derivedScore = 20 - (riskScore * 2.5);
-  const hasAnyMetric = [raw.currentWeight, raw.previousWeight, raw.skeletalMuscleMass, raw.smi, raw.gripStrength]
-    .some((value) => value !== null && value !== undefined && value !== "") || intakeIssue || digestionIssue || fatigueIssue || mobilityIssue;
+  const hasAnyMetric = [raw.currentWeight, raw.previousWeight, raw.skeletalMuscleMass, raw.smi, grip.representativeGripStrength,
+    appetiteReduced, earlySatiety, frequentIndigestion, foodAvoidanceDueDiscomfort, fatigueActivityReduced, walkingStairsDifficulty]
+    .some((value) => value !== null && value !== undefined && value !== "");
   const storedScore = calculatedValue(assessment, "physicalFunctionScore");
   const compatibleStoredScore = storedScore === null || storedScore === undefined
     ? null
@@ -298,17 +388,22 @@ function physicalFunctionRecord(assessment) {
     weightLossRate: weightLossRate === null ? null : Number(weightLossRate),
     skeletalMuscleMass: Number.isFinite(Number(raw.skeletalMuscleMass)) && Number(raw.skeletalMuscleMass) > 0 ? Number(raw.skeletalMuscleMass) : null,
     smi: Number.isFinite(Number(raw.smi)) && Number(raw.smi) > 0 ? Number(raw.smi) : null,
-    gripStrength: Number.isFinite(Number(raw.gripStrength)) && Number(raw.gripStrength) > 0 ? Number(raw.gripStrength) : null,
+    rightGripStrength: grip.rightGripStrength,
+    leftGripStrength: grip.leftGripStrength,
+    representativeGripStrength: grip.representativeGripStrength,
+    gripDifferenceKg: grip.gripDifferenceKg,
+    gripDifferencePercent: grip.gripDifferencePercent,
+    appetiteReduced,
+    earlySatiety,
+    frequentIndigestion,
+    foodAvoidanceDueDiscomfort,
+    fatigueActivityReduced,
+    walkingStairsDifficulty,
     intakeIssue,
     digestionIssue,
     fatigueIssue,
     mobilityIssue,
   };
-}
-
-function stateChange(before, after, good, bad) {
-  if (before === after) return "유지";
-  return before && !after ? good : bad;
 }
 
 function physicalFunctionComparison(base, compare) {
@@ -321,7 +416,12 @@ function physicalFunctionComparison(base, compare) {
     { key: "weightLossRate", label: "체중감소율", unit: "%", digits: 1, lowerBetter: true },
     { key: "skeletalMuscleMass", label: "골격근량", unit: "kg", digits: 1, higherBetter: true },
     { key: "smi", label: "SMI", unit: "kg/m²", digits: 2, higherBetter: true },
-    { key: "gripStrength", label: "악력", unit: "kg", digits: 1, higherBetter: true },
+    { key: "rightGripStrength", label: "오른손 악력", unit: "kg", digits: 1, higherBetter: true },
+    { key: "leftGripStrength", label: "왼손 악력", unit: "kg", digits: 1, higherBetter: true },
+    { key: "representativeGripStrength", label: "대표 악력", unit: "kg", digits: 1, higherBetter: true },
+    { key: "gripDifferenceKg", label: "좌우 차이", unit: "kg", digits: 1, lowerBetter: true },
+    { key: "gripDifferencePercent", label: "좌우 차이율", unit: "%", digits: 1, lowerBetter: true },
+    ...physicalFunctionScaleMeta.map(([key, label]) => ({ key, label, unit: "점", digits: 0, lowerBetter: true })),
   ];
   const rows = definitions.filter((item) => before[item.key] !== null && after[item.key] !== null).map((item) => {
     const diff = after[item.key] - before[item.key];
@@ -331,24 +431,18 @@ function physicalFunctionComparison(base, compare) {
     else if (item.higherBetter) change = diff > 0 ? "개선" : "감소";
     return { ...item, before: before[item.key], after: after[item.key], change };
   });
-  const stateRows = [
-    ["식욕·식사량", before.intakeIssue, after.intakeIssue],
-    ["소화증상", before.digestionIssue, after.digestionIssue],
-    ["피로", before.fatigueIssue, after.fatigueIssue],
-    ["걷기·계단", before.mobilityIssue, after.mobilityIssue],
-  ];
-  const hasState = stateRows.some(([, b, a]) => b || a);
-  if (!rows.length && !hasState) return "";
+  if (!rows.length) return "";
   const scoreImproved = before.score !== null && after.score !== null && after.score > before.score;
-  const strengthImproved = before.gripStrength !== null && after.gripStrength !== null && after.gripStrength > before.gripStrength;
-  const performanceImproved = (before.fatigueIssue && !after.fatigueIssue) || (before.mobilityIssue && !after.mobilityIssue);
+  const strengthImproved = before.representativeGripStrength !== null && after.representativeGripStrength !== null && after.representativeGripStrength > before.representativeGripStrength;
+  const performanceImproved = ["fatigueActivityReduced", "walkingStairsDifficulty"].some((key) => (
+    before[key] !== null && after[key] !== null && after[key] < before[key]
+  ));
   const summary = scoreImproved && (strengthImproved || performanceImproved)
     ? "영양섭취와 체력 상태가 개선되었으며 근력과 신체수행능력도 회복되는 방향을 보이고 있습니다."
     : "체중, 영양 섭취, 근육과 일상적인 신체기능의 변화를 함께 확인했습니다.";
   return `
     <h3>신체기능저하 평가 변화</h3>
     ${rows.length ? `<table class="tracking-table compact-table"><thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${rows.map((row) => `<tr><td>${row.label}</td><td>${numberText(row.before, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${numberText(row.after, row.digits)}${row.unit ? ` ${row.unit}` : ""}</td><td>${row.change}</td></tr>`).join("")}</tbody></table>` : ""}
-    <table class="tracking-table compact-table physical-state-table"><thead><tr><th>상태</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${stateRows.map(([label, b, a]) => `<tr><td>${label}</td><td>${b ? "문제 있음" : "없음"}</td><td>${a ? "문제 있음" : "없음"}</td><td>${stateChange(b, a, "개선", "확인 필요")}</td></tr>`).join("")}</tbody></table>
     <p class="comparison-summary">${summary}</p>
   `;
 }
@@ -539,21 +633,10 @@ function resetReportForPatient(patient, values = {}) {
   window.metabolicReportApp?.setValues(reportValues);
 }
 
-function latestStoredWeight() {
-  const assessment = latestAssessment();
-  if (!assessment?.assessmentDate) return "";
-  const measuredAt = new Date(`${assessment.assessmentDate}T00:00:00`);
-  const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - 6);
-  if (!Number.isFinite(measuredAt.getTime()) || measuredAt < cutoff) return "";
-  const value = Number(assessment.rawValues?.currentWeight);
-  return Number.isFinite(value) && value > 0 ? value : "";
-}
-
 function startNewAssessment() {
   if (!tracking.selectedPatient) return;
-  resetReportForPatient(tracking.selectedPatient, { previousWeight: latestStoredWeight() });
-  setBanner("새 검사 입력을 시작합니다. 최근 저장 체중이 있으면 평소 체중에 반영했습니다.", "ok");
+  resetReportForPatient(tracking.selectedPatient);
+  setBanner("새 검사 입력을 시작합니다.", "ok");
 }
 
 function showSelectedPatient(patient) {
@@ -836,8 +919,12 @@ async function saveAssessment() {
 function openAssessment(assessmentId) {
   const assessment = tracking.assessments.find((item) => item.id === assessmentId);
   if (!assessment || !tracking.selectedPatient) return;
+  const rawValues = symptomsForCurrentEditor(assessment.rawValues, assessment.scoreRuleVersion);
   window.metabolicReportApp.setValues({
-    ...assessment.rawValues,
+    ...rawValues,
+    rightGripStrength: rawValues.rightGripStrength ?? "",
+    leftGripStrength: rawValues.leftGripStrength ?? "",
+    gripStrength: rawValues.gripStrength ?? "",
     ...patientReportValues(tracking.selectedPatient, assessment.assessmentDate),
     assessmentStage: assessment.assessmentStage || "",
     clinicianNote: assessment.clinicianNote || "",

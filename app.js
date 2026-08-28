@@ -1,5 +1,5 @@
 const AXIS_MAX = 20;
-const SCORE_RULE_VERSION = "metabolic-score-v4.3";
+const SCORE_RULE_VERSION = "metabolic-score-v4.7";
 const DEFAULT_ULN = {
   alt: 40,
   ggt: 60,
@@ -26,7 +26,7 @@ const AXIS_SHORT_COMMENTS = {
   glucose: "혈당 상태와 인슐린 저항성 관련 패턴",
   lipid: "중성지방과 죽상경화성 지단백 상태",
   liver: "ALT와 GGT로 확인한 간대사 상태",
-  inflammation: "hs-CRP와 NLR로 확인한 염증 관련 수치 상태",
+  inflammation: "hs-CRP와 GRA/LYM 비율로 확인한 염증 관련 수치 상태",
   autonomic: "HRV와 신체적 스트레스 반응",
 };
 
@@ -74,13 +74,13 @@ const TREATMENT_FOCUS_FIELDS = [
   ["focusPlantFat", "식물성 지질 섭취"],
 ];
 
-const PHYSICAL_FUNCTION_CHECKBOX_FIELDS = [
-  "appetiteReduced",
-  "earlySatiety",
-  "frequentIndigestion",
-  "foodAvoidanceDueDiscomfort",
-  "fatigueActivityReduced",
-  "walkingStairsDifficulty",
+const PHYSICAL_FUNCTION_SCALE_FIELDS = [
+  ["appetiteReduced", "식욕·식사량 감소"],
+  ["earlySatiety", "조기포만"],
+  ["frequentIndigestion", "소화불편"],
+  ["foodAvoidanceDueDiscomfort", "섭취 제한"],
+  ["fatigueActivityReduced", "피로·활동 유지 어려움"],
+  ["walkingStairsDifficulty", "걷기·계단 이용 어려움"],
 ];
 
 const INFLAMMATION_SYMPTOM_FIELDS = [
@@ -92,6 +92,11 @@ const INFLAMMATION_SYMPTOM_FIELDS = [
   ["inflammationSkin", "피부"],
   ["inflammationGut", "위장관"],
   ["inflammationInfectionRecovery", "감염·회복"],
+];
+
+const LINEAR_SCALE_FIELDS = [
+  ...INFLAMMATION_SYMPTOM_FIELDS,
+  ...PHYSICAL_FUNCTION_SCALE_FIELDS,
 ];
 
 let treatmentPlanUserEdited = false;
@@ -131,9 +136,9 @@ const elements = {
   manualSecondaryType: document.querySelector("#manualSecondaryType"),
   tgHdlCalc: document.querySelector("#tgHdlCalc"),
   nonHdlCalc: document.querySelector("#nonHdlCalc"),
-  nlrCalc: document.querySelector("#nlrCalc"),
+  graLymCalc: document.querySelector("#graLymCalc"),
   whtrCalc: document.querySelector("#whtrCalc"),
-  physicalFunctionCalc: document.querySelector("#physicalFunctionCalc"),
+  gripStrengthCalc: document.querySelector("#gripStrengthCalc"),
   physicalFunctionReport: document.querySelector("#physicalFunctionReport"),
   physicalFunctionBody: document.querySelector("#physicalFunctionBody"),
   generateTreatmentPlanButton: document.querySelector("#generateTreatmentPlanButton"),
@@ -160,9 +165,8 @@ const numberFields = new Set([
   "tbil",
   "tbilUln",
   "hsCrp",
-  "neutrophil",
-  "lymphocyte",
-  "nlrDirect",
+  "graPercent",
+  "lymPercent",
   "visceralFat",
   "sbp",
   "dbp",
@@ -183,13 +187,14 @@ const numberFields = new Set([
   "previousWeight",
   "skeletalMuscleMass",
   "smi",
+  "rightGripStrength",
+  "leftGripStrength",
   "gripStrength",
-  ...INFLAMMATION_SYMPTOM_FIELDS.map(([id]) => id),
+  ...LINEAR_SCALE_FIELDS.map(([id]) => id),
 ]);
 
 const checkboxFields = new Set([
   ...TREATMENT_FOCUS_FIELDS.map(([id]) => id),
-  ...PHYSICAL_FUNCTION_CHECKBOX_FIELDS,
 ]);
 
 const allFields = [
@@ -217,7 +222,15 @@ function field(id) {
   return document.querySelector(`#${id}`);
 }
 
+function linearScaleInputs(id) {
+  return [...document.querySelectorAll(`input[name="${id}"]`)];
+}
+
 function readValue(id) {
+  if (LINEAR_SCALE_FIELDS.some(([fieldId]) => fieldId === id)) {
+    const selected = linearScaleInputs(id).find((input) => input.checked);
+    return selected ? Number(selected.value) : null;
+  }
   const input = field(id);
   if (!input) return null;
   if (checkboxFields.has(id)) return input.checked;
@@ -226,6 +239,27 @@ function readValue(id) {
     return input.value !== "" && Number.isFinite(value) ? value : null;
   }
   return input.value.trim();
+}
+
+function setupLinearScales() {
+  document.querySelectorAll("[data-symptom-scale], [data-physical-scale]").forEach((container) => {
+    const id = container.dataset.symptomScale || container.dataset.physicalScale;
+    const title = LINEAR_SCALE_FIELDS.find(([fieldId]) => fieldId === id)?.[1] || "증상";
+    const options = document.createElement("div");
+    options.className = "symptom-scale-options";
+    options.setAttribute("role", "radiogroup");
+    options.setAttribute("aria-label", `${title} 정도`);
+    options.innerHTML = Array.from({ length: 6 }, (_, value) => `
+      <label class="symptom-scale-option">
+        <input type="radio" name="${id}" value="${value}" aria-label="${value}점" />
+        <span>${value}</span>
+      </label>
+    `).join("");
+    const anchors = document.createElement("div");
+    anchors.className = "symptom-scale-anchors";
+    anchors.innerHTML = "<span>전혀 아니다</span><span>매우 그렇다</span>";
+    container.append(options, anchors);
+  });
 }
 
 function readForm() {
@@ -303,12 +337,43 @@ function assessSmi(data) {
   return { status: "normal", label: "근육량 기준 이상", valueText: `SMI ${formatDecimal(value)} kg/m²`, low: false, borderline: false, normal: true };
 }
 
+function calculateGripMetrics(data) {
+  const validGrip = (value) => present(value) && Number.isFinite(Number(value)) && Number(value) > 0;
+  const right = validGrip(data.rightGripStrength) ? Number(data.rightGripStrength) : null;
+  const left = validGrip(data.leftGripStrength) ? Number(data.leftGripStrength) : null;
+  const legacy = validGrip(data.gripStrength) ? Number(data.gripStrength) : null;
+  if (right === null && left === null) {
+    return {
+      right,
+      left,
+      representative: legacy,
+      differenceKg: null,
+      differencePercent: null,
+      measurementStatus: legacy === null ? "unmeasured" : "legacy",
+      asymmetryObserved: false,
+    };
+  }
+  const representative = Math.max(...[right, left].filter((value) => value !== null));
+  const bothMeasured = right !== null && left !== null;
+  const differenceKg = bothMeasured ? Math.abs(right - left) : null;
+  const differencePercent = bothMeasured && representative > 0 ? (differenceKg / representative) * 100 : null;
+  return {
+    right,
+    left,
+    representative,
+    differenceKg,
+    differencePercent,
+    measurementStatus: bothMeasured ? "both" : right !== null ? "right-only" : "left-only",
+    asymmetryObserved: present(differencePercent) && differencePercent >= 20,
+  };
+}
+
 function assessGrip(data) {
-  if (!present(data.gripStrength)) return { label: "미측정", low: false, normal: false };
-  if (data.gripStrength <= 0) return { label: "입력 오류", low: false, normal: false };
-  if (!data.sex) return { label: "성별 확인 필요", low: false, normal: false };
-  const low = data.gripStrength < (data.sex === "남성" ? 28 : 18);
-  return { label: low ? "근력 저하 기준 해당" : "정상범위", low, normal: !low };
+  const metrics = calculateGripMetrics(data);
+  if (!present(metrics.representative)) return { ...metrics, label: "미측정", low: false, normal: false };
+  if (!data.sex) return { ...metrics, label: "성별 확인 필요", low: false, normal: false };
+  const low = metrics.representative < (data.sex === "남성" ? 28 : 18);
+  return { ...metrics, label: low ? "근력 저하 기준 해당" : "정상범위", low, normal: !low };
 }
 
 function assessPhysicalFunction(data) {
@@ -321,8 +386,8 @@ function assessPhysicalFunction(data) {
     : weightValid && previousWeightValid ? 0 : null;
   const lowBmi = present(bmi) && bmi < 18.5;
   const weightLossReported = ["있음", "비의도적"].includes(data.weightLossContext);
-  const unintentionalWeightLoss = weightLossReported && present(weightLossRate) && weightLossRate >= 5;
-  const suspectedWeightLoss = weightLossReported && !unintentionalWeightLoss;
+  const unintentionalWeightLoss = weightLossReported && (!present(weightLossRate) || weightLossRate >= 5);
+  const suspectedWeightLoss = false;
 
   const intakeFields = ["appetiteReduced"];
   const digestionFields = [
@@ -330,18 +395,19 @@ function assessPhysicalFunction(data) {
     "frequentIndigestion",
     "foodAvoidanceDueDiscomfort",
   ];
-  const intakeIssue = intakeFields.some((id) => Boolean(data[id]));
-  const digestionIssue = digestionFields.some((id) => Boolean(data[id]));
+  const scaleIssue = (id) => present(data[id]) && Number(data[id]) >= 3;
+  const intakeIssue = intakeFields.some(scaleIssue);
+  const digestionIssue = digestionFields.some(scaleIssue);
 
   const smi = assessSmi(data);
   const grip = assessGrip(data);
   const abnormalMuscleCount = [smi.low, grip.low].filter(Boolean).length;
   const muscleScore = abnormalMuscleCount >= 2 ? 2 : abnormalMuscleCount === 1 ? 1 : 0;
-  const fatigueIssue = Boolean(data.fatigueActivityReduced);
-  const mobilityIssue = Boolean(data.walkingStairsDifficulty);
+  const fatigueIssue = scaleIssue("fatigueActivityReduced");
+  const mobilityIssue = scaleIssue("walkingStairsDifficulty");
 
   const domainRiskScores = {
-    weight: (lowBmi ? 1 : 0) + (unintentionalWeightLoss ? 1 : 0),
+    weight: unintentionalWeightLoss ? 1 : 0,
     intake: (intakeIssue ? 1 : 0) + (digestionIssue ? 1 : 0),
     muscle: muscleScore,
     function: (fatigueIssue ? 1 : 0) + (mobilityIssue ? 1 : 0),
@@ -359,7 +425,6 @@ function assessPhysicalFunction(data) {
         ? "신체기능저하형"
         : "뚜렷한 신체기능저하형";
   const tags = [
-    lowBmi ? "저체중" : "",
     unintentionalWeightLoss ? "최근 체중감소" : "",
     suspectedWeightLoss ? "최근 체중감소 의심" : "",
     intakeIssue ? "섭취부족" : "",
@@ -371,13 +436,12 @@ function assessPhysicalFunction(data) {
     abnormalMuscleCount === 2 ? "뚜렷한 근육·근력 저하" : "",
   ].filter(Boolean);
   const hasAnyMetric = [
-    bmi,
     weightLossRate,
     data.smi,
-    data.gripStrength,
+    grip.representative,
     data.skeletalMuscleMass,
-  ].some(present) || present(data.weightLossContext) || [...intakeFields, ...digestionFields, "fatigueActivityReduced", "walkingStairsDifficulty"].some((id) => Boolean(data[id]));
-  const objectiveCount = [lowBmi, unintentionalWeightLoss, smi.low, grip.low].filter(Boolean).length;
+  ].some(present) || present(data.weightLossContext) || [...intakeFields, ...digestionFields, "fatigueActivityReduced", "walkingStairsDifficulty"].some((id) => present(data[id]));
+  const objectiveCount = [unintentionalWeightLoss, smi.low, grip.low].filter(Boolean).length;
   const supportCount = [intakeIssue, digestionIssue, fatigueIssue, mobilityIssue].filter(Boolean).length;
 
   return {
@@ -513,18 +577,19 @@ function scoreHsCrp(value) {
   ]);
 }
 
-function calculateNlr(data) {
-  const neutrophil = Number(data.neutrophil);
-  const lymphocyte = Number(data.lymphocyte);
-  if (present(data.neutrophil) && present(data.lymphocyte) && neutrophil >= 0 && lymphocyte > 0) {
-    return { value: neutrophil / lymphocyte, source: "auto" };
+function calculateGraLymRatio(data) {
+  if (present(data.graPercent) && present(data.lymPercent)) {
+    const gra = Number(data.graPercent);
+    const lym = Number(data.lymPercent);
+    if (Number.isFinite(gra) && Number.isFinite(lym) && gra >= 0 && lym > 0) {
+      return { value: gra / lym, source: "percent", sourceLabel: "%", reason: "" };
+    }
   }
-  const direct = Number(data.nlrDirect);
-  if (present(data.nlrDirect) && direct >= 0) return { value: direct, source: "direct" };
-  return { value: null, source: "" };
+  const hasZeroLym = present(data.lymPercent) && Number(data.lymPercent) === 0;
+  return { value: null, source: "", sourceLabel: "", reason: hasZeroLym ? "lym-zero" : "missing" };
 }
 
-function scoreNlr(value) {
+function scoreGraLymRatio(value) {
   return scoreByRanges(value, 8, [
     { test: (v) => v < 1.8, score: 8, label: "양호" },
     { test: (v) => v < 2.5, score: 6, label: "경계" },
@@ -533,57 +598,67 @@ function scoreNlr(value) {
   ]);
 }
 
+function graLymPatientComment(result) {
+  if (!result || result.missing) return "";
+  return {
+    "양호": "백혈구 감별 비율에서 뚜렷한 염증성 변화는 관찰되지 않습니다.",
+    "경계": "백혈구 감별 비율이 경계 수준입니다. 다른 염증 지표와 함께 평가합니다.",
+    "상승": "백혈구 감별 비율이 증가되어 있습니다. 만성적인 염증 부담뿐 아니라 감염, 스트레스, 과로, 수면 부족 등의 영향을 받을 수 있어 다른 검사와 함께 평가합니다.",
+    "높은 상승": "백혈구 감별 비율이 높습니다. 급성 감염, 알레르기, 스트레스 등 일시적인 원인도 영향을 줄 수 있으므로 현재 상태를 함께 확인해야 합니다.",
+  }[result.label] || "";
+}
+
 function assessInflammationSymptoms(data) {
   const answers = INFLAMMATION_SYMPTOM_FIELDS.map(([id, label]) => ({
     id,
     label,
     value: present(data[id]) ? Number(data[id]) : null,
   }));
-  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= 3);
+  const answered = answers.filter((item) => Number.isInteger(item.value) && item.value >= 0 && item.value <= 5);
   const score = answered.reduce((sum, item) => sum + item.value, 0);
   const complete = answered.length === answers.length;
   const burden = !answered.length
     ? "평가 대기"
     : !complete
       ? "문진 미완료"
-      : score <= 6
+      : score <= 10
         ? "증상 부담 낮음"
-        : score <= 11
+        : score <= 19
           ? "증상 부담 경계"
           : "염증 관련 증상 부담 높음";
   return {
     answers,
     answeredCount: answered.length,
     score,
-    max: 24,
+    max: 40,
     complete,
     burden,
-    high: complete && score >= 12,
-    keyAreas: answered.filter((item) => item.value >= 2).map((item) => item.label),
+    high: complete && score >= 20,
+    keyAreas: answered.filter((item) => item.value >= 3).map((item) => item.label),
   };
 }
 
-function assessInflammation(data, hsCrp, nlr) {
-  const nlrValue = calculateNlr(data).value;
+function assessInflammation(data, hsCrp, graLym) {
+  const graLymRatio = calculateGraLymRatio(data).value;
   const symptoms = assessInflammationSymptoms(data);
   const holdResult = present(data.hsCrp) && data.hsCrp > 10;
   const objectiveElevated = !holdResult && (
     (present(data.hsCrp) && data.hsCrp >= 1) ||
-    (present(nlrValue) && nlrValue >= 2.5)
+    (present(graLymRatio) && graLymRatio >= 2.5)
   );
   const borderline = !objectiveElevated && !holdResult && (
     (present(data.hsCrp) && data.hsCrp >= 0.6 && data.hsCrp < 1) ||
-    (present(nlrValue) && nlrValue >= 1.8 && nlrValue < 2.5)
+    (present(graLymRatio) && graLymRatio >= 1.8 && graLymRatio < 2.5)
   );
   let subtype = "해당 없음";
   if (holdResult) subtype = "판정 보류";
   else if (objectiveElevated && symptoms.high) subtype = "만성염증형(종합형)";
   else if (objectiveElevated) subtype = "만성염증형(수치형)";
   else if (symptoms.high) subtype = "만성염증형(증상형)";
-  const numericScore = [hsCrp, nlr]
+  const numericScore = [hsCrp, graLym]
     .filter((result) => result && !result.missing && !result.hold)
     .reduce((sum, result) => sum + result.score, 0);
-  return { nlrValue, symptoms, hold: holdResult, objectiveElevated, borderline, subtype, score: numericScore };
+  return { graLymRatio, symptoms, hold: holdResult, objectiveElevated, borderline, subtype, score: numericScore };
 }
 
 function scoreVisceralFat(value) {
@@ -827,9 +902,9 @@ function makeResults(data) {
   const waist = assessWaist(data.sex, data.waist);
   const typeA = assessTypeA(data);
   const hsCrp = scoreHsCrp(data.hsCrp);
-  const nlrCalculation = calculateNlr(data);
-  const nlr = scoreNlr(nlrCalculation.value);
-  const inflammation = assessInflammation(data, hsCrp, nlr);
+  const graLymCalculation = calculateGraLymRatio(data);
+  const graLym = scoreGraLymRatio(graLymCalculation.value);
+  const inflammation = assessInflammation(data, hsCrp, graLym);
   const visceralFat = scoreVisceralFat(data.visceralFat);
   const restingHrValue = present(data.restingHr) ? data.restingHr : data.heartRate;
   const restingHr = assessRestingHr(restingHrValue);
@@ -883,10 +958,10 @@ function makeResults(data) {
       "만성염증",
       [
         { label: "hs-CRP", result: hsCrp, value: present(data.hsCrp) ? `${data.hsCrp} mg/L` : null },
-        { label: "NLR", result: nlr, value: present(nlrCalculation.value) ? nlrCalculation.value.toFixed(2) : null },
+        { label: "GRA/LYM ratio (NLR 참고값)", result: graLym, value: present(graLymCalculation.value) ? graLymCalculation.value.toFixed(2) : null },
       ],
-      "hs-CRP와 NLR로 염증 관련 수치 변화를 평가합니다.",
-      !present(data.hsCrp) && !present(nlrCalculation.value),
+      "hs-CRP와 GRA/LYM ratio(NLR 참고값)로 염증 관련 수치 변화를 평가합니다.",
+      !present(data.hsCrp) && !present(graLymCalculation.value),
       hsCrp.hold,
     ),
     makeAxis(
@@ -926,7 +1001,7 @@ function makeResults(data) {
   const inflammationAxis = axes.find((axis) => axis.key === "inflammation");
   if (inflammationAxis) inflammationAxis.inflammation = inflammation;
 
-  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, typeA, hsCrp, nlr, inflammation, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
+  return { axes, total, max, parts: { hba1c, tgHdl, tg, nonHdl, alt, ggt, tbil, ast, alp, waist, typeA, hsCrp, graLym, inflammation, visceralFat, restingHr, bloodPressure, hrvIndex, ansActivity, stress, snsPnsBalance }, hrvLimited };
 }
 
 function validateInputs(data) {
@@ -946,7 +1021,9 @@ function validateInputs(data) {
   if (present(data.smi) && data.smi <= 0) addError("smi", "SMI는 0보다 큰 kg/m² 값을 입력해야 합니다.");
   if (present(data.currentWeight) && data.currentWeight <= 0) addError("currentWeight", "현재 체중은 0보다 커야 합니다.");
   if (present(data.previousWeight) && data.previousWeight <= 0) addError("previousWeight", "평소 체중은 0보다 커야 합니다.");
-  if (present(data.gripStrength) && data.gripStrength <= 0) addError("gripStrength", "악력은 0보다 커야 합니다.");
+  for (const id of ["rightGripStrength", "leftGripStrength"]) {
+    if (present(data[id]) && data[id] <= 0) addError(id, "악력은 0보다 커야 합니다.");
+  }
   if (present(data.height) && (data.height < 100 || data.height > 220)) addError("height", "키는 100~220cm 범위로 입력해 주세요.");
   if (present(data.waist) && (data.waist < 40 || data.waist > 200)) addError("waist", "허리둘레는 40~200cm 범위로 입력해 주세요.");
   if (present(data.visceralFat) && (data.visceralFat < 1 || data.visceralFat > 20)) addError("visceralFat", "내장지방레벨은 1~20 범위로 입력해 주세요.");
@@ -962,13 +1039,14 @@ function validateInputs(data) {
     if (data.ldl > nonHdl + 5) addWarning("ldl", "LDL-C가 non-HDL-C보다 높습니다. 입력값 또는 단위를 확인해 주세요.");
   }
   if (present(data.smi) && (data.smi < 2 || data.smi > 15)) addWarning("smi", "SMI 입력값과 단위를 확인해 주세요. 인바디 결과지의 kg/m² 값을 입력해야 합니다.");
-  if (present(data.lymphocyte) && data.lymphocyte <= 0) addError("lymphocyte", "Lymphocyte는 0보다 커야 NLR을 계산할 수 있습니다.");
-  if (present(data.neutrophil) && present(data.lymphocyte) && ((data.neutrophil > 100) !== (data.lymphocyte > 100))) {
-    addWarning("lymphocyte", "Neutrophil과 Lymphocyte는 같은 단위(% 또는 절대수)로 입력해 주세요.");
+  for (const id of ["graPercent", "lymPercent"]) {
+    if (present(data[id]) && data[id] > 100) addError(id, "백분율은 0~100 범위로 입력해 주세요.");
   }
-  if (present(data.nlrDirect) && data.nlrDirect > 50) addWarning("nlrDirect", "NLR 직접 입력값과 단위를 확인해 주세요.");
   for (const [id] of INFLAMMATION_SYMPTOM_FIELDS) {
-    if (present(data[id]) && (!Number.isInteger(data[id]) || data[id] < 0 || data[id] > 3)) addError(id, "증상 빈도는 0~3 중에서 선택해 주세요.");
+    if (present(data[id]) && (!Number.isInteger(data[id]) || data[id] < 0 || data[id] > 5)) addError(id, "증상 정도는 0~5 중에서 선택해 주세요.");
+  }
+  for (const [id] of PHYSICAL_FUNCTION_SCALE_FIELDS) {
+    if (present(data[id]) && (!Number.isInteger(data[id]) || data[id] < 0 || data[id] > 5)) addError(id, "신체기능 상태는 0~5 중에서 선택해 주세요.");
   }
   if (present(data.tbil) && data.tbil > 20) addWarning("tbil", "TBIL 값이 매우 큽니다. 단위를 확인하세요.");
   if (present(data.sbp) && (data.sbp < 60 || data.sbp > 260)) addWarning("sbp", "수축기혈압 단위를 확인하세요.");
@@ -994,9 +1072,6 @@ function makeRiskFlags(data, results, validation) {
     ].filter(Boolean).join(", ");
     add("caution", "낮은 지질수치", lowLipidValues, "복약, 갑상선 기능, 흡수 및 영양 상태 등과 함께 원인을 확인할 필요가 있습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
   }
-  if (present(data.fastingGlucose) && data.fastingGlucose < 70) {
-    add("caution", "낮은 공복혈당", `${data.fastingGlucose} mg/dL`, "저혈당 증상과 채혈 조건을 확인하고 필요하면 반복 측정하는 것이 좋습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
-  }
   if ((present(data.sbp) && data.sbp < 90) || (present(data.dbp) && data.dbp < 60)) {
     add("caution", "낮은 혈압", `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`, "어지럼, 실신, 기립 시 불편감이 동반되는지 확인하고 반복 측정하는 것이 좋습니다. 이 항목은 대사축 점수를 감점하지 않습니다.");
   }
@@ -1010,8 +1085,8 @@ function makeRiskFlags(data, results, validation) {
   }
   if (results.parts.tbil?.ratio > 1 && liverAbnormal) add("warning", "총빌리루빈", `${data.tbil} mg/dL`, "간수치 이상이 동반되어 추가 평가가 필요합니다.");
   if (data.hsCrp > 10) add("warning", "hs-CRP", `${data.hsCrp} mg/L`, "10 mg/L를 초과해 급성 염증 가능성이 있습니다. 만성염증축 판정을 보류하고 급성 원인 확인 후 재검을 권고합니다.");
-  const nlrValue = results.parts.inflammation?.nlrValue;
-  if (present(nlrValue) && nlrValue >= 3.5) add("caution", "NLR", nlrValue.toFixed(2), "NLR이 높습니다. 만성적인 염증 부담뿐 아니라 감염, 과로, 스트레스, 수면 부족 등의 일시적인 영향도 받을 수 있으므로 다른 검사 결과와 함께 평가합니다.");
+  const graLymRatio = results.parts.inflammation?.graLymRatio;
+  if (present(graLymRatio) && graLymRatio >= 3.5) add("caution", "GRA/LYM 비율", graLymRatio.toFixed(2), "백혈구 감별 비율이 높습니다. 급성 감염, 알레르기, 스트레스 등 일시적인 원인도 영향을 줄 수 있으므로 현재 상태를 함께 확인해야 합니다.");
   if (data.sbp >= 180 || data.dbp >= 120) add("warning", "혈압", `${data.sbp || "-"}/${data.dbp || "-"} mmHg`, "안정 후 즉시 다시 측정하고 진료 상담이 필요합니다. 흉통, 호흡곤란, 신경학적 증상이 있으면 응급평가가 우선입니다.");
   if (results.hrvLimited) add("warning", "HRV-Index", "판독 제한", "HRV 판독 제한 조건이 있어 자율신경(스트레스) 축 판정을 보류합니다.");
   return flags;
@@ -1036,7 +1111,7 @@ function scoreTypes(data, results) {
   const visceralHigh = data.visceralFat >= 10;
   const typeA = results.parts.typeA || assessTypeA(data);
   const physical = assessPhysicalFunction(data);
-  const inflammation = results.parts.inflammation || assessInflammation(data, results.parts.hsCrp, results.parts.nlr);
+  const inflammation = results.parts.inflammation || assessInflammation(data, results.parts.hsCrp, results.parts.graLym);
   const hba1cHigh = data.hba1c >= 5.7;
   const tgHdlHigh = results.parts.tgHdl?.ratio >= 3.5;
   const tgHdlModerate = results.parts.tgHdl?.ratio >= 2.5;
@@ -1109,7 +1184,7 @@ function scoreTypes(data, results) {
     if (inflammation.objectiveElevated) tags.push("염증 관련 수치 상승");
     if (inflammation.symptoms.high) tags.push("염증 관련 증상 부담 높음");
     if (inflammation.subtype !== "해당 없음") {
-      const severeLab = data.hsCrp > 3 || inflammation.nlrValue >= 3.5;
+      const severeLab = data.hsCrp > 3 || inflammation.graLymRatio >= 3.5;
       const strength = severeLab ? 3 : inflammation.subtype.includes("종합형") ? 2 : 1;
       const inflammationAxis = results.axes.find((axis) => axis.key === "inflammation");
       addCandidate("C", `C. ${inflammation.subtype}`, strength, [inflammation.objectiveElevated, inflammation.symptoms.high], inflammationAxis?.score ?? 20);
@@ -1266,32 +1341,26 @@ function normalizedAxisScore(axis) {
   return (axis.score / axis.max) * AXIS_MAX;
 }
 
-function parseDurationMonths(value) {
+const TREATMENT_DURATION_OPTIONS = ["1개월", "3개월", "6개월", "6개월 이상"];
+
+function normalizeTreatmentDuration(value) {
   const text = String(value || "").trim();
-  if (!text) return null;
-  const range = text.match(/^(\d+(?:\.\d+)?)\s*~\s*(\d+(?:\.\d+)?)개월$/);
-  if (range) return { min: Number(range[1]), max: Number(range[2]) };
-  const single = text.match(/^(\d+(?:\.\d+)?)개월$/);
-  if (single) return { min: Number(single[1]), max: Number(single[1]) };
-  return null;
+  if (!text) return "";
+  if (TREATMENT_DURATION_OPTIONS.includes(text)) return text;
+  if (["2개월", "2~3개월"].includes(text)) return "3개월";
+  if (["4개월", "4~6개월"].includes(text)) return "6개월";
+  if (text === "직접 상담 후 결정") return "6개월 이상";
+  return "";
 }
 
-function formatMonthRange(range) {
-  if (!range) return "직접 상담 후 결정";
-  const min = Number(range.min.toFixed(1)).toString();
-  const max = Number(range.max.toFixed(1)).toString();
-  return range.min === range.max ? `${min}개월` : `${min}~${max}개월`;
-}
-
-function sumTreatmentDurations(durations) {
-  const activeDurations = durations.filter(Boolean);
-  if (!activeDurations.length) return "";
-  const ranges = activeDurations.map(parseDurationMonths);
-  if (ranges.some((range) => !range)) return "직접 상담 후 결정";
-  return formatMonthRange(ranges.reduce((sum, range) => ({
-    min: sum.min + range.min,
-    max: sum.max + range.max,
-  }), { min: 0, max: 0 }));
+function maxTreatmentDuration(durations) {
+  const normalized = durations.map(normalizeTreatmentDuration).filter(Boolean);
+  if (!normalized.length) return "";
+  return normalized.reduce((longest, duration) => (
+    TREATMENT_DURATION_OPTIONS.indexOf(duration) > TREATMENT_DURATION_OPTIONS.indexOf(longest)
+      ? duration
+      : longest
+  ));
 }
 
 function focusLabelsFromData(data) {
@@ -1441,10 +1510,10 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
   let duration = "3개월";
   let durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
   if (primaryName.includes("복합대사위험") || (results.max && results.total < 55) || severeAxisCount >= 2) {
-    duration = "4~6개월";
+    duration = "6개월";
     durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
   } else if (results.total >= 70 && severeAxisCount === 0) {
-    duration = "2~3개월";
+    duration = "3개월";
     durationReason = "치료 기간은 예상 기간이며 실제 치료에 들어가면 조정될 수 있습니다.";
   }
 
@@ -1455,7 +1524,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
   const primaryDuration = duration;
   const secondaryDuration = programs[1] ? duration : "";
   const tertiaryDuration = programs[2] ? duration : "";
-  const totalDuration = sumTreatmentDurations([primaryDuration, secondaryDuration, tertiaryDuration]);
+  const totalDuration = maxTreatmentDuration([primaryDuration, secondaryDuration, tertiaryDuration]);
 
   return {
     primaryProgram: programs[0] || "",
@@ -1491,20 +1560,20 @@ function fillTreatmentFields(suggestion) {
 
 function setDurationSelectValue(id, value) {
   const select = field(id);
-  select.value = [...select.options].some((option) => option.value === value) ? value : "";
+  select.value = normalizeTreatmentDuration(value) || "3개월";
 }
 
 function maybeUpdateTotalTreatmentDuration(data, suggestion) {
   if (treatmentDurationUserEdited) return data;
-  const primaryDuration = data.treatmentDurationPrimary;
-  const secondaryDuration = data.treatmentDurationSecondary;
-  const tertiaryDuration = data.treatmentDurationTertiary;
+  const primaryDuration = normalizeTreatmentDuration(data.treatmentDurationPrimary);
+  const secondaryDuration = normalizeTreatmentDuration(data.treatmentDurationSecondary);
+  const tertiaryDuration = normalizeTreatmentDuration(data.treatmentDurationTertiary);
   const programDurations = [
     data.treatmentProgramPrimary ? primaryDuration : "",
     data.treatmentProgramSecondary ? secondaryDuration : "",
     data.treatmentProgramTertiary ? tertiaryDuration : "",
   ];
-  const totalDuration = sumTreatmentDurations(programDurations);
+  const totalDuration = maxTreatmentDuration(programDurations);
   const input = field("treatmentDuration");
   if (input && input.value !== totalDuration) input.value = totalDuration || "";
   return { ...data, treatmentDuration: totalDuration || "" };
@@ -1643,7 +1712,7 @@ function makeTypeReason(data, results, primary) {
     }
     const values = [
       present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "",
-      present(inflammation?.nlrValue) ? `NLR ${inflammation.nlrValue.toFixed(2)}` : "",
+      present(inflammation?.graLymRatio) ? `GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)} (NLR 참고값)` : "",
     ].filter(Boolean).join(", ");
     return `${values || "혈액검사"}에서 염증 부담을 시사하는 변화가 확인됩니다. 현재 느끼는 증상이 크지 않더라도 생활습관과 대사상태를 함께 점검할 필요가 있습니다.`;
   }
@@ -1699,21 +1768,28 @@ function renderComputed(data, results) {
   elements.nonHdlCalc.textContent = present(results.parts.nonHdl?.value)
     ? `non-HDL-C: ${results.parts.nonHdl.value} mg/dL — ${results.parts.nonHdl.label}`
     : "non-HDL-C: 총콜레스테롤과 HDL-C 입력 후 계산";
-  const nlrCalculation = calculateNlr(data);
-  elements.nlrCalc.textContent = present(nlrCalculation.value)
-    ? `NLR: ${nlrCalculation.value.toFixed(2)} — ${results.parts.nlr.label}${nlrCalculation.source === "auto" ? " · 자동 계산" : " · 직접 입력"}`
-    : "NLR: Neutrophil과 Lymphocyte 또는 NLR 직접 입력 후 계산";
+  const graLymCalculation = calculateGraLymRatio(data);
+  elements.graLymCalc.textContent = present(graLymCalculation.value)
+    ? `GRA/LYM ratio (NLR 참고값): ${graLymCalculation.value.toFixed(2)} — ${results.parts.graLym.label} · 백분율 자동 계산`
+    : graLymCalculation.reason === "lym-zero"
+      ? "GRA/LYM ratio (NLR 참고값): LYM이 0이어서 계산하지 않습니다."
+      : "GRA/LYM ratio (NLR 참고값): GRA와 LYM 입력 후 자동 계산";
   elements.whtrCalc.textContent = present(results.parts.typeA?.whtr)
     ? `WHtR: ${results.parts.typeA.whtr.toFixed(3)} — ${results.parts.typeA.whtrLabel}`
     : "WHtR: 키와 허리둘레 입력 후 계산";
-  const physicalFunction = assessPhysicalFunction(data);
-  const bmiText = present(physicalFunction.bmi) ? `BMI ${physicalFunction.bmi.toFixed(1)}` : "BMI 계산 대기";
-  const weightLossText = present(physicalFunction.weightLossRate)
-    ? `체중감소율 ${physicalFunction.weightLossRate.toFixed(1)}%`
-    : physicalFunction.suspectedWeightLoss
-      ? "최근 체중감소 의심 · 비율 미산출"
-      : "체중감소율 계산 대기";
-  elements.physicalFunctionCalc.textContent = `${bmiText} · ${weightLossText}`;
+  const grip = assessGrip(data);
+  if (present(grip.representative)) {
+    const detail = grip.measurementStatus === "both"
+      ? `좌우 차이 ${formatDecimal(grip.differenceKg, 1)} kg (${formatDecimal(grip.differencePercent, 1)}%)${grip.asymmetryObserved ? " · 좌우 악력 차이가 관찰됩니다." : ""}`
+      : grip.measurementStatus === "right-only"
+        ? "오른손만 측정됨"
+        : grip.measurementStatus === "left-only"
+          ? "왼손만 측정됨"
+          : "기존 단일 악력 기록";
+    elements.gripStrengthCalc.textContent = `대표 악력 ${formatDecimal(grip.representative, 1)} kg · ${detail}`;
+  } else {
+    elements.gripStrengthCalc.textContent = "대표 악력: 좌우 악력 입력 후 자동 계산됩니다.";
+  }
 }
 
 function renderRadar(axes) {
@@ -1908,13 +1984,15 @@ function renderAxisCards(axes, data, typeA) {
       const inflammation = axis.inflammation;
       const symptoms = inflammation.symptoms;
       const symptomText = symptoms.answeredCount
-        ? `${symptoms.score}/24 · ${symptoms.burden}`
+        ? `${symptoms.score}/${symptoms.max} · ${symptoms.burden}`
         : "미입력";
       const keyAreas = symptoms.keyAreas.length
         ? symptoms.keyAreas.map((area) => `<li><strong>${area}</strong></li>`).join("")
         : `<li><strong>${symptoms.answeredCount ? "주요 증상 영역 없음" : "입력 후 표시"}</strong></li>`;
       const hsCrpText = present(data.hsCrp) ? `${formatDecimal(data.hsCrp, 2)} mg/L · ${axis.details[0].result.label}` : "미입력";
-      const nlrText = present(inflammation.nlrValue) ? `${inflammation.nlrValue.toFixed(2)} · ${axis.details[1].result.label}` : "미입력";
+      const graLymText = present(inflammation.graLymRatio) ? `${inflammation.graLymRatio.toFixed(2)} · ${axis.details[1].result.label}` : "미입력";
+      const graLymComment = graLymPatientComment(axis.details[1].result);
+      const graLymInfo = "현재 사용 중인 CBC 검사기는 과립구(GRA)와 림프구(LYM)를 구분합니다. GRA/LYM ratio는 정식 NLR과 유사한 경향을 보기 위한 참고지표이며 동일한 검사는 아닙니다.";
       card.classList.add("inflammation-axis-card");
       card.innerHTML = `
         <strong>만성염증</strong>
@@ -1924,8 +2002,12 @@ function renderAxisCards(axes, data, typeA) {
         <p class="subsection-label">혈액검사</p>
         <ul class="axis-key-values">
           <li><span>hs-CRP</span><strong>${hsCrpText}</strong></li>
-          <li><span>NLR</span><strong>${nlrText}</strong></li>
+          <li>
+            <span>GRA/LYM 비율 <small>NLR 참고값</small><button class="metric-info" type="button" aria-label="GRA/LYM 비율 설명" data-tooltip="${graLymInfo}" title="${graLymInfo}">i</button></span>
+            <strong>${graLymText}</strong>
+          </li>
         </ul>
+        ${graLymComment ? `<p class="metric-interpretation">${graLymComment}</p>` : ""}
         <p class="subsection-label">증상평가</p>
         <ul class="axis-key-values"><li><span>최근 4주</span><strong>${symptomText}</strong></li></ul>
         <p class="subsection-label">주요 증상 영역</p>
@@ -2008,9 +2090,35 @@ function renderDetails(axes, data) {
   elements.detailTable.replaceChildren(table);
 }
 
-function renderPhysicalFunction() {
-  elements.physicalFunctionReport.hidden = true;
-  elements.physicalFunctionBody.replaceChildren();
+function renderPhysicalFunction(data) {
+  const grip = assessGrip(data);
+  if (!present(grip.representative)) {
+    elements.physicalFunctionReport.hidden = true;
+    elements.physicalFunctionBody.replaceChildren();
+    return;
+  }
+  const valueText = (value) => present(value) ? `${formatDecimal(value, 1)} kg` : "미측정";
+  const differenceText = present(grip.differenceKg) ? `${formatDecimal(grip.differenceKg, 1)} kg` : "계산하지 않음";
+  const measurementNote = grip.measurementStatus === "right-only"
+    ? "오른손만 측정되었습니다."
+    : grip.measurementStatus === "left-only"
+      ? "왼손만 측정되었습니다."
+      : grip.measurementStatus === "legacy"
+        ? "기존 단일 악력 기록을 대표값으로 표시했습니다."
+        : grip.asymmetryObserved
+          ? "좌우 악력 차이가 관찰됩니다. 질환을 의미하는 판정은 아니며 추적 관찰용 보조지표입니다."
+          : "좌우 중 높은 값을 신체기능 평가의 대표 악력으로 사용합니다.";
+  elements.physicalFunctionBody.innerHTML = `
+    <div class="physical-function-heading"><strong>${formatDecimal(grip.representative, 1)} kg</strong><span>대표 악력 · ${grip.label}</span></div>
+    <dl class="physical-domain-grid grip-result-grid">
+      <div><dt>오른손</dt><dd>${valueText(grip.right)}</dd></div>
+      <div><dt>왼손</dt><dd>${valueText(grip.left)}</dd></div>
+      <div><dt>대표 악력</dt><dd>${formatDecimal(grip.representative, 1)} kg</dd></div>
+      <div><dt>좌우 차이</dt><dd>${differenceText}</dd></div>
+    </dl>
+    <p class="physical-function-explanation">${measurementNote}</p>
+  `;
+  elements.physicalFunctionReport.hidden = false;
 }
 
 function liverNormalMessage(data, results) {
@@ -2042,8 +2150,8 @@ function hsCrpInterpretationNotes(data) {
 function inflammationInterpretationNotes(data, results) {
   const notes = hsCrpInterpretationNotes(data);
   const inflammation = results.parts.inflammation;
-  if (present(inflammation?.nlrValue)) {
-    notes.push("NLR은 감염, 과로, 스트레스, 수면 부족 등 여러 요인의 영향을 받는 비특이적 보조지표이며, 단독으로 질병을 진단하지 않습니다.");
+  if (present(inflammation?.graLymRatio)) {
+    notes.push("GRA/LYM ratio는 백혈구 감별검사에서 과립구와 림프구의 비율을 계산한 NLR 참고값입니다. 정식 NLR과 동일한 검사가 아니며 다른 검사와 임상 상태를 함께 평가합니다.");
   }
   if (inflammation?.symptoms.answeredCount) {
     notes.push("염증 관련 증상평가는 진단용 문진이 아니며, 증상 부담과 치료 전후 변화를 살펴보기 위한 보조평가입니다.");
@@ -2182,8 +2290,10 @@ function currentReportSnapshot() {
     lipidScore: axes.lipid,
     liverScore: axes.liver,
     inflammationScore: axes.inflammation,
-    nlr: inflammation.nlrValue,
+    graLymRatio: inflammation.graLymRatio,
+    trueNlr: null,
     inflammationSymptomScore: inflammation.symptoms.answeredCount ? inflammation.symptoms.score : null,
+    inflammationSymptomMax: inflammation.symptoms.max,
     inflammationSymptomBurden: inflammation.symptoms.burden,
     inflammationSubtype: inflammation.subtype,
     autonomicScore: axes.autonomic,
@@ -2205,6 +2315,10 @@ function currentReportSnapshot() {
     physicalPerformanceScore: physicalFunction.domainScores.function,
     bmi: physicalFunction.bmi,
     weightLossRate: physicalFunction.weightLossRate,
+    representativeGripStrength: physicalFunction.grip.representative,
+    gripDifferenceKg: physicalFunction.grip.differenceKg,
+    gripDifferencePercent: physicalFunction.grip.differencePercent,
+    gripMeasurementStatus: physicalFunction.grip.measurementStatus,
     itemScores,
   };
   return {
@@ -2237,7 +2351,10 @@ function currentReportSnapshot() {
       },
       inflammation: {
         hsCrp: rendered.data.hsCrp,
-        nlr: inflammation.nlrValue,
+        graPercent: rendered.data.graPercent,
+        lymPercent: rendered.data.lymPercent,
+        graLymRatio: inflammation.graLymRatio,
+        trueNlr: null,
         score: axes.inflammation,
         symptomScore: inflammation.symptoms.answeredCount ? inflammation.symptoms.score : null,
         symptomMax: inflammation.symptoms.max,
@@ -2253,6 +2370,12 @@ function currentReportSnapshot() {
         tags: physicalFunction.tags,
         bmi: physicalFunction.bmi,
         weightLossRate: physicalFunction.weightLossRate,
+        rightGripStrength: physicalFunction.grip.right,
+        leftGripStrength: physicalFunction.grip.left,
+        representativeGripStrength: physicalFunction.grip.representative,
+        gripDifferenceKg: physicalFunction.grip.differenceKg,
+        gripDifferencePercent: physicalFunction.grip.differencePercent,
+        gripMeasurementStatus: physicalFunction.grip.measurementStatus,
       },
       treatmentPlan: {
         primaryProgram: rendered.data.treatmentProgramPrimary,
@@ -2274,36 +2397,63 @@ function isTreatmentInputId(id) {
   return TREATMENT_FIELD_IDS.includes(id) || TREATMENT_FOCUS_FIELDS.some(([fieldId]) => fieldId === id);
 }
 
+function normalizePhysicalScaleValue(value, legacyTriggered = false) {
+  if (value === true) return 5;
+  if (value === false) return 0;
+  if (present(value) && Number.isFinite(Number(value))) {
+    return Math.max(0, Math.min(5, Math.round(Number(value))));
+  }
+  return legacyTriggered ? 5 : null;
+}
+
 function normalizePhysicalFunctionValues(values) {
   return {
     ...values,
-    appetiteReduced: Boolean(
-      values.appetiteReduced ||
+    appetiteReduced: normalizePhysicalScaleValue(values.appetiteReduced,
       values.mealAmountReduced ||
       values.difficultyFinishingMeal ||
       values.lowProteinStatus === "있음"
     ),
-    frequentIndigestion: Boolean(values.frequentIndigestion || values.postMealDiscomfort),
-    foodAvoidanceDueDiscomfort: Boolean(
-      values.foodAvoidanceDueDiscomfort ||
+    earlySatiety: normalizePhysicalScaleValue(values.earlySatiety),
+    frequentIndigestion: normalizePhysicalScaleValue(values.frequentIndigestion, values.postMealDiscomfort),
+    foodAvoidanceDueDiscomfort: normalizePhysicalScaleValue(values.foodAvoidanceDueDiscomfort,
       values.reducedIntakeDueDigestion ||
       values.recurrentDiarrhea
     ),
+    fatigueActivityReduced: normalizePhysicalScaleValue(
+      values.fatigueActivityReduced,
+      values.functionalDeclineStatus === "있음",
+    ),
+    walkingStairsDifficulty: normalizePhysicalScaleValue(values.walkingStairsDifficulty),
   };
 }
 
 function setValues(values) {
   const nextValues = normalizePhysicalFunctionValues(values);
+  const durationProgramPairs = [
+    ["treatmentDurationPrimary", "treatmentProgramPrimary"],
+    ["treatmentDurationSecondary", "treatmentProgramSecondary"],
+    ["treatmentDurationTertiary", "treatmentProgramTertiary"],
+  ];
+  for (const [durationId, programId] of durationProgramPairs) {
+    if (!Object.prototype.hasOwnProperty.call(nextValues, durationId)) continue;
+    nextValues[durationId] = normalizeTreatmentDuration(nextValues[durationId]) || (nextValues[programId] ? "3개월" : "");
+  }
+  if (Object.prototype.hasOwnProperty.call(values, "treatmentDuration")) treatmentDurationUserEdited = false;
   if (!present(nextValues.weightLossContext) && nextValues.weightLossStatus === "있음") nextValues.weightLossContext = "있음";
   if (nextValues.weightLossContext === "비의도적") nextValues.weightLossContext = "있음";
   if (nextValues.weightLossContext === "의도적") nextValues.weightLossContext = "없음";
-  if (!present(nextValues.fatigueActivityReduced) && nextValues.functionalDeclineStatus === "있음") nextValues.fatigueActivityReduced = true;
   if (!present(nextValues.treatmentFocusCustom) && present(nextValues.treatmentPlan)) {
     nextValues.treatmentFocusCustom = nextValues.treatmentPlan;
   }
   if (Object.keys(nextValues).some((id) => isTreatmentInputId(id) && present(nextValues[id]))) treatmentPlanUserEdited = true;
-  if (present(nextValues.treatmentDuration)) treatmentDurationUserEdited = true;
   for (const [id, value] of Object.entries(nextValues)) {
+    if (LINEAR_SCALE_FIELDS.some(([fieldId]) => fieldId === id)) {
+      linearScaleInputs(id).forEach((input) => {
+        input.checked = present(value) && Number(input.value) === Number(value);
+      });
+      continue;
+    }
     const input = field(id);
     if (!input) continue;
     if (checkboxFields.has(id)) input.checked = Boolean(value);
@@ -2486,6 +2636,7 @@ elements.printButton.addEventListener("click", () => {
 setupManualTypeSelects();
 setupTreatmentProgramSelects();
 setupBirthDateInputs();
+setupLinearScales();
 setValues({
   testDate: localDateKey(),
 });

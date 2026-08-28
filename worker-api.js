@@ -1,4 +1,4 @@
-const SCORE_RULE_VERSION = "metabolic-score-v3.3";
+const SCORE_RULE_VERSION = "metabolic-score-v4.7";
 const DEFAULT_CLINIC_ID = "clinic_gongdeok_kyunghee";
 const DEFAULT_CLINIC_NAME = "공덕경희한의원";
 let schemaReadyPromise = null;
@@ -138,7 +138,7 @@ async function ensureSchema(db) {
     SCORE_RULE_VERSION,
     "2026-07-21",
     JSON.stringify({ source: "embedded-client-scoring", preservesSnapshot: true }),
-    "Embedded metabolic score rules with Type A WHtR and physical-function subtype assessment.",
+    "Embedded metabolic score rules with DP-H10 GRA/LYM ratio inflammation reference assessment.",
     now,
   ).run();
 }
