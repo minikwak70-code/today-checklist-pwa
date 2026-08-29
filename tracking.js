@@ -62,7 +62,7 @@ const metricMeta = [
   { key: "hba1c", label: "HbA1c", unit: "%", direction: "down", value: (raw) => raw.hba1c },
   { key: "tg", label: "TG", unit: "mg/dL", direction: "down", value: (raw) => raw.tg },
   { key: "tgHdl", label: "TG/HDL-C", unit: "", direction: "down", value: (raw) => raw.tg && raw.hdl ? raw.tg / raw.hdl : null },
-  { key: "nonHdl", label: "non-HDL-C", unit: "mg/dL", direction: "down", value: (raw) => raw.totalChol && raw.hdl ? raw.totalChol - raw.hdl : null },
+  { key: "ldl", label: "LDL-C", unit: "mg/dL", direction: "down", value: (raw) => raw.ldl },
   { key: "hsCrp", label: "hs-CRP", unit: "mg/L", direction: "down", value: (raw) => raw.hsCrp },
   { key: "graLymRatio", label: "GRA/LYM 비율", unit: "", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).graLymRatio },
   { key: "inflammationSymptoms", label: "염증 관련 증상부담률", unit: "%", direction: "down", value: (raw, assessment) => inflammationRecord(assessment).symptomPercent },
@@ -250,8 +250,7 @@ function inflammationRecord(assessment) {
       : null;
   const complete = answered.length === answers.length;
   const hsCrp = raw.hsCrp === null || raw.hsCrp === undefined || raw.hsCrp === "" ? null : Number(raw.hsCrp);
-  const historicalRatio = graLymRatio !== null ? graLymRatio : legacyNlr;
-  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1 || historicalRatio !== null && historicalRatio >= 2.5;
+  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1;
   const symptomHigh = complete && symptomScore >= (symptomMax / 2);
   let derivedSubtype = "해당 없음";
   if (hsCrp !== null && hsCrp > 10) derivedSubtype = "판정 보류";
@@ -297,7 +296,7 @@ function inflammationComparison(base, compare) {
     <h3>만성염증 평가 변화</h3>
     ${rowHtml ? `<table class="tracking-table compact-table"><thead><tr><th>지표</th><th>기준</th><th>비교</th><th>변화</th></tr></thead><tbody>${rowHtml}</tbody></table>` : ""}
     <p><strong>세부유형:</strong> ${escapeHtml(before.subtype)} → ${escapeHtml(after.subtype)}</p>
-    <p class="comparison-summary">hs-CRP와 GRA/LYM 비율(NLR 참고값), 염증 관련 증상 부담의 변화를 함께 확인했습니다.${before.graLymRatio === null && after.graLymRatio !== null || before.graLymRatio !== null && after.graLymRatio === null ? " CBC 지표 변경 전후의 NLR과 GRA/LYM 비율은 서로 다른 지표이므로 직접 비교하지 않았습니다." : ""}</p>
+    <p class="comparison-summary">hs-CRP와 염증 관련 증상 부담의 변화를 점수로 비교하고, GRA/LYM 비율은 백혈구 감별 참고지표로 함께 확인했습니다.${before.graLymRatio === null && after.graLymRatio !== null || before.graLymRatio !== null && after.graLymRatio === null ? " CBC 지표 변경 전후의 NLR과 GRA/LYM 비율은 서로 다른 지표이므로 직접 비교하지 않았습니다." : ""}</p>
   `;
 }
 

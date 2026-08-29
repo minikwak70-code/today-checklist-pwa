@@ -2033,6 +2033,62 @@ button:disabled {
   padding: 16px 18px;
 }
 
+.comprehensive-interpretation {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fbfdfb;
+  padding: 18px 20px;
+}
+
+.interpretation-overview {
+  margin: 10px 0 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.65;
+}
+
+.interpretation-warning {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 4px solid #b84d46;
+  background: #fff5f3;
+  color: #7f2f2a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.interpretation-warning[hidden] {
+  display: none;
+}
+
+.interpretation-axis-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 22px;
+  margin-top: 14px;
+}
+
+.interpretation-axis-item {
+  padding: 12px 0 10px;
+  border-top: 1px solid #dce7df;
+}
+
+.interpretation-axis-item h3 {
+  margin: 0 0 5px;
+  color: var(--green-900);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.interpretation-axis-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.58;
+}
+
 .detail-table {
   overflow-x: auto;
 }
@@ -2296,6 +2352,10 @@ button:disabled {
 
   .physical-domain-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .interpretation-axis-list {
+    grid-template-columns: 1fr;
   }
   .app-shell {
     width: min(100% - 24px, 1440px);
@@ -2695,6 +2755,7 @@ button:disabled {
   .page-treatment,
   .detail-section,
   .detail-section > div,
+  .comprehensive-interpretation,
   .detail-table,
   .note-block {
     width: 100% !important;
@@ -2716,7 +2777,8 @@ button:disabled {
     tr,
     .chart-container,
     .radar-card,
-  .detail-section > div {
+    .detail-section > div,
+    .comprehensive-interpretation {
     break-inside: avoid;
     page-break-inside: avoid;
   }
@@ -2740,6 +2802,42 @@ button:disabled {
     page-break-inside: avoid;
   }
 
+  .comprehensive-interpretation {
+    padding: 14px 16px;
+  }
+
+  .interpretation-overview {
+    margin-top: 6px;
+    font-size: 12.2px;
+    line-height: 1.48;
+  }
+
+  .interpretation-warning {
+    margin-top: 8px;
+    padding: 7px 9px;
+    font-size: 10.8px;
+    line-height: 1.4;
+  }
+
+  .interpretation-axis-list {
+    gap: 0 16px;
+    margin-top: 8px;
+  }
+
+  .interpretation-axis-item {
+    padding: 7px 0 6px;
+  }
+
+  .interpretation-axis-item h3 {
+    margin-bottom: 3px;
+    font-size: 11.5px;
+  }
+
+  .interpretation-axis-item p {
+    font-size: 10.4px;
+    line-height: 1.42;
+  }
+
   .result-table {
     font-size: 11.5px;
   }
@@ -2754,6 +2852,7 @@ button:disabled {
   .priority-card,
   .axis-card,
   .detail-section > div,
+    .comprehensive-interpretation,
     .note-block,
     .summary-card,
     .type-card,
@@ -2767,6 +2866,7 @@ button:disabled {
   .priority-card,
   .axis-card,
     .detail-section > div,
+    .comprehensive-interpretation,
     .note-block,
     .summary-card,
     .type-card,
