@@ -928,10 +928,13 @@ button:disabled {
 
 .criteria-reference {
   grid-column: 1 / -1;
+  min-width: 0;
   scroll-margin-top: 16px;
 }
 
 .criteria-reference > details {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -990,6 +993,7 @@ button:disabled {
 }
 
 .criteria-reference-body {
+  min-width: 0;
   padding: 22px 24px 28px;
 }
 
@@ -1012,6 +1016,7 @@ button:disabled {
 }
 
 .criteria-group {
+  min-width: 0;
   margin-top: 24px;
   padding-top: 22px;
   border-top: 1px solid var(--line);
@@ -1023,6 +1028,8 @@ button:disabled {
 }
 
 .criteria-table-wrap {
+  width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -1169,6 +1176,264 @@ button:disabled {
   color: #46554f;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.clinician-manual-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.clinician-manual-heading h3 {
+  margin-bottom: 0;
+}
+
+.criteria-kicker {
+  margin: 0 0 4px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.clinician-manual-heading > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.criteria-purpose-grid,
+.clinician-pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.criteria-purpose-grid article,
+.clinician-pattern-grid article {
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.criteria-purpose-grid strong,
+.clinician-pattern-grid strong {
+  color: var(--green-dark);
+  font-size: 13px;
+}
+
+.criteria-purpose-grid p,
+.clinician-pattern-grid p {
+  margin: 6px 0 0;
+  color: #46554f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.criteria-safety-panel {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #e8b9b4;
+  border-radius: 8px;
+  background: #fff9f8;
+}
+
+.criteria-safety-panel h4,
+.criteria-source-list h4 {
+  margin: 0 0 10px;
+  color: #7f2d28;
+  font-size: 14px;
+}
+
+.clinician-safety-table th:first-child,
+.clinician-safety-table td:first-child {
+  width: 100px;
+  text-align: center;
+}
+
+.clinician-safety-table th:last-child,
+.clinician-safety-table td:last-child {
+  width: 30%;
+}
+
+.criteria-priority {
+  display: inline-block;
+  min-width: 64px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.criteria-priority--urgent {
+  background: #a43e37;
+  color: white;
+}
+
+.criteria-priority--prompt {
+  background: #f3d58d;
+  color: #5e450c;
+}
+
+.clinician-guide-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.clinician-guide-card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+
+.clinician-guide-card > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 50px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+  background: #f3f8f5;
+}
+
+.clinician-guide-card > summary::-webkit-details-marker {
+  display: none;
+}
+
+.clinician-guide-card > summary strong {
+  color: var(--green-dark);
+  font-size: 14px;
+}
+
+.clinician-guide-card > summary span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.clinician-guide-card[open] > summary {
+  border-bottom: 1px solid var(--line);
+}
+
+.clinician-guide-content {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.clinician-guide-content > p {
+  margin: 0;
+  color: #46554f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.clinician-guide-content > p strong {
+  color: var(--ink);
+}
+
+.interpretation-table th:first-child,
+.interpretation-table td:first-child {
+  width: 23%;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.interpretation-table th:nth-child(2),
+.interpretation-table td:nth-child(2) {
+  width: 31%;
+}
+
+.liver-pattern-table {
+  min-width: 980px;
+}
+
+.liver-pattern-table th:first-child,
+.liver-pattern-table td:first-child {
+  width: 18%;
+}
+
+.liver-pattern-table th:nth-child(2),
+.liver-pattern-table td:nth-child(2) {
+  width: 28%;
+}
+
+.liver-pattern-table th:nth-child(3),
+.liver-pattern-table td:nth-child(3) {
+  width: 25%;
+}
+
+.criteria-callout {
+  padding: 12px 14px;
+  border-left: 4px solid var(--green);
+  background: #f4f8f6;
+  color: #46554f;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.criteria-callout strong {
+  color: var(--ink);
+}
+
+.criteria-callout p {
+  margin: 5px 0 0;
+}
+
+.criteria-callout--warning {
+  border-left-color: #c98a35;
+  background: #fffaf0;
+}
+
+.criteria-source-list {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+}
+
+.criteria-source-list h4 {
+  color: var(--green-dark);
+}
+
+.criteria-source-list > p {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.criteria-source-list > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.criteria-source-list a {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: white;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.criteria-source-list a:hover {
+  border-color: var(--green);
+  text-decoration: underline;
 }
 
 .treatment-editor {
@@ -2360,6 +2625,21 @@ button:disabled {
 @media (max-width: 760px) {
   .criteria-note-grid {
     grid-template-columns: 1fr;
+  }
+
+  .criteria-purpose-grid,
+  .clinician-pattern-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .clinician-manual-heading,
+  .clinician-guide-card > summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .criteria-safety-panel {
+    padding: 12px;
   }
 
   .criteria-reference > details > summary,

@@ -644,7 +644,7 @@ function assessGraLymRatio(value) {
 function graLymPatientComment(result) {
   if (!result || result.missing) return "";
   return {
-    "참고범위": "백혈구 감별 비율에서 뚜렷한 변화는 관찰되지 않습니다.",
+    "참고범위": "",
     "경계 참고": "백혈구 감별 비율이 경계 수준입니다. 점수에는 반영하지 않고 다른 염증 지표와 함께 참고합니다.",
     "상승 참고": "백혈구 감별 비율이 증가되어 있습니다. 감염, 알레르기, 스트레스, 과로, 수면 부족 등의 영향을 받을 수 있어 다른 검사와 함께 확인합니다.",
     "높은 상승 참고": "백혈구 감별 비율이 높습니다. 급성 감염, 알레르기, 스트레스 등 일시적인 원인도 영향을 줄 수 있으므로 현재 상태를 함께 확인해야 합니다.",
@@ -2196,7 +2196,12 @@ function axisExplanation(axis, data, results) {
     const items = [];
     if (present(data.hsCrp)) items.push(`hs-CRP ${formatDecimal(data.hsCrp, 2)} mg/L는 ${results.parts.hsCrp.label}으로 10점 중 ${results.parts.hsCrp.score}점입니다`);
     if (inflammation.symptoms.complete) items.push(`최근 4주 증상 문진은 ${inflammation.symptoms.score}/40점이며 평가점수로는 10점 중 ${inflammation.symptomHealth.score}점입니다`);
-    if (present(inflammation.graLymRatio)) items.push(`GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}는 ${results.parts.graLym.label} 소견입니다`);
+    if (present(inflammation.graLymRatio)) {
+      items.push(`GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}는 ${results.parts.graLym.label} 소견입니다`);
+      if (inflammation.graLymRatio >= 1.8) {
+        items.push("GRA/LYM 비율 상승은 염증 또는 스트레스로 인해 백혈구 구성에 변화가 있음을 의미합니다. 감염, 알레르기, 과로, 수면 부족 등 영향을 주고 있는 원인을 분석하고 관리해야 합니다");
+      }
+    }
     findings = items.join(". ");
   } else if (axis.key === "autonomic") {
     const items = [];
