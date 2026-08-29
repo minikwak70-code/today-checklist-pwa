@@ -2037,15 +2037,16 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: #fbfdfb;
-  padding: 18px 20px;
+  padding: 16px 18px;
+  overflow: hidden;
 }
 
 .interpretation-overview {
-  margin: 10px 0 0;
-  color: var(--ink);
-  font-size: 15px;
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
   font-weight: 700;
-  line-height: 1.65;
+  line-height: 1.45;
 }
 
 .interpretation-warning {
@@ -2078,7 +2079,8 @@ button:disabled {
 .interpretation-axis-item h3 {
   margin: 0 0 5px;
   color: var(--green-900);
-  font-size: 14px;
+  font-size: 12.5px;
+  font-weight: 900;
   letter-spacing: 0;
 }
 
@@ -2808,8 +2810,8 @@ button:disabled {
 
   .interpretation-overview {
     margin-top: 6px;
-    font-size: 12.2px;
-    line-height: 1.48;
+    font-size: 11.2px;
+    line-height: 1.35;
   }
 
   .interpretation-warning {
@@ -2830,12 +2832,12 @@ button:disabled {
 
   .interpretation-axis-item h3 {
     margin-bottom: 3px;
-    font-size: 11.5px;
+    font-size: 11.2px;
   }
 
   .interpretation-axis-item p {
-    font-size: 10.4px;
-    line-height: 1.42;
+    font-size: 11.2px;
+    line-height: 1.35;
   }
 
   .result-table {

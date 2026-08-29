@@ -2036,7 +2036,7 @@ function renderAxisCards(axes, data, typeA) {
           : axis.autonomic.comment;
       card.innerHTML = `
         <strong>자율신경·회복 점수</strong>
-        <div class="axis-score">${axisDisplay(axis)}${axis.status === "complete" || axis.status === "partial" ? ` · ${axis.autonomic.grade}` : ""}</div>
+        <div class="axis-score">${axisDisplay(axis)}</div>
         <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
         <p>${comment}</p>
         <ul class="axis-key-values">${detailRows}</ul>
@@ -2049,7 +2049,7 @@ function renderAxisCards(axes, data, typeA) {
       const inflammation = axis.inflammation;
       const symptoms = inflammation.symptoms;
       const symptomText = symptoms.answeredCount
-        ? `${symptoms.score}/${symptoms.max} · ${symptoms.burden}${symptoms.complete ? ` · 건강점수 ${inflammation.symptomHealth.score}/10` : ""}`
+        ? `${symptoms.score}/${symptoms.max} · ${symptoms.burden}${symptoms.complete ? ` · 환산점수 ${inflammation.symptomHealth.score}/10` : ""}`
         : "미입력";
       const keyAreas = symptoms.keyAreas.length
         ? symptoms.keyAreas.map((area) => `<li><strong>${area}</strong></li>`).join("")
@@ -2063,19 +2063,17 @@ function renderAxisCards(axes, data, typeA) {
       card.classList.add("inflammation-axis-card");
       card.innerHTML = `
         <strong>만성염증</strong>
-        <div class="axis-score">건강점수 ${axisDisplay(axis)}</div>
+        <div class="axis-score">${axisDisplay(axis)}</div>
         <div class="score-bar" aria-hidden="true"><span style="width:${percent}%"></span></div>
         <p class="inflammation-subtype">현재 유형 <strong>${inflammation.subtype}</strong></p>
-        <p class="subsection-label">점수 평가</p>
         <ul class="axis-key-values">
           <li><span>hs-CRP</span><strong>${hsCrpText}</strong></li>
           <li><span>증상 문진</span><strong>${symptomText}</strong></li>
+          <li>
+            <span>GRA/LYM 비율 <button class="metric-info" type="button" aria-label="GRA/LYM 비율 설명" data-tooltip="${graLymInfo}" title="${graLymInfo}">i</button></span>
+            <strong>${graLymText}</strong>
+          </li>
         </ul>
-        <p class="subsection-label">참고지표</p>
-        <ul class="axis-key-values"><li>
-          <span>GRA/LYM 비율 <button class="metric-info" type="button" aria-label="GRA/LYM 비율 설명" data-tooltip="${graLymInfo}" title="${graLymInfo}">i</button></span>
-          <strong>${graLymText}</strong>
-        </li></ul>
         ${graLymComment ? `<p class="metric-interpretation">${graLymComment}</p>` : ""}
         <p class="subsection-label">주요 증상 영역</p>
         <ul class="axis-key-values inflammation-key-areas">${keyAreas}</ul>
@@ -2083,10 +2081,12 @@ function renderAxisCards(axes, data, typeA) {
       return card;
     }
     const scoredDetails = axis.details.filter((detail) => detail.value && !detail.reference && !detail.adjustment);
-    const adjustmentDetails = axis.details.filter((detail) => detail.value && detail.adjustment && detail.result?.penalty > 0);
-    const keyValues = [...scoredDetails.slice(0, 3), ...adjustmentDetails]
+    const supplementalDetails = axis.key === "liver"
+      ? axis.details.filter((detail) => detail.value && (detail.reference || detail.adjustment))
+      : axis.details.filter((detail) => detail.value && detail.adjustment && detail.result?.penalty > 0);
+    const keyValues = [...scoredDetails.slice(0, 3), ...supplementalDetails]
       .map((detail) => {
-        const label = detail.result?.label && (detail.result.max > 0 || detail.adjustment) ? ` · ${detail.result.label}` : "";
+        const label = detail.result?.label && (detail.result.max > 0 || detail.adjustment || detail.reference) ? ` · ${detail.result.label}` : "";
         return `<li><span>${detail.label}</span><strong>${detail.value}${label}</strong></li>`;
       })
       .join("");
@@ -2203,7 +2203,7 @@ function axisExplanation(axis, data, results) {
     const inflammation = results.parts.inflammation;
     const items = [];
     if (present(data.hsCrp)) items.push(`hs-CRP ${formatDecimal(data.hsCrp, 2)} mg/L는 ${results.parts.hsCrp.label}으로 10점 중 ${results.parts.hsCrp.score}점입니다`);
-    if (inflammation.symptoms.complete) items.push(`최근 4주 증상 문진은 ${inflammation.symptoms.score}/40점이며 건강점수로는 10점 중 ${inflammation.symptomHealth.score}점입니다`);
+    if (inflammation.symptoms.complete) items.push(`최근 4주 증상 문진은 ${inflammation.symptoms.score}/40점이며 평가점수로는 10점 중 ${inflammation.symptomHealth.score}점입니다`);
     if (present(inflammation.graLymRatio)) items.push(`GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}는 ${results.parts.graLym.label} 소견이지만 점수에는 반영하지 않았습니다`);
     findings = items.join(". ");
   } else if (axis.key === "autonomic") {

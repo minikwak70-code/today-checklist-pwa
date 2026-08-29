@@ -278,7 +278,7 @@ function inflammationComparison(base, compare) {
     ["hs-CRP", before.hsCrp, after.hsCrp, "mg/L", 2, false],
     ["GRA/LYM 비율", before.graLymRatio, after.graLymRatio, "", 2, false],
     ["기존 NLR", before.legacyNlr, after.legacyNlr, "", 2, false],
-    ["만성염증 건강점수", before.score, after.score, "점", 0, true],
+    ["만성염증 점수", before.score, after.score, "점", 0, true],
     ["염증 관련 증상점수", before.symptomScore, after.symptomScore, "", 0, false],
   ].filter(([, b, a]) => b !== null && b !== undefined && a !== null && a !== undefined);
   if (!rows.length && before.subtype === "해당 없음" && after.subtype === "해당 없음") return "";
