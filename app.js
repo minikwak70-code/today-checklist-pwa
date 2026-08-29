@@ -1156,6 +1156,253 @@ function makeRiskFlags(data, results, validation) {
   return flags;
 }
 
+function makeClinicianReview(data, results, validation) {
+  const notices = [];
+  const add = (priority, title, value, message, checks) => notices.push({ priority, title, value, message, checks });
+  const part = results.parts;
+  const altRatio = part.alt?.ratio;
+  const astRatio = part.ast?.ratio;
+  const ggtRatio = part.ggt?.ratio;
+  const alpRatio = part.alp?.ratio;
+  const bilirubinHigh = present(data.tbil) && data.tbil > DEFAULT_ULN.tbil;
+  const liverEnzymeHigh = [altRatio, astRatio, ggtRatio, alpRatio].some((ratio) => present(ratio) && ratio > 1);
+
+  if ((present(data.sbp) && data.sbp >= 180) || (present(data.dbp) && data.dbp >= 120)) {
+    add(
+      "urgent",
+      "매우 높은 혈압",
+      `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`,
+      "안정 후 다시 측정하고 흉통, 호흡곤란, 등 통증, 마비·위약, 시야 변화, 말하기 어려움 또는 의식 변화를 확인하세요. 증상이 있으면 즉시 응급평가가 필요합니다.",
+      "함께 확인: 반복 혈압, 증상, 복용약·복약 누락, 심전도 및 표적장기 손상 여부",
+    );
+  }
+  if (present(data.tg) && data.tg >= 1000) {
+    add(
+      "urgent",
+      "중성지방 매우 높음",
+      `${data.tg} mg/dL`,
+      "급성 췌장염 위험이 커지는 범위입니다. 심한 지속성 상복부 통증이나 구토가 있으면 즉시 응급평가하고, 증상이 없어도 당일 의학적 평가를 고려하세요.",
+      "함께 확인: 복통·구토, 혈당, 음주, 갑상선기능, 신장·간기능, 복용약, 필요 시 lipase",
+    );
+  }
+
+  if (present(data.hba1c) && data.hba1c >= 6.5) {
+    add(
+      "prompt",
+      "HbA1c 당뇨병 진단범위",
+      `${data.hba1c}%`,
+      "전형적 고혈당 증상이 없다면 반복 HbA1c 또는 혈장혈당 검사로 확진이 필요합니다.",
+      "함께 확인: 다뇨·다갈·체중감소, 공복혈당 또는 무작위혈당, CBC·빈혈·적혈구 수명에 영향을 주는 상태",
+    );
+  }
+  if (present(data.tg) && data.tg >= 500 && data.tg < 1000) {
+    add(
+      "prompt",
+      "중성지방 중증 상승",
+      `${data.tg} mg/dL`,
+      "췌장염 위험과 이차 원인을 별도로 평가해야 합니다. 복통·구토가 동반되면 당일 진료 우선도를 높이세요.",
+      "함께 확인: 복통·구토, 혈당, 음주, 갑상선기능, 신장·간기능, 복용약",
+    );
+  }
+  if (present(data.ldl) && data.ldl >= 190) {
+    add(
+      "prompt",
+      "LDL-C 중증 상승",
+      `${data.ldl} mg/dL`,
+      "총점과 관계없이 가족성 고콜레스테롤혈증과 이차 원인을 포함한 심혈관 위험 평가가 필요합니다.",
+      "함께 확인: 가족력·조기 심혈관질환, 갑상선기능, 신증후군·신장기능, 간담도질환, 복용약",
+    );
+  }
+  if ((present(altRatio) && altRatio >= 3) || (present(astRatio) && astRatio >= 3)) {
+    const values = [
+      present(altRatio) && altRatio >= 3 ? `ALT ${data.alt} U/L` : "",
+      present(astRatio) && astRatio >= 3 ? `AST ${data.ast} U/L` : "",
+    ].filter(Boolean).join(" · ");
+    add(
+      "prompt",
+      "간세포 손상 지표 뚜렷한 상승",
+      values,
+      "점수 해석보다 원인 평가가 우선입니다. 황달, 의식 변화, 출혈 경향, 심한 구토 또는 우상복부 통증이 있으면 긴급도를 높이세요.",
+      "함께 확인: 반복 ALT·AST, TBIL·직접빌리루빈, ALP·GGT, PT/INR, 알부민, CBC, 간염검사, 복용약·건강식품, 음주력, 복부초음파",
+    );
+  }
+  if (present(data.tbil) && (data.tbil > 3 || (bilirubinHigh && liverEnzymeHigh))) {
+    add(
+      "prompt",
+      "빌리루빈 상승과 간수치 이상",
+      `TBIL ${data.tbil} mg/dL`,
+      "간세포 손상 또는 담즙정체 여부를 구분해야 합니다. 황달과 발열·오한·우상복부 통증이 함께 있으면 담관염 가능성을 고려해 즉시 평가하세요.",
+      "함께 확인: 직접·간접빌리루빈, ALT·AST, ALP·GGT, PT/INR, 알부민, CBC, 복부초음파",
+    );
+  }
+  if (present(data.hsCrp) && data.hsCrp > 10) {
+    add(
+      "prompt",
+      "hs-CRP 급성 원인 확인 범위",
+      `${data.hsCrp} mg/L`,
+      "만성염증 점수 해석을 보류하고 감염, 조직 손상 또는 다른 염증성 원인을 먼저 확인한 뒤 안정된 시점에 재검하세요.",
+      "함께 확인: 발열·감염 증상, 치주·피부·호흡기·요로 증상, CBC, 최근 수술·외상·격한 운동, 복용약",
+    );
+  }
+  if ((present(data.sbp) && data.sbp >= 160 && data.sbp < 180) || (present(data.dbp) && data.dbp >= 100 && data.dbp < 120)) {
+    add(
+      "prompt",
+      "혈압 뚜렷한 상승",
+      `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`,
+      "한 번의 측정으로 확진하지 말고 올바른 방법으로 반복 측정한 뒤 빠른 내과 평가가 필요한지 판단하세요.",
+      "함께 확인: 반복·가정혈압, 증상, 복약, 신장기능·전해질, 심혈관 위험요인",
+    );
+  }
+
+  if (present(alpRatio) && alpRatio > 1 && !(bilirubinHigh && liverEnzymeHigh)) {
+    const hepaticPattern = present(ggtRatio) && ggtRatio > 1;
+    add(
+      "review",
+      "ALP 상승 원인 구분",
+      `ALP ${data.alp} U/L`,
+      hepaticPattern
+        ? "GGT도 높아 간·담도계 기원 가능성을 먼저 확인해야 합니다. 빌리루빈 상승이나 황달이 동반되면 평가 우선도를 높이세요."
+        : "GGT가 높지 않다면 뼈 등 비간성 기원도 고려해야 합니다. 검사실 기준범위와 연령·임신 여부를 함께 확인하세요.",
+      hepaticPattern
+        ? "함께 확인: GGT, 직접빌리루빈, ALT·AST, 복부초음파, 복용약"
+        : "함께 확인: GGT 재확인, 칼슘·인·비타민 D·PTH, 뼈 증상, 필요 시 ALP isoenzyme",
+    );
+  }
+  if (bilirubinHigh && !liverEnzymeHigh) {
+    add(
+      "review",
+      "총빌리루빈 단독 상승",
+      `TBIL ${data.tbil} mg/dL`,
+      "직접형과 간접형을 구분해야 합니다. 간접빌리루빈 우세라면 용혈, 금식·탈수 또는 길버트증후군 등을 고려하고, 직접형 우세라면 간담도 원인을 확인하세요.",
+      "함께 확인: 직접·간접빌리루빈, CBC·망상적혈구·LDH·haptoglobin, 재검, 황달·소변색·복용약",
+    );
+  }
+  if (((present(altRatio) && altRatio > 1) || (present(astRatio) && astRatio > 1)) && !((present(altRatio) && altRatio >= 3) || (present(astRatio) && astRatio >= 3))) {
+    const astPredominant = present(data.ast) && present(data.alt) && data.ast > data.alt;
+    add(
+      "review",
+      "간효소 상승",
+      `${[present(data.alt) ? `ALT ${data.alt}` : "", present(data.ast) ? `AST ${data.ast}` : ""].filter(Boolean).join(" · ")} U/L`,
+      astPredominant
+        ? "AST 우세 상승은 음주 관련 간손상뿐 아니라 근육 손상과 격한 운동의 영향도 받을 수 있습니다."
+        : "지방간, 약물·건강식품, 음주, 바이러스간염 등 흔한 원인과 수치의 지속 여부를 확인하세요.",
+      `함께 확인: ${astPredominant ? "CK, 최근 운동·근육통, 음주력, " : ""}TBIL, ALP·GGT, 복용약·건강식품, 간염검사, 복부초음파`,
+    );
+  }
+  if (present(ggtRatio) && ggtRatio > 1 && !(present(alpRatio) && alpRatio > 1) && !(present(altRatio) && altRatio > 1) && !(present(astRatio) && astRatio > 1)) {
+    add(
+      "review",
+      "GGT 단독 상승",
+      `GGT ${data.ggt} U/L`,
+      "단독 상승만으로 간질환을 확정하지 않습니다. 음주, 지방간, 약물·건강식품과 수치의 지속 여부를 확인하세요.",
+      "함께 확인: 음주력, ALT·AST·ALP·TBIL, 복용약·건강식품, 대사위험, 필요 시 복부초음파",
+    );
+  }
+  if (present(data.hba1c) && data.hba1c >= 5.7 && data.hba1c < 6.5) {
+    add(
+      "review",
+      "HbA1c 당뇨병 전단계 범위",
+      `${data.hba1c}%`,
+      "혈당 위험을 확인하고 추적검사 계획을 세우세요. 임상상과 맞지 않으면 HbA1c에 영향을 주는 빈혈·적혈구 상태를 확인합니다.",
+      "함께 확인: 공복혈당 또는 필요 시 OGTT, CBC, 가족력, 복부비만, TG/HDL-C",
+    );
+  }
+  if (present(data.ldl) && data.ldl >= 160 && data.ldl < 190) {
+    add(
+      "review",
+      "LDL-C 높음",
+      `${data.ldl} mg/dL`,
+      "전체 심혈관 위험과 가족력을 함께 평가하고 이차 원인을 확인하세요.",
+      "함께 확인: 혈압·흡연·당뇨·가족력, 갑상선기능, 신장·간담도 상태, 복용약",
+    );
+  }
+  if (present(data.tg) && data.tg >= 200 && data.tg < 500) {
+    add(
+      "review",
+      "중성지방 높음",
+      `${data.tg} mg/dL`,
+      "식사·음주 영향과 지속 여부, 당대사 및 이차 원인을 함께 확인하세요.",
+      "함께 확인: HbA1c·혈당, HDL-C, 음주, 갑상선기능, 신장·간기능, 복용약",
+    );
+  }
+  if ((present(data.totalChol) && data.totalChol < 120) || (present(data.ldl) && data.ldl < 50)) {
+    const lowLipidValue = [
+      present(data.totalChol) && data.totalChol < 120 ? `총콜레스테롤 ${data.totalChol}` : "",
+      present(data.ldl) && data.ldl < 50 ? `LDL-C ${data.ldl}` : "",
+    ].filter(Boolean).join(" · ");
+    add(
+      "review",
+      "낮은 지질수치",
+      `${lowLipidValue} mg/dL`,
+      "약물 효과인지 확인하고, 설명되지 않는 저하라면 영양·흡수 상태와 전신질환 가능성을 살펴보세요.",
+      "함께 확인: 지질저하제, 체중변화·섭취상태, 갑상선기능, 간기능, CBC·알부민",
+    );
+  }
+  if (present(data.hsCrp) && data.hsCrp >= 3 && data.hsCrp <= 10) {
+    add(
+      "review",
+      "hs-CRP 뚜렷한 상승",
+      `${data.hsCrp} mg/L`,
+      "대사성 저강도 염증 외에 감염, 치주질환, 알레르기·염증질환, 외상·운동 등의 영향을 확인하고 안정된 상태에서 추적하세요.",
+      "함께 확인: 증상·진찰, CBC, GRA/LYM 비율, 치주·호흡기·피부·요로 상태, 최근 운동·외상",
+    );
+  }
+  const graLymRatio = part.inflammation?.graLymRatio;
+  if (present(graLymRatio) && graLymRatio >= 2.5) {
+    add(
+      "review",
+      "GRA/LYM 비율 상승",
+      graLymRatio.toFixed(2),
+      "염증 또는 스트레스로 백혈구 구성에 변화가 있을 수 있습니다. GRA는 호산구·호염기구를 포함하므로 정식 NLR과 동일하게 해석하지 않습니다.",
+      "함께 확인: CBC 절대 백혈구수, GRA#·LYM# 또는 5-part differential, 감염·알레르기, 과로·수면·스트레스",
+    );
+  }
+  if ((present(data.sbp) && data.sbp >= 140 && data.sbp < 160) || (present(data.dbp) && data.dbp >= 90 && data.dbp < 100)) {
+    add(
+      "review",
+      "혈압 상승",
+      `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`,
+      "적절한 자세와 커프로 반복 측정하고 가정혈압 또는 추적 측정으로 지속 여부를 확인하세요.",
+      "함께 확인: 반복·가정혈압, 복약, 염분·음주, 신장기능·전해질, 심혈관 위험요인",
+    );
+  }
+  if ((present(data.sbp) && data.sbp < 90) || (present(data.dbp) && data.dbp < 60)) {
+    add(
+      "review",
+      "낮은 혈압",
+      `${present(data.sbp) ? data.sbp : "-"}/${present(data.dbp) ? data.dbp : "-"} mmHg`,
+      "어지럼, 실신, 탈수 또는 기립 증상이 있는지 확인하고 반복 측정하세요.",
+      "함께 확인: 기립혈압·맥박, 수분상태, CBC, 전해질·신장기능, 복용약",
+    );
+  }
+  if (present(data.restingHr) && (data.restingHr < 50 || data.restingHr > 100)) {
+    add(
+      "review",
+      "안정 시 심박수 확인",
+      `${data.restingHr} bpm`,
+      "운동선수 여부와 약물 영향을 확인하고, 실신·흉통·호흡곤란·심계항진이 있으면 진료 우선도를 높이세요.",
+      "함께 확인: 반복 맥박, 심전도, CBC, 갑상선기능, 전해질, 복용약",
+    );
+  }
+
+  const physical = assessPhysicalFunction(data);
+  if (physical.activated) {
+    add(
+      "review",
+      "신체기능저하형 활성",
+      `${physical.score}/${physical.max}점`,
+      "대사수치가 양호해도 근육·근력, 섭취·소화 또는 활동능력 저하의 원인을 별도로 확인하세요.",
+      "함께 확인: 최근 체중변화, 식사·소화 상태, CBC·알부민, 신장·갑상선기능, 약물, 낙상 위험",
+    );
+  }
+  validation.warnings.forEach((warning) => {
+    add("review", "입력값 확인", "", warning.text, "원본 검사결과의 단위와 입력값을 다시 대조하세요.");
+  });
+
+  const priorityOrder = { urgent: 0, prompt: 1, review: 2 };
+  return notices.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+}
+
 function scoreTypes(data, results) {
   const tags = [];
   const candidates = [];
@@ -2458,6 +2705,7 @@ function currentReportSnapshot() {
   const itemScores = itemScoreMap(rendered.results.axes);
   const physicalFunction = assessPhysicalFunction(rendered.data);
   const inflammation = rendered.results.parts.inflammation;
+  const clinicianReview = makeClinicianReview(rendered.data, rendered.results, rendered.validation);
   const calculatedScores = {
     totalScore: rendered.results.total,
     maxScore: rendered.results.max,
@@ -2502,6 +2750,7 @@ function currentReportSnapshot() {
     primaryType: displayTypeName(primaryType),
     secondaryType: displayTypeName(secondaryType),
     scoreRuleVersion: SCORE_RULE_VERSION,
+    clinicianReview,
     calculatedScores,
     reportSnapshot: {
       patientLine: elements.patientLine.textContent,

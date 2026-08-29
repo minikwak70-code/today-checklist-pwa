@@ -42,6 +42,9 @@ const t = {
   compareButton: document.querySelector("#compareButton"),
   comparisonPrint: document.querySelector("#comparisonPrintButton"),
   comparisonReport: document.querySelector("#comparisonReport"),
+  clinicianReviewDialog: document.querySelector("#clinicianReviewDialog"),
+  clinicianReviewPatient: document.querySelector("#clinicianReviewPatient"),
+  clinicianReviewContent: document.querySelector("#clinicianReviewContent"),
   newAssessmentLink: document.querySelector('.module-nav a[href="#inputHeading"]'),
   refreshMembers: document.querySelector("#refreshMembersButton"),
   memberInviteForm: document.querySelector("#memberInviteForm"),
@@ -876,6 +879,45 @@ function rawForSave(data) {
   return Object.fromEntries(Object.entries(data).filter(([key, value]) => !excluded.has(key) && value !== null && value !== ""));
 }
 
+function showClinicianReview(snapshot) {
+  const dialog = t.clinicianReviewDialog;
+  if (!dialog || !t.clinicianReviewContent) return;
+  const notices = Array.isArray(snapshot.clinicianReview) ? snapshot.clinicianReview : [];
+  const patientName = tracking.selectedPatient?.name || snapshot.data.patientName || "선택 환자";
+  const chartNumber = tracking.selectedPatient?.chartNumber || snapshot.data.chartNumber || "";
+  const testDate = snapshot.data.testDate || "검사일 미입력";
+  t.clinicianReviewPatient.textContent = `${patientName}${chartNumber ? ` · 차트 ${chartNumber}` : ""} · ${testDate}`;
+
+  if (!notices.length) {
+    t.clinicianReviewContent.innerHTML = '<div class="clinician-review-empty">현재 입력된 수치에서는 자동 안전 확인 기준에 해당하는 항목이 없습니다. 환자의 증상, 병력과 복용약은 별도로 확인해 주세요.</div>';
+  } else {
+    const groups = [
+      ["urgent", "즉시 확인·응급 의뢰 판단", "응급증상 여부를 먼저 확인하세요"],
+      ["prompt", "신속한 진료·상급기관 의뢰 검토", "점수보다 의학적 확인을 우선하세요"],
+      ["review", "함께 확인할 항목", "관련 수치와 원인을 빠뜨리지 않도록 확인하세요"],
+    ];
+    t.clinicianReviewContent.innerHTML = groups.map(([priority, title, description]) => {
+      const items = notices.filter((notice) => notice.priority === priority);
+      if (!items.length) return "";
+      return `
+        <section class="clinician-review-group clinician-review-group--${priority}">
+          <h3>${title} <small>${description}</small></h3>
+          ${items.map((notice) => `
+            <article class="clinician-review-item">
+              <strong>${escapeHtml(notice.title)}${notice.value ? ` <span>${escapeHtml(notice.value)}</span>` : ""}</strong>
+              <p>${escapeHtml(notice.message)}</p>
+              <p class="clinician-review-checks">${escapeHtml(notice.checks)}</p>
+            </article>
+          `).join("")}
+        </section>
+      `;
+    }).join("");
+  }
+
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else alert(`의료진 확인이 필요합니다.\n${notices.map((notice) => `${notice.title}: ${notice.message}`).join("\n") || "자동 확인 기준에 해당하는 항목이 없습니다."}`);
+}
+
 async function saveAssessment() {
   if (!tracking.selectedPatient) {
     setBanner("먼저 환자 목록에서 저장할 환자를 선택해 주세요.", "warning");
@@ -905,9 +947,10 @@ async function saveAssessment() {
   t.saveAssessment.disabled = true;
   try {
     await api(`/api/patients/${tracking.selectedPatient.id}/assessments`, { method: "POST", body: JSON.stringify(payload) });
+    setBanner("검사결과가 환자 기록에 저장되었습니다.", "ok");
+    showClinicianReview(snapshot);
     await loadAssessments();
     await loadPatients();
-    setBanner("검사결과가 환자 기록에 저장되었습니다.", "ok");
   } catch (error) {
     setBanner(error.message, "warning");
   } finally {
@@ -1323,6 +1366,9 @@ t.table.addEventListener("click", (event) => {
   if (id) openPatient(id).catch((error) => setBanner(error.message, "warning"));
 });
 t.saveAssessment.addEventListener("click", saveAssessment);
+document.querySelectorAll("[data-clinician-review-close]").forEach((button) => {
+  button.addEventListener("click", () => t.clinicianReviewDialog?.close());
+});
 t.historySort.addEventListener("change", () => loadAssessments().catch((error) => setBanner(error.message, "warning")));
 t.assessmentTable.addEventListener("click", (event) => {
   const openId = event.target.closest("[data-open-assessment]")?.dataset.openAssessment;

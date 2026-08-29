@@ -2575,6 +2575,204 @@ button:disabled {
   text-align: center;
 }
 
+.clinician-review-dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(860px, calc(100vh - 32px));
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(20, 42, 34, 0.28);
+}
+
+.clinician-review-dialog::backdrop {
+  background: rgba(18, 34, 29, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.clinician-review-shell {
+  display: flex;
+  max-height: min(860px, calc(100vh - 32px));
+  flex-direction: column;
+}
+
+.clinician-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 26px 18px;
+  border-bottom: 1px solid var(--line);
+  background: #f1f7f4;
+}
+
+.clinician-review-header p,
+.clinician-review-header h2,
+.clinician-review-intro,
+.clinician-review-patient,
+.clinician-review-footer p,
+.clinician-review-item p {
+  margin: 0;
+}
+
+.clinician-review-header p {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.clinician-review-header h2 {
+  margin-top: 4px;
+  color: var(--green-dark);
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.clinician-review-close {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.clinician-review-patient {
+  padding: 15px 26px 0;
+  color: var(--green-dark);
+  font-size: 15px;
+  font-weight: 850;
+}
+
+.clinician-review-intro {
+  padding: 8px 26px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.clinician-review-content {
+  display: grid;
+  gap: 16px;
+  padding: 0 26px 22px;
+  overflow-y: auto;
+}
+
+.clinician-review-empty {
+  padding: 18px;
+  border: 1px solid #bdd8cb;
+  border-radius: 6px;
+  background: #f1f8f4;
+  color: var(--green-dark);
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.clinician-review-group {
+  display: grid;
+  gap: 8px;
+}
+
+.clinician-review-group h3 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+.clinician-review-group h3 small {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.clinician-review-group--urgent h3 {
+  color: #a3312d;
+}
+
+.clinician-review-group--prompt h3 {
+  color: #9a5a14;
+}
+
+.clinician-review-group--review h3 {
+  color: var(--green-dark);
+}
+
+.clinician-review-item {
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.clinician-review-group--urgent .clinician-review-item {
+  border-color: #e8b7b4;
+  border-left-color: #b94b45;
+  background: #fff7f6;
+}
+
+.clinician-review-group--prompt .clinician-review-item {
+  border-color: #ead1aa;
+  border-left-color: #c47a24;
+  background: #fffaf2;
+}
+
+.clinician-review-group--review .clinician-review-item {
+  border-left-color: var(--green);
+  background: #f8fbf9;
+}
+
+.clinician-review-item strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.clinician-review-item strong span {
+  color: inherit;
+  font-weight: 800;
+}
+
+.clinician-review-item p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.clinician-review-item .clinician-review-checks {
+  color: var(--ink);
+}
+
+.clinician-review-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 26px;
+  border-top: 1px solid var(--line);
+  background: #fbfcfb;
+}
+
+.clinician-review-footer p {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.clinician-review-footer .primary-button {
+  flex: 0 0 auto;
+}
+
 @media (max-width: 1180px) {
   .workspace {
     grid-template-columns: 1fr;
@@ -2623,6 +2821,51 @@ button:disabled {
 }
 
 @media (max-width: 760px) {
+  .clinician-review-dialog {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  .clinician-review-shell {
+    max-height: calc(100vh - 20px);
+  }
+
+  .clinician-review-header,
+  .clinician-review-footer {
+    padding: 16px;
+  }
+
+  .clinician-review-header h2 {
+    font-size: 20px;
+  }
+
+  .clinician-review-patient {
+    padding: 13px 16px 0;
+  }
+
+  .clinician-review-intro {
+    padding: 7px 16px 13px;
+  }
+
+  .clinician-review-content {
+    padding: 0 16px 16px;
+  }
+
+  .clinician-review-group h3 small {
+    display: block;
+    margin: 3px 0 0;
+  }
+
+  .clinician-review-footer {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .clinician-review-footer .primary-button {
+    width: 100%;
+  }
+
   .criteria-note-grid {
     grid-template-columns: 1fr;
   }
