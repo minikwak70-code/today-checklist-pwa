@@ -1889,6 +1889,22 @@ button:disabled {
   line-height: 1.35;
 }
 
+.axis-key-values.inflammation-key-areas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 10px;
+  margin-top: 6px;
+}
+
+.axis-key-values.inflammation-key-areas li {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 2px 0 0;
+  border-top: 0;
+  white-space: nowrap;
+}
+
 .autonomic-patterns li,
 .autonomic-priorities li {
   display: grid;
@@ -2471,6 +2487,11 @@ button:disabled {
 
   .page-interpretation {
     grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .axis-key-values.inflammation-key-areas {
+    gap: 3px 8px;
+    margin-top: 4px;
   }
 
   .page-details {

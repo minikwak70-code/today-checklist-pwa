@@ -665,10 +665,12 @@ function assessInflammationSymptoms(data) {
     : !complete
       ? "문진 미완료"
       : score <= 10
-        ? "증상 부담 낮음"
-        : score <= 19
-          ? "증상 부담 경계"
-          : "염증 관련 증상 부담 높음";
+        ? "만성염증 증상 양호"
+        : score <= 18
+          ? "만성염증 증상 있음"
+          : score <= 30
+            ? "만성염증 증상 많음"
+            : "만성염증 증상 심각";
   return {
     answers,
     answeredCount: answered.length,
@@ -676,7 +678,7 @@ function assessInflammationSymptoms(data) {
     max: 40,
     complete,
     burden,
-    high: complete && score >= 20,
+    high: complete && score > 10,
     keyAreas: answered.filter((item) => item.value >= 3).map((item) => item.label),
   };
 }
@@ -685,12 +687,12 @@ function scoreInflammationSymptoms(symptoms) {
   if (!symptoms.complete) return missing(10);
   const score = Math.max(0, Math.min(10, Math.round((symptoms.max - symptoms.score) / 4)));
   const label = score >= 8
-    ? "증상 부담 낮음"
+    ? "만성염증 증상 양호"
     : score >= 6
-      ? "증상 부담 경계"
+      ? "만성염증 증상 있음"
       : score >= 3
-        ? "증상 관리 필요"
-        : "증상 부담 높음";
+        ? "만성염증 증상 많음"
+        : "만성염증 증상 심각";
   return scored(score, 10, label);
 }
 
@@ -699,8 +701,8 @@ function assessInflammation(data, hsCrp) {
   const symptoms = assessInflammationSymptoms(data);
   const symptomHealth = scoreInflammationSymptoms(symptoms);
   const holdResult = present(data.hsCrp) && data.hsCrp > 10;
-  const objectiveElevated = !holdResult && present(data.hsCrp) && data.hsCrp >= 1;
-  const borderline = !objectiveElevated && !holdResult && present(data.hsCrp) && data.hsCrp >= 0.6 && data.hsCrp < 1;
+  const objectiveElevated = !holdResult && present(data.hsCrp) && data.hsCrp >= 0.5;
+  const borderline = !objectiveElevated && !holdResult && present(data.hsCrp) && data.hsCrp >= 0.4 && data.hsCrp < 0.5;
   let subtype = "해당 없음";
   if (holdResult) subtype = "판정 보류";
   else if (objectiveElevated && symptoms.high) subtype = "만성염증형(종합형)";
@@ -1247,7 +1249,7 @@ function scoreTypes(data, results) {
   } else {
     if (inflammation.borderline) tags.push("염증 관련 수치 경계");
     if (inflammation.objectiveElevated) tags.push("염증 관련 수치 상승");
-    if (inflammation.symptoms.high) tags.push("염증 관련 증상 부담 높음");
+    if (inflammation.symptoms.high) tags.push("만성염증 증상 있음");
     if (inflammation.subtype !== "해당 없음") {
       const severeLab = data.hsCrp > 3;
       const strength = severeLab ? 3 : inflammation.subtype.includes("종합형") ? 2 : 1;
@@ -1722,8 +1724,8 @@ function makeSummary(data, results, grade, typeResult, flags) {
     lowest.length ? `특히 ${joinKorean(lowest)} 영역부터 살펴보는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 살펴보는 것이 좋습니다.",
     `현재의 주된 대사 패턴은 ${displayTypeName(primary)}으로 평가됩니다.`,
   ];
-  if (flags.some((flag) => flag.type === "warning")) sentences.push("우선 확인이 필요한 검사결과는 종합점수보다 먼저 의학적으로 확인하는 것이 좋습니다.");
-  else if (flags.length) sentences.push("추적관찰이 필요한 검사결과를 종합점수와 함께 확인하는 것이 좋습니다.");
+  if (flags.some((flag) => flag.type === "warning")) sentences.push("우선 확인이 필요한 항목이 있습니다. 종합점수보다 먼저 의학적으로 확인하는 것이 좋습니다.");
+  else if (flags.length) sentences.push("추적관찰이 필요한 항목이 있습니다. 자세한 개별 진찰이 필요합니다.");
   else if (limitedAxes.length) sentences.push(`${limitedAxes.join(", ")} 축은 입력값 부족 또는 판독 제한으로 별도 해석이 필요합니다.`);
   return sentences.slice(0, 4).join(" ");
 }
@@ -1742,13 +1744,13 @@ function makeTypeReason(data, results, primary) {
   if (primary.startsWith("A.")) {
     const typeA = results.parts.typeA || assessTypeA(data);
     const sentences = [
-      "체중 자체보다 복부에 지방이 얼마나 집중되어 있는지가 대사건강에서 중요합니다. 이번 검사에서는 허리-키 비율, 허리둘레, InBody 내장지방레벨을 함께 평가했습니다.",
+      "복부지방은 염증 물질을 분비하고 장기의 기능을 저하시키기 때문에 대사기능 평가에 있어서 중요한 지표입니다.",
     ];
     if (typeA.whtrHigh) sentences.push("키에 비해 허리둘레가 큰 편으로 복부지방 관리가 필요합니다.");
     if (typeA.waistHigh) sentences.push("한국 성인의 복부비만 기준을 초과하고 있습니다.");
     if (typeA.visceralHigh) sentences.push("InBody 검사에서 내장지방이 증가한 것으로 추정됩니다.");
     if (typeA.whtrHigh && typeA.waistHigh && typeA.visceralHigh) {
-      sentences.push("세 가지 평가에서 모두 복부지방 증가가 확인되어 적극적인 복부지방 관리가 필요합니다.");
+      sentences.push("복부지방이 위험수준으로 평가됩니다. 적극적인 관리가 필요합니다.");
     }
     return sentences.join(" ");
   }
@@ -1759,36 +1761,26 @@ function makeTypeReason(data, results, primary) {
     ].filter(Boolean);
     if (data.hba1c >= 5.7) values.push(`HbA1c ${data.hba1c}%`);
     const hba1cNote = data.hba1c >= 6.5
-      ? "HbA1c는 당뇨병 진단범위에 해당하므로 타입 설명보다 별도 의학적 확인이 우선입니다."
+      ? "당뇨병으로 진단할 수 있는 수치입니다. 대사관리와 별도로 의학적 상담이 필요합니다."
       : data.hba1c >= 5.7
-        ? "HbA1c도 당뇨병 전단계 범위에 있어 함께 추적할 필요가 있습니다."
+        ? "당뇨 전단계에 해당합니다. 탄수화물 제한을 포함한 적극적인 대사관리가 필요합니다."
         : present(data.hba1c)
-          ? `현재 HbA1c ${data.hba1c}%는 당뇨병 전단계 범위에는 해당하지 않습니다.`
+          ? "정상범위에 해당합니다. 5.4% 이상이라면 적극적인 대사 관리가 필요합니다."
           : "";
     return `${values.join(", ")} 지표에서 인슐린 저항과 관련된 지질대사 불균형이 관찰됩니다. ${hba1cNote} 확정 진단이 아니라 현재 검사 조합에서 보이는 관리 방향입니다.`;
   }
   if (primary.startsWith("C.")) {
     const inflammation = results.parts.inflammation;
     if (primary.includes("종합형")) {
-      return "혈액검사와 증상평가에서 모두 염증 부담을 시사하는 변화가 확인됩니다. 염증과 관련된 생활습관 및 원인 요인을 종합적으로 평가하고 관리할 필요가 있습니다.";
+      return "만성염증이 혈액검사 수치와 증상에서 모두 나타나고 있습니다. 염증과 관련된 생활습관 및 요인을 종합적으로 평가하고 관리해야 합니다.";
     }
     if (primary.includes("증상형")) {
-      return "혈액검사에서는 뚜렷한 전신 염증 상승이 확인되지 않았지만, 염증과 관련될 수 있는 증상들이 반복적으로 나타나고 있습니다. 구강, 피부, 위장관, 알레르기 및 생활습관 등 증상의 원인을 함께 평가할 필요가 있습니다.";
+      return "혈액검사 수치가 높지 않더라도 만성염증에 의한 증상들이 나타나고 있습니다. 염증 증상을 줄이기 위한 적극적인 관리가 필요합니다.";
     }
-    const values = [
-      present(data.hsCrp) ? `hs-CRP ${data.hsCrp} mg/L` : "",
-      present(inflammation?.graLymRatio) ? `GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}` : "",
-    ].filter(Boolean).join(", ");
-    return `${values || "혈액검사"}에서 염증 부담을 시사하는 변화가 확인됩니다. 현재 느끼는 증상이 크지 않더라도 생활습관과 대사상태를 함께 점검할 필요가 있습니다.`;
+    return "혈액검사상 염증수치가 상승되어 있습니다. 현재 느끼는 증상이 크지 않더라도 염증 수치를 줄이기 위한 적극적인 관리가 필요합니다.";
   }
   if (primary.startsWith("D.")) {
-    const values = [
-      data.hrvIndexGrade ? `HRV-Index ${data.hrvIndexGrade}` : "",
-      data.ansActivity ? `ANS Activity ${data.ansActivity}` : "",
-      data.stressGrade ? `Stress ${data.stressGrade}` : "",
-      present(data.snsPercent) ? `SNS:PNS ${formatDecimal(data.snsPercent, 1)}:${formatDecimal(100 - data.snsPercent, 1)}` : "",
-    ].filter(Boolean);
-    return `${joinKorean(values)} 결과에서 회복력과 신체적 스트레스 반응을 함께 살펴볼 필요가 있습니다. 측정 조건에 따라 변동될 수 있어 추적 비교가 중요합니다.`;
+    return "자율신경의 불균형 상태가 관찰됩니다. 스트레스에 대한 신체반응을 살펴 자율신경계의 균형을 맞추기 위한 치료가 필요합니다.";
   }
   if (primary.startsWith("E.")) {
     return makePhysicalFunctionTypeSentence(data);
@@ -1797,10 +1789,10 @@ function makeTypeReason(data, results, primary) {
     return "여러 대사 패턴이 동시에 관찰되어 한 가지 축만으로 설명하기 어렵습니다. 관리 필요영역과 관련 관찰항목을 함께 보며 단계적으로 접근하는 것이 좋습니다.";
   }
   if (primary === "대사 균형형") {
-    return "5개 대사축이 모두 15점 이상으로 확인되어 특정 관리 유형보다 전반적인 균형 상태가 두드러집니다. 현재 상태를 유지하며 정기적으로 추적하는 것이 좋습니다.";
+    return "5개 대사축이 모두 15점 이상으로 전반적인 균형상태가 양호합니다. 현재 상태를 유지하는 것이 좋습니다. 특정 질환이나 증상이 있는 경우에는 의료진과의 상담이 필요합니다.";
   }
   if (primary === "특정 우세형 없음") {
-    return "현재 입력된 검사 조합에서는 한 가지 타입으로 뚜렷하게 묶이는 패턴이 두드러지지 않습니다. 낮은 점수의 개별 영역을 중심으로 관리 방향을 정합니다.";
+    return "두드러진 대사 타입 이상이 발견되지는 않았습니다. 하지만 대사균형형처럼 건강상태라고 보기는 어렵습니다. 신체증상과 진찰 결과에 따라 치료방향을 결정하는 것이 좋습니다.";
   }
   if (present(ldl) || present(ratio)) {
     return "현재 입력된 핵심 지표에서는 특정 우세 타입보다 전반적인 균형 유지와 개별 지표 추적이 중요합니다.";
@@ -1811,13 +1803,13 @@ function makeTypeReason(data, results, primary) {
 function makePhysicalFunctionTypeSentence(data) {
   const assessment = assessPhysicalFunction(data);
   const sentences = [
-    "혈당·지질·간 수치는 대체로 양호하더라도 체중, 영양섭취, 근육·근력 또는 활동능력에서 신체기능상태 저하가 확인될 수 있습니다. 이번 검사에서는 영양 섭취 상태와 근육, 근력, 일상적인 신체기능을 함께 평가했습니다.",
+    "체중, 영양섭취, 근육·근력 또는 활동능력에서 신체기능상태 저하가 확인됩니다. 저하된 기능을 확인하고, 신체기능을 높이기 위한 치료가 필요합니다.",
   ];
   if (assessment.smi.low || assessment.grip.low) {
-    sentences.push("근육량이나 근력이 감소한 소견이 함께 확인되어 충분한 영양섭취와 적절한 근력운동이 중요합니다.");
+    sentences.push("근육량이나 근력이 감소한 소견이 관찰되기 때문에 충분한 영양섭취와 적절한 근력운동이 중요합니다.");
   }
   if (assessment.intakeIssue || assessment.digestionIssue) {
-    sentences.push("현재는 체중감량보다 충분한 영양섭취와 소화기능 회복을 우선하는 것이 중요합니다.");
+    sentences.push("소화능력이 저하되어 있어 충분한 영양섭취와 소화기능 회복을 위한 치료가 필요합니다.");
   }
   return sentences.join(" ");
 }
@@ -2204,7 +2196,7 @@ function axisExplanation(axis, data, results) {
     const items = [];
     if (present(data.hsCrp)) items.push(`hs-CRP ${formatDecimal(data.hsCrp, 2)} mg/L는 ${results.parts.hsCrp.label}으로 10점 중 ${results.parts.hsCrp.score}점입니다`);
     if (inflammation.symptoms.complete) items.push(`최근 4주 증상 문진은 ${inflammation.symptoms.score}/40점이며 평가점수로는 10점 중 ${inflammation.symptomHealth.score}점입니다`);
-    if (present(inflammation.graLymRatio)) items.push(`GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}는 ${results.parts.graLym.label} 소견이지만 점수에는 반영하지 않았습니다`);
+    if (present(inflammation.graLymRatio)) items.push(`GRA/LYM 비율 ${inflammation.graLymRatio.toFixed(2)}는 ${results.parts.graLym.label} 소견입니다`);
     findings = items.join(". ");
   } else if (axis.key === "autonomic") {
     const items = [];
@@ -2261,7 +2253,7 @@ function renderComprehensiveInterpretation(data, results, grade, typeResult, fla
     const paragraph = document.createElement("p");
     const bodyParts = [`복부비만 평가는 ${typeA.grade}등급으로 ${typeA.judgment}입니다`];
     if (physical.hasAnyMetric) bodyParts.push(`신체기능상태는 ${physical.score}/20점으로 ${physical.judgment}입니다`);
-    paragraph.textContent = `${bodyParts.join(". ")}. 이 평가는 5대 대사축 100점과 별도로 관리 방향을 정할 때 참고합니다.`;
+    paragraph.textContent = `${bodyParts.join(". ")}. 평가 결과에 따른 관리 방향 설정이 필요합니다.`;
     section.append(heading, paragraph);
     list.append(section);
   }

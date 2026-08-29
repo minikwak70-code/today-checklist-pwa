@@ -250,8 +250,8 @@ function inflammationRecord(assessment) {
       : null;
   const complete = answered.length === answers.length;
   const hsCrp = raw.hsCrp === null || raw.hsCrp === undefined || raw.hsCrp === "" ? null : Number(raw.hsCrp);
-  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 1;
-  const symptomHigh = complete && symptomScore >= (symptomMax / 2);
+  const objectiveElevated = hsCrp !== null && hsCrp <= 10 && hsCrp >= 0.5;
+  const symptomHigh = complete && (symptomMax === 40 ? symptomScore > 10 : symptomScore >= symptomMax / 2);
   let derivedSubtype = "해당 없음";
   if (hsCrp !== null && hsCrp > 10) derivedSubtype = "판정 보류";
   else if (objectiveElevated && symptomHigh) derivedSubtype = "만성염증형(종합형)";
