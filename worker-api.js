@@ -92,7 +92,7 @@ async function ensureSchema(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS patients_clinic_idx ON patients (clinic_id, is_active)"),
     db.prepare("CREATE INDEX IF NOT EXISTS patients_clinic_list_idx ON patients (clinic_id, is_deleted, deleted_at, updated_at DESC)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS patients_clinic_chart_unique ON patients (clinic_id, chart_number) WHERE deleted_at IS NULL"),
-    db.prepare("CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, clinic_id TEXT, patient_id TEXT NOT NULL, assessment_date TEXT NOT NULL, assessment_stage TEXT, fasting_status TEXT, raw_values TEXT NOT NULL, calculated_scores TEXT NOT NULL, total_score REAL, glucose_score REAL, lipid_score REAL, liver_score REAL, inflammation_score REAL, autonomic_score REAL, score_rule_version TEXT NOT NULL, primary_type TEXT, secondary_type TEXT, type_strengths TEXT, tags TEXT, warnings TEXT, clinician_note TEXT, report_snapshot TEXT, is_deleted INTEGER NOT NULL DEFAULT 0, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT, version INTEGER NOT NULL DEFAULT 1)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, clinic_id TEXT, patient_id TEXT NOT NULL, assessment_date TEXT NOT NULL, assessment_stage TEXT, fasting_status TEXT, raw_values TEXT NOT NULL, calculated_scores TEXT NOT NULL, total_score REAL, glucose_score REAL, lipid_score REAL, liver_score REAL, inflammation_score REAL, autonomic_score REAL, score_rule_version TEXT NOT NULL, primary_type TEXT, secondary_type TEXT, type_strengths TEXT, tags TEXT, warnings TEXT, clinician_note TEXT, clinician_review TEXT, report_snapshot TEXT, is_deleted INTEGER NOT NULL DEFAULT 0, deleted_at TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, created_by TEXT NOT NULL, updated_by TEXT, version INTEGER NOT NULL DEFAULT 1)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_patient_date_idx ON assessments (patient_id, assessment_date)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_clinic_idx ON assessments (clinic_id, patient_id, assessment_date)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_latest_idx ON assessments (clinic_id, patient_id, is_deleted, deleted_at, assessment_date DESC, created_at DESC)"),
@@ -112,6 +112,7 @@ async function ensureSchema(db) {
   await addColumn(db, "assessments", "updated_by TEXT");
   await addColumn(db, "assessments", "deleted_at TEXT");
   await addColumn(db, "assessments", "version INTEGER NOT NULL DEFAULT 1");
+  await addColumn(db, "assessments", "clinician_review TEXT");
   await addColumn(db, "audit_logs", "clinic_id TEXT");
   await addColumn(db, "audit_logs", "user_id TEXT");
   await addColumn(db, "audit_logs", "target_type TEXT");
@@ -371,6 +372,7 @@ function assessmentRow(row) {
     tags: parseJsonField(row.tags, "[]"),
     warnings: parseJsonField(row.warnings, "[]"),
     clinicianNote: row.clinician_note,
+    clinicianReview: parseJsonField(row.clinician_review, "[]"),
     reportSnapshot: parseJsonField(row.report_snapshot, "{}"),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -568,8 +570,8 @@ async function handleApi(request, env) {
         id, clinic_id, patient_id, assessment_date, assessment_stage, fasting_status, raw_values, calculated_scores,
         total_score, glucose_score, lipid_score, liver_score, inflammation_score, autonomic_score,
         score_rule_version, primary_type, secondary_type, type_strengths, tags, warnings, clinician_note,
-        report_snapshot, is_deleted, deleted_at, created_at, updated_at, created_by, updated_by, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, 1)`,
+        clinician_review, report_snapshot, is_deleted, deleted_at, created_at, updated_at, created_by, updated_by, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?, ?, 1)`,
     ).bind(
       id,
       clinic.id,
@@ -592,6 +594,7 @@ async function handleApi(request, env) {
       JSON.stringify(body.tags || []),
       JSON.stringify(body.warnings || []),
       body.clinicianNote || "",
+      JSON.stringify(body.clinicianReview || []),
       JSON.stringify(body.reportSnapshot || {}),
       createdAt,
       createdAt,

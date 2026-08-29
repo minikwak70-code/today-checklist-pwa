@@ -856,6 +856,7 @@ function renderAssessmentTable() {
       <td>${escapeHtml(displayTypeName(assessment.primaryType) || "--")}</td>
       <td>
         <button class="mini-button" type="button" data-open-assessment="${escapeHtml(assessment.id)}">열기</button>
+        <button class="mini-button" type="button" data-review-assessment="${escapeHtml(assessment.id)}">의료진 확인</button>
         ${tracking.permissions.canDeleteAssessment ? `<button class="mini-button danger" type="button" data-delete-assessment="${escapeHtml(assessment.id)}">삭제</button>` : ""}
         <small class="byline">${escapeHtml(assessment.createdByName || "작성자 미상")} · ${escapeHtml((assessment.createdAt || "").slice(0, 10))}</small>
       </td>
@@ -942,6 +943,7 @@ async function saveAssessment() {
     tags: snapshot.typeResult.tags || [],
     warnings: [...snapshot.flags.map((flag) => flag.text), ...snapshot.validation.warnings.map((warning) => warning.text)],
     clinicianNote: snapshot.data.clinicianNote || "",
+    clinicianReview: snapshot.clinicianReview || [],
     reportSnapshot: snapshot.reportSnapshot,
   };
   t.saveAssessment.disabled = true;
@@ -972,6 +974,19 @@ function openAssessment(assessmentId) {
     clinicianNote: assessment.clinicianNote || "",
   });
   window.metabolicReportApp.generateReport();
+}
+
+function openAssessmentClinicianReview(assessmentId) {
+  const assessment = tracking.assessments.find((item) => item.id === assessmentId);
+  if (!assessment) return;
+  showClinicianReview({
+    clinicianReview: Array.isArray(assessment.clinicianReview) ? assessment.clinicianReview : [],
+    data: {
+      patientName: tracking.selectedPatient?.name || "",
+      chartNumber: tracking.selectedPatient?.chartNumber || "",
+      testDate: assessment.assessmentDate || "",
+    },
+  });
 }
 
 async function deleteAssessment(assessmentId) {
@@ -1372,8 +1387,10 @@ document.querySelectorAll("[data-clinician-review-close]").forEach((button) => {
 t.historySort.addEventListener("change", () => loadAssessments().catch((error) => setBanner(error.message, "warning")));
 t.assessmentTable.addEventListener("click", (event) => {
   const openId = event.target.closest("[data-open-assessment]")?.dataset.openAssessment;
+  const reviewId = event.target.closest("[data-review-assessment]")?.dataset.reviewAssessment;
   const deleteId = event.target.closest("[data-delete-assessment]")?.dataset.deleteAssessment;
   if (openId) openAssessment(openId);
+  if (reviewId) openAssessmentClinicianReview(reviewId);
   if (deleteId) deleteAssessment(deleteId);
 });
 t.trendAxis.addEventListener("change", renderTrend);
