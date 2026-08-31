@@ -705,18 +705,17 @@ textarea:focus-visible {
 
 .questionnaire-question legend {
   width: 100%;
-  display: block;
-  color: #34433d;
-  font-size: 14px;
-  line-height: 1.55;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
 }
 
-.questionnaire-question legend > span {
-  display: inline-grid;
-  width: 22px;
-  height: 22px;
+.questionnaire-question-number {
+  display: grid;
+  width: 24px;
+  height: 24px;
   place-items: center;
-  margin-right: 7px;
   border-radius: 6px;
   background: #eef4f1;
   color: var(--green-dark);
@@ -724,9 +723,24 @@ textarea:focus-visible {
   font-weight: 900;
 }
 
-.questionnaire-question legend strong {
-  margin-right: 7px;
-  color: var(--ink);
+.questionnaire-question-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.questionnaire-question-title {
+  color: var(--green-dark);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.questionnaire-question-prompt {
+  color: #27362f;
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.55;
 }
 
 .questionnaire-scale {
@@ -3356,8 +3370,8 @@ button:disabled {
     font-size: 24px;
   }
 
-  .questionnaire-question legend {
-    font-size: 13px;
+  .questionnaire-question-prompt {
+    font-size: 15px;
   }
 
   .questionnaire-scale {

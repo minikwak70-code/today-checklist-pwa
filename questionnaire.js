@@ -74,7 +74,13 @@ function renderQuestionnaireQuestions() {
     const target = questionnaireElement(section.target);
     target.innerHTML = section.questions.map(([key, title, text], index) => `
       <fieldset class="questionnaire-question">
-        <legend><span>${index + 1}</span><strong>${title}</strong>${text}</legend>
+        <legend>
+          <span class="questionnaire-question-number">${index + 1}</span>
+          <span class="questionnaire-question-copy">
+            <strong class="questionnaire-question-title">${title}</strong>
+            <span class="questionnaire-question-prompt">${text}</span>
+          </span>
+        </legend>
         <div class="questionnaire-scale" role="radiogroup" aria-label="${title} 정도">
           ${Array.from({ length: 6 }, (_, score) => `
             <label>
