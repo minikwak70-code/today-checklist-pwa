@@ -8,6 +8,7 @@ const tracking = {
   patientsRequestId: 0,
   selectedPatient: null,
   assessments: [],
+  questionnaires: [],
   comparison: null,
 };
 
@@ -45,6 +46,12 @@ const t = {
   clinicianReviewDialog: document.querySelector("#clinicianReviewDialog"),
   clinicianReviewPatient: document.querySelector("#clinicianReviewPatient"),
   clinicianReviewContent: document.querySelector("#clinicianReviewContent"),
+  createQuestionnaire: document.querySelector("#createQuestionnaireButton"),
+  questionnaireLinkArea: document.querySelector("#questionnaireLinkArea"),
+  questionnaireLink: document.querySelector("#questionnaireLink"),
+  copyQuestionnaireLink: document.querySelector("#copyQuestionnaireLinkButton"),
+  questionnaireStatus: document.querySelector("#questionnaireClinicianStatus"),
+  questionnaireList: document.querySelector("#questionnaireRequestList"),
   newAssessmentLink: document.querySelector('.module-nav a[href="#inputHeading"]'),
   refreshMembers: document.querySelector("#refreshMembersButton"),
   memberInviteForm: document.querySelector("#memberInviteForm"),
@@ -504,6 +511,7 @@ function setTrackingEnabled(enabled) {
     t.refresh,
     t.createButton,
     t.saveAssessment,
+    t.createQuestionnaire,
     t.historySort,
     t.trendAxis,
     t.baselineSelect,
@@ -530,6 +538,7 @@ function applyPermissions() {
   setFormControls(t.createForm, Boolean(permissions.canCreatePatient));
   setFormControls(t.editForm, Boolean(permissions.canEdit && tracking.selectedPatient));
   if (t.saveAssessment) t.saveAssessment.disabled = !permissions.canCreateAssessment || !tracking.selectedPatient;
+  if (t.createQuestionnaire) t.createQuestionnaire.disabled = !permissions.canCreateAssessment || !tracking.selectedPatient;
   if (t.comparisonPrint) t.comparisonPrint.disabled = !permissions.canRead;
   if (t.compareButton) t.compareButton.disabled = !permissions.canRead;
   if (t.workspaceIdentity) {
@@ -737,12 +746,14 @@ async function createPatient(event) {
     await loadPatients();
     tracking.selectedPatient = tracking.patients.find((patient) => patient.id === data.patient.id) || data.patient;
     tracking.assessments = [];
+    tracking.questionnaires = [];
     showSelectedPatient(tracking.selectedPatient);
     resetReportForPatient(tracking.selectedPatient);
     renderSelectedSummary();
     renderAssessmentTable();
     renderAssessmentSelectors();
     renderTrend();
+    renderQuestionnaires();
     setBanner("환자가 등록되었습니다.", "ok");
   } catch (error) {
     setBanner(error.message, "warning");
@@ -798,11 +809,151 @@ async function updatePatient(event) {
 async function openPatient(patientId) {
   tracking.selectedPatient = tracking.patients.find((patient) => patient.id === patientId) || null;
   if (!tracking.selectedPatient) return;
+  tracking.questionnaires = [];
+  t.questionnaireLinkArea.hidden = true;
+  t.questionnaireStatus.textContent = "링크를 만들면 7일 동안 사용할 수 있습니다.";
   showSelectedPatient(tracking.selectedPatient);
   resetReportForPatient(tracking.selectedPatient);
-  await loadAssessments();
+  await Promise.all([loadAssessments(), loadQuestionnaires()]);
   const latest = latestAssessment();
   if (latest) openAssessment(latest.id);
+}
+
+function questionnaireStatusLabel(status) {
+  return {
+    draft: "작성 중",
+    submitted: "의료진 확인 필요",
+    applied: "검사 입력에 반영함",
+    expired: "기간 만료",
+    revoked: "취소됨",
+  }[status] || status || "상태 미확인";
+}
+
+function questionnaireDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "--";
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const part = (type) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
+}
+
+function renderQuestionnaires() {
+  if (!t.questionnaireList) return;
+  if (!tracking.selectedPatient) {
+    t.questionnaireList.innerHTML = '<p class="empty-state">환자를 선택하면 최근 문진 요청이 표시됩니다.</p>';
+    return;
+  }
+  if (!tracking.questionnaires.length) {
+    t.questionnaireList.innerHTML = '<p class="empty-state">생성된 환자 문진이 없습니다.</p>';
+    return;
+  }
+  t.questionnaireList.innerHTML = tracking.questionnaires.map((item) => {
+    const canApply = item.status === "submitted" && tracking.permissions.canEdit;
+    const canRevoke = ["draft", "submitted"].includes(item.status) && tracking.permissions.canEdit;
+    const statusDetail = item.status === "draft"
+      ? `${item.answeredCount}/${item.totalQuestions}문항 저장 · ${questionnaireDateTime(item.expiresAt)}까지`
+      : item.status === "submitted"
+        ? `${item.answeredCount}/${item.totalQuestions}문항 · ${questionnaireDateTime(item.submittedAt)} 제출`
+        : item.status === "applied"
+          ? `${questionnaireDateTime(item.appliedAt)} 의료진 반영`
+          : `${questionnaireDateTime(item.updatedAt)} 상태 변경`;
+    return `
+      <article class="questionnaire-request-item">
+        <div>
+          <p><span class="questionnaire-status-badge">${questionnaireStatusLabel(item.status)}</span>${escapeHtml(item.assessmentDate)} 검사 문진</p>
+          <small>${escapeHtml(statusDetail)}</small>
+        </div>
+        <div class="questionnaire-request-actions">
+          ${canApply ? `<button class="mini-button" type="button" data-apply-questionnaire="${escapeHtml(item.id)}">검사에 불러오기</button>` : ""}
+          ${canRevoke ? `<button class="mini-button danger" type="button" data-revoke-questionnaire="${escapeHtml(item.id)}">취소</button>` : ""}
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadQuestionnaires() {
+  if (!tracking.selectedPatient) return;
+  const data = await api(`/api/patients/${tracking.selectedPatient.id}/questionnaires`);
+  tracking.questionnaires = data.questionnaires || [];
+  renderQuestionnaires();
+}
+
+async function createQuestionnaire() {
+  if (!tracking.selectedPatient) return;
+  t.createQuestionnaire.disabled = true;
+  t.questionnaireStatus.textContent = "문진 링크를 생성하는 중입니다.";
+  try {
+    const assessmentDate = window.metabolicReportApp?.localDateKey?.() || new Date().toISOString().slice(0, 10);
+    const data = await api(`/api/patients/${tracking.selectedPatient.id}/questionnaires`, {
+      method: "POST",
+      body: JSON.stringify({ assessmentDate }),
+    });
+    t.questionnaireLink.value = data.link;
+    t.questionnaireLinkArea.hidden = false;
+    t.questionnaireStatus.textContent = "링크가 생성되었습니다. 환자에게 전달하면 답변이 자동 저장됩니다.";
+    await loadQuestionnaires();
+  } catch (error) {
+    t.questionnaireStatus.textContent = error.message;
+    setBanner(error.message, "warning");
+  } finally {
+    applyPermissions();
+  }
+}
+
+async function copyQuestionnaireLink() {
+  const link = t.questionnaireLink.value;
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    t.questionnaireStatus.textContent = "문진 링크를 복사했습니다.";
+  } catch {
+    t.questionnaireLink.select();
+    document.execCommand("copy");
+    t.questionnaireStatus.textContent = "문진 링크를 복사했습니다.";
+  }
+}
+
+async function applyQuestionnaire(questionnaireId) {
+  const item = tracking.questionnaires.find((questionnaire) => questionnaire.id === questionnaireId);
+  if (!item || !tracking.selectedPatient) return;
+  if (!confirm("환자가 제출한 문진 답변을 현재 검사 입력 화면에 불러올까요?\n기존 문진 답변 항목은 제출 내용으로 바뀝니다.")) return;
+  try {
+    const data = await api(`/api/questionnaires/${questionnaireId}/apply`, { method: "POST", body: "{}" });
+    window.metabolicReportApp?.setValues({
+      ...(data.questionnaire.responses || {}),
+      testDate: item.assessmentDate,
+    });
+    t.questionnaireStatus.textContent = "환자 문진을 검사 입력 화면에 불러왔습니다. 내용을 확인한 뒤 검사결과를 저장해 주세요.";
+    setBanner("환자 문진 답변을 불러왔습니다. 의료진 확인 후 검사결과를 저장해 주세요.", "ok");
+    await loadQuestionnaires();
+    document.querySelector("#inputHeading")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    t.questionnaireStatus.textContent = error.message;
+    setBanner(error.message, "warning");
+  }
+}
+
+async function revokeQuestionnaire(questionnaireId) {
+  if (!confirm("이 문진 링크와 제출 요청을 취소할까요?")) return;
+  try {
+    await api(`/api/questionnaires/${questionnaireId}/revoke`, { method: "POST", body: "{}" });
+    t.questionnaireLinkArea.hidden = true;
+    t.questionnaireStatus.textContent = "문진 요청을 취소했습니다.";
+    await loadQuestionnaires();
+  } catch (error) {
+    t.questionnaireStatus.textContent = error.message;
+    setBanner(error.message, "warning");
+  }
 }
 
 async function loadAssessments() {
@@ -1381,6 +1532,14 @@ t.table.addEventListener("click", (event) => {
   if (id) openPatient(id).catch((error) => setBanner(error.message, "warning"));
 });
 t.saveAssessment.addEventListener("click", saveAssessment);
+t.createQuestionnaire?.addEventListener("click", createQuestionnaire);
+t.copyQuestionnaireLink?.addEventListener("click", copyQuestionnaireLink);
+t.questionnaireList?.addEventListener("click", (event) => {
+  const applyId = event.target.closest("[data-apply-questionnaire]")?.dataset.applyQuestionnaire;
+  const revokeId = event.target.closest("[data-revoke-questionnaire]")?.dataset.revokeQuestionnaire;
+  if (applyId) applyQuestionnaire(applyId);
+  if (revokeId) revokeQuestionnaire(revokeId);
+});
 document.querySelectorAll("[data-clinician-review-close]").forEach((button) => {
   button.addEventListener("click", () => t.clinicianReviewDialog?.close());
 });
@@ -1407,10 +1566,15 @@ t.memberTable?.addEventListener("click", (event) => {
   if (memberId) deactivateMember(memberId).catch((error) => setBanner(error.message, "warning"));
 });
 
-setInterval(() => {
-  if (!tracking.user) return;
-  loadPatients().catch(() => {});
-  if (tracking.selectedPatient) loadAssessments().catch(() => {});
-}, 60000);
+if (!window.patientQuestionnaireMode) {
+  setInterval(() => {
+    if (!tracking.user) return;
+    loadPatients().catch(() => {});
+    if (tracking.selectedPatient) {
+      loadAssessments().catch(() => {});
+      loadQuestionnaires().catch(() => {});
+    }
+  }, 60000);
 
-loadMe();
+  loadMe();
+}

@@ -13,6 +13,7 @@ FILES = {
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/tracking.js": ("tracking.js", "text/javascript; charset=utf-8"),
+    "/questionnaire.js": ("questionnaire.js", "text/javascript; charset=utf-8"),
     "/manifest.webmanifest": ("manifest.webmanifest", "application/manifest+json; charset=utf-8"),
     "/service-worker.js": ("service-worker.js", "text/javascript; charset=utf-8"),
     "/assets/icon.svg": ("assets/icon.svg", "image/svg+xml"),

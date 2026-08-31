@@ -927,19 +927,19 @@ function getGrade(total, max, axes = [], critical = false) {
   if (max < 100) return { label: "부분 판정", text: "일부 축이 미측정이므로 측정 완료 점수로 해석합니다." };
   const scores = axes.filter((axis) => axis.max === AXIS_MAX && axis.status === "complete").map((axis) => axis.score);
   const lowest = scores.length ? Math.min(...scores) : 0;
-  if (total >= 85 && lowest >= 15) return { label: "건강", text: "전반적으로 건강한 상태입니다.", short: "전반적으로 건강한 상태" };
-  if (total >= 70 && lowest >= 10) return { label: "양호", text: "일부 영역의 개선과 추적관찰이 필요합니다.", short: "대체로 양호한 상태" };
-  if (total >= 55 && lowest >= 5) return { label: "관리필요", text: "여러 대사영역의 관리가 필요합니다.", short: "관리가 필요한 상태" };
-  return { label: "적극관리필요", text: "원인 확인과 적극적인 관리가 필요합니다.", short: "적극적인 관리가 필요한 상태" };
+  if (total >= 85 && lowest >= 15) return { label: "양호", text: "전반적인 대사건강 상태가 양호합니다.", short: "현재 상태 유지와 정기 점검" };
+  if (total >= 70 && lowest >= 10) return { label: "관리필요 1단계", text: "생활습관 점검과 추적관찰이 필요합니다.", short: "생활습관 점검과 추적관찰 필요" };
+  if (total >= 55 && lowest >= 5) return { label: "관리필요 2단계", text: "여러 대사영역의 적극적인 관리가 필요합니다.", short: "적극적인 대사관리 필요" };
+  return { label: "관리필요 3단계", text: "원인 확인과 집중적인 관리가 필요합니다.", short: "원인 확인과 집중적인 관리 필요" };
 }
 
 function applyPhysicalGradeOverride(grade, data, max) {
-  if (max !== 100 || !["건강", "양호"].includes(grade.label)) return grade;
+  if (max !== 100 || !["양호", "관리필요 1단계"].includes(grade.label)) return grade;
   const physical = assessPhysicalFunction(data);
   if (!physical.activated) return grade;
   return {
-    label: "대사수치 양호 · 신체기능 관리필요",
-    text: "대사축 수치는 양호하지만 신체기능상태 관리가 필요한 상태입니다.",
+    label: `${grade.label === "양호" ? "대사수치 양호" : "대사수치 관리필요 1단계"} · 신체기능 관리필요`,
+    text: `대사건강 종합점수는 ${grade.label} 범위이며 신체기능상태 관리가 필요한 상태입니다.`,
     short: "신체기능상태 관리가 필요한 상태",
     physicalOverride: true,
   };
@@ -1964,8 +1964,8 @@ function makeSummary(data, results, grade, typeResult, flags) {
   const limitedAxes = results.axes.filter((axis) => axis.status === "unavailable" || axis.status === "hold").map((axis) => axis.label);
   const primary = selectedPrimaryType(typeResult, data);
   const scoreSentence = grade.physicalOverride
-    ? `대사축 종합점수는 ${scorePhrase(results)}으로 양호하지만, 신체기능상태 관리가 필요합니다.`
-    : `대사축 종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`;
+    ? `대사건강 종합점수는 ${scorePhrase(results)}으로 ${grade.label.includes("관리필요 1단계") ? "관리필요 1단계이며" : "양호 범위이지만"}, 신체기능상태 관리가 필요합니다.`
+    : `대사건강 종합점수는 ${scorePhrase(results)}으로, ${grade.label}입니다.`;
   const sentences = [
     scoreSentence,
     lowest.length ? `특히 ${joinKorean(lowest)} 영역부터 살펴보는 것이 좋습니다.` : "입력된 검사영역을 순차적으로 살펴보는 것이 좋습니다.",
@@ -2472,7 +2472,7 @@ function renderComprehensiveInterpretation(data, results, grade, typeResult, fla
   const scoreText = results.max ? `${results.total}/${results.max}점` : "계산 대기";
   const priorityLabel = joinKorean(priority);
   const priorityText = priority.length ? `${priorityLabel}${particle(priorityLabel, "을", "를")} 우선적으로 살펴볼 필요가 있습니다.` : "입력된 검사값이 충분하지 않아 관리 우선영역을 정하지 않았습니다.";
-  overview.textContent = `이번 검사에서 대사축 점수는 ${scoreText}, 종합상태는 ${grade.label}이며 주타입은 ${primary}입니다. ${priorityText}`;
+  overview.textContent = `이번 검사에서 대사건강 종합점수는 ${scoreText}, 종합상태는 ${grade.label}이며 주타입은 ${primary}입니다. ${priorityText}`;
 
   const warningFlags = flags.filter((flag) => flag.type === "warning");
   const warning = document.createElement("p");
@@ -2665,7 +2665,7 @@ function render() {
   renderValidation(validation);
   renderType(typeResult, data, results);
   elements.patientLine.textContent = patientLine(data);
-  elements.scoreTitle.textContent = results.max === 100 ? "대사축 종합점수" : "측정 완료 점수";
+  elements.scoreTitle.textContent = results.max === 100 ? "대사건강 종합점수" : "측정 완료 점수";
   elements.totalScore.textContent = results.max ? scorePhrase(results) : "--";
   elements.gradeLabel.textContent = grade.label;
   elements.gradeLabel.classList.toggle("is-long", grade.label.length > 10);

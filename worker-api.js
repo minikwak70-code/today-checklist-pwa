@@ -1,6 +1,23 @@
 const SCORE_RULE_VERSION = "metabolic-score-v4.7";
 const DEFAULT_CLINIC_ID = "clinic_gongdeok_kyunghee";
 const DEFAULT_CLINIC_NAME = "공덕경희한의원";
+const QUESTIONNAIRE_EXPIRY_DAYS = 7;
+const QUESTIONNAIRE_FIELDS = [
+  "inflammationFatigue",
+  "inflammationRecovery",
+  "inflammationMusculoskeletal",
+  "inflammationOral",
+  "inflammationRespiratory",
+  "inflammationSkin",
+  "inflammationGut",
+  "inflammationInfectionRecovery",
+  "appetiteReduced",
+  "earlySatiety",
+  "frequentIndigestion",
+  "foodAvoidanceDueDiscomfort",
+  "fatigueActivityReduced",
+  "walkingStairsDifficulty",
+];
 let schemaReadyPromise = null;
 
 const ROLE_LABELS = {
@@ -26,6 +43,34 @@ function makeId(prefix) {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function makeQuestionnaireToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function hashQuestionnaireToken(token) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function normalizeBirthDate(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+  return digits.length === 8 ? `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}` : "";
+}
+
+function maskedPatientName(value) {
+  const name = String(value || "").trim();
+  if (name.length <= 1) return name ? "*" : "환자";
+  if (name.length === 2) return `${name[0]}*`;
+  return `${name[0]}${"*".repeat(name.length - 2)}${name.at(-1)}`;
+}
+
+function questionnaireExpiresAt() {
+  return new Date(Date.now() + QUESTIONNAIRE_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
 }
 
 function normalizeEmail(email) {
@@ -96,6 +141,9 @@ async function ensureSchema(db) {
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_patient_date_idx ON assessments (patient_id, assessment_date)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_clinic_idx ON assessments (clinic_id, patient_id, assessment_date)"),
     db.prepare("CREATE INDEX IF NOT EXISTS assessments_latest_idx ON assessments (clinic_id, patient_id, is_deleted, deleted_at, assessment_date DESC, created_at DESC)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS questionnaire_requests (id TEXT PRIMARY KEY, clinic_id TEXT NOT NULL, patient_id TEXT NOT NULL, assessment_date TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, status TEXT NOT NULL DEFAULT 'draft', response_data TEXT NOT NULL DEFAULT '{}', expires_at TEXT NOT NULL, submitted_at TEXT, applied_at TEXT, applied_by TEXT, revoked_at TEXT, verification_failures INTEGER NOT NULL DEFAULT 0, locked_until TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, created_by TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 1)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS questionnaire_requests_patient_idx ON questionnaire_requests (clinic_id, patient_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS questionnaire_requests_status_idx ON questionnaire_requests (clinic_id, status, expires_at)"),
     db.prepare("CREATE TABLE IF NOT EXISTS score_rule_versions (id TEXT PRIMARY KEY, version TEXT NOT NULL UNIQUE, effective_date TEXT NOT NULL, rules TEXT NOT NULL, description TEXT, created_at TEXT NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS audit_logs (id TEXT PRIMARY KEY, clinic_id TEXT, user_id TEXT, action TEXT NOT NULL, target_type TEXT, target_id TEXT, before_data TEXT, after_data TEXT, ip_address TEXT, user_agent TEXT, entity_type TEXT, entity_id TEXT, before_values TEXT, after_values TEXT, reason TEXT, created_at TEXT NOT NULL, created_by TEXT)"),
     db.prepare("CREATE INDEX IF NOT EXISTS audit_logs_clinic_idx ON audit_logs (clinic_id, created_at)"),
@@ -113,6 +161,10 @@ async function ensureSchema(db) {
   await addColumn(db, "assessments", "deleted_at TEXT");
   await addColumn(db, "assessments", "version INTEGER NOT NULL DEFAULT 1");
   await addColumn(db, "assessments", "clinician_review TEXT");
+  await addColumn(db, "questionnaire_requests", "verification_failures INTEGER NOT NULL DEFAULT 0");
+  await addColumn(db, "questionnaire_requests", "locked_until TEXT");
+  await addColumn(db, "questionnaire_requests", "revoked_at TEXT");
+  await addColumn(db, "questionnaire_requests", "version INTEGER NOT NULL DEFAULT 1");
   await addColumn(db, "audit_logs", "clinic_id TEXT");
   await addColumn(db, "audit_logs", "user_id TEXT");
   await addColumn(db, "audit_logs", "target_type TEXT");
@@ -142,11 +194,13 @@ async function ensureSchema(db) {
     "Embedded metabolic score rules with DP-H10 GRA/LYM ratio inflammation reference assessment.",
     now,
   ).run();
+  await safeRun(db, "PRAGMA optimize");
 }
 
 async function ensureSchemaOnce(db) {
   if (!schemaReadyPromise) {
     schemaReadyPromise = db.prepare("SELECT id FROM clinics LIMIT 1").first()
+      .then(() => db.prepare("SELECT id FROM questionnaire_requests LIMIT 1").first())
       .then(() => undefined)
       .catch((error) => {
         if (/no such table/i.test(String(error?.message || error))) return ensureSchema(db);
@@ -384,6 +438,174 @@ function assessmentRow(row) {
   };
 }
 
+function questionnaireResponseData(value) {
+  const parsed = parseJsonField(value, "{}");
+  return Object.fromEntries(QUESTIONNAIRE_FIELDS.flatMap((key) => {
+    const score = Number(parsed[key]);
+    return Number.isInteger(score) && score >= 0 && score <= 5 ? [[key, score]] : [];
+  }));
+}
+
+function questionnaireRow(row, includeResponses = false) {
+  const responses = questionnaireResponseData(row.response_data);
+  return {
+    id: row.id,
+    patientId: row.patient_id,
+    assessmentDate: row.assessment_date,
+    status: row.status,
+    answeredCount: Object.keys(responses).length,
+    totalQuestions: QUESTIONNAIRE_FIELDS.length,
+    expiresAt: row.expires_at,
+    submittedAt: row.submitted_at,
+    appliedAt: row.applied_at,
+    revokedAt: row.revoked_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    ...(includeResponses ? { responses } : {}),
+  };
+}
+
+function questionnaireStatus(row) {
+  if (row.status === "draft" && Date.parse(row.expires_at) <= Date.now()) return "expired";
+  return row.status;
+}
+
+function sanitizeQuestionnaireResponses(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(QUESTIONNAIRE_FIELDS.flatMap((key) => {
+    if (!Object.prototype.hasOwnProperty.call(value, key)) return [];
+    const score = Number(value[key]);
+    return Number.isInteger(score) && score >= 0 && score <= 5 ? [[key, score]] : [];
+  }));
+}
+
+async function getQuestionnaireByToken(db, token) {
+  if (!/^[A-Za-z0-9_-]{40,64}$/.test(String(token || ""))) return null;
+  const tokenHash = await hashQuestionnaireToken(token);
+  return db.prepare(
+    `SELECT qr.*, p.name AS patient_name, p.birth_date AS patient_birth_date, c.name AS clinic_name
+     FROM questionnaire_requests qr
+     JOIN patients p ON p.id = qr.patient_id AND p.clinic_id = qr.clinic_id
+     JOIN clinics c ON c.id = qr.clinic_id
+     WHERE qr.token_hash = ?
+       AND p.deleted_at IS NULL
+       AND COALESCE(p.is_deleted, 0) = 0
+       AND c.is_active = 1`,
+  ).bind(tokenHash).first();
+}
+
+async function verifyQuestionnaireBirthDate(db, request, row, birthDate) {
+  if (row.locked_until && Date.parse(row.locked_until) > Date.now()) {
+    return { error: json({ error: "확인 시도가 잠시 제한되었습니다. 15분 후 다시 시도해 주세요." }, 429) };
+  }
+  const normalized = normalizeBirthDate(birthDate);
+  if (!normalized || normalized !== normalizeBirthDate(row.patient_birth_date)) {
+    const failures = Number(row.verification_failures || 0) + 1;
+    const lockedUntil = failures >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
+    await db.prepare(
+      "UPDATE questionnaire_requests SET verification_failures = ?, locked_until = ?, updated_at = ? WHERE id = ?",
+    ).bind(lockedUntil ? 0 : failures, lockedUntil, nowIso(), row.id).run();
+    return { error: json({ error: "환자 확인 정보가 일치하지 않습니다." }, 403) };
+  }
+  if (Number(row.verification_failures || 0) || row.locked_until) {
+    await db.prepare(
+      "UPDATE questionnaire_requests SET verification_failures = 0, locked_until = NULL, updated_at = ? WHERE id = ?",
+    ).bind(nowIso(), row.id).run();
+  }
+  return { ok: true };
+}
+
+async function auditQuestionnaire(db, request, row, action, afterData = null) {
+  const afterJson = afterData ? JSON.stringify(minimizeAuditData(afterData)) : null;
+  await db.prepare(
+    `INSERT INTO audit_logs (
+      id, clinic_id, user_id, action, target_type, target_id, before_data, after_data,
+      ip_address, user_agent, entity_type, entity_id, before_values, after_values, reason, created_at, created_by
+    ) VALUES (?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?)`,
+  ).bind(
+    makeId("aud"),
+    row.clinic_id,
+    action,
+    "questionnaire",
+    row.id,
+    afterJson,
+    requestIp(request),
+    request.headers.get("user-agent") || "",
+    "questionnaire",
+    row.id,
+    afterJson,
+    nowIso(),
+    "patient-link",
+  ).run();
+}
+
+async function handlePublicQuestionnaire(request, env, url) {
+  if (!env.DB) return json({ error: "설문 저장 서버가 준비되지 않았습니다." }, 503);
+  await ensureSchemaOnce(env.DB);
+  const tokenMatch = url.pathname.match(/^\/api\/questionnaire\/([A-Za-z0-9_-]+)(?:\/(verify|submit))?$/);
+  if (!tokenMatch) return json({ error: "문진 링크를 찾을 수 없습니다." }, 404);
+  const row = await getQuestionnaireByToken(env.DB, tokenMatch[1]);
+  if (!row) return json({ error: "유효하지 않은 문진 링크입니다." }, 404);
+  const status = questionnaireStatus(row);
+  if (status === "expired" && row.status === "draft") {
+    await env.DB.prepare("UPDATE questionnaire_requests SET status = 'expired', updated_at = ? WHERE id = ? AND status = 'draft'").bind(nowIso(), row.id).run();
+  }
+
+  if (request.method === "GET" && !tokenMatch[2]) {
+    return json({
+      clinicName: row.clinic_name,
+      status,
+      expiresAt: row.expires_at,
+      totalQuestions: QUESTIONNAIRE_FIELDS.length,
+    });
+  }
+
+  const body = await readJson(request);
+  const verification = await verifyQuestionnaireBirthDate(env.DB, request, row, body?.birthDate);
+  if (verification.error) return verification.error;
+
+  if (request.method === "POST" && tokenMatch[2] === "verify") {
+    return json({
+      clinicName: row.clinic_name,
+      patientLabel: maskedPatientName(row.patient_name),
+      assessmentDate: row.assessment_date,
+      status,
+      expiresAt: row.expires_at,
+      responses: questionnaireResponseData(row.response_data),
+      totalQuestions: QUESTIONNAIRE_FIELDS.length,
+    });
+  }
+
+  if (["expired", "revoked"].includes(status)) return json({ error: "사용이 종료된 문진 링크입니다." }, 410);
+  if (["submitted", "applied"].includes(status)) return json({ error: "이미 제출된 문진입니다." }, 409);
+
+  if (request.method === "PATCH" && !tokenMatch[2]) {
+    const current = questionnaireResponseData(row.response_data);
+    const responses = { ...current, ...sanitizeQuestionnaireResponses(body?.responses) };
+    const updatedAt = nowIso();
+    await env.DB.prepare(
+      "UPDATE questionnaire_requests SET response_data = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'draft'",
+    ).bind(JSON.stringify(responses), updatedAt, row.id).run();
+    await auditQuestionnaire(env.DB, request, row, "questionnaire.autosave", { id: row.id, version: Number(row.version || 1) + 1 });
+    return json({ saved: true, answeredCount: Object.keys(responses).length, updatedAt });
+  }
+
+  if (request.method === "POST" && tokenMatch[2] === "submit") {
+    const responses = { ...questionnaireResponseData(row.response_data), ...sanitizeQuestionnaireResponses(body?.responses) };
+    if (Object.keys(responses).length !== QUESTIONNAIRE_FIELDS.length) {
+      return json({ error: "모든 문항에 답변한 뒤 제출해 주세요.", answeredCount: Object.keys(responses).length }, 400);
+    }
+    const submittedAt = nowIso();
+    await env.DB.prepare(
+      "UPDATE questionnaire_requests SET response_data = ?, status = 'submitted', submitted_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND status = 'draft'",
+    ).bind(JSON.stringify(responses), submittedAt, submittedAt, row.id).run();
+    await auditQuestionnaire(env.DB, request, row, "questionnaire.submit", { id: row.id, status: "submitted", version: Number(row.version || 1) + 1 });
+    return json({ submitted: true, submittedAt });
+  }
+
+  return json({ error: "지원하지 않는 문진 요청입니다." }, 405);
+}
+
 async function getPatient(db, context, patientId) {
   return db.prepare(
     "SELECT * FROM patients WHERE id = ? AND clinic_id = ? AND deleted_at IS NULL AND COALESCE(is_deleted, 0) = 0",
@@ -409,6 +631,7 @@ function memberRow(row) {
 async function handleApi(request, env) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204 });
   const url = new URL(request.url);
+  if (url.pathname.startsWith("/api/questionnaire/")) return handlePublicQuestionnaire(request, env, url);
   const context = await getContext(request, env);
   if (context.error) return context.error;
   const { db, user, member, clinic, permissions } = context;
@@ -535,6 +758,98 @@ async function handleApi(request, env) {
     const updated = await getPatient(db, context, existing.id);
     await audit(db, context, request, "patient.update", "patient", existing.id, existing, updated);
     return json({ patient: patientRow(updated) });
+  }
+
+  const patientQuestionnaireMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/questionnaires$/);
+  if (patientQuestionnaireMatch && request.method === "GET") {
+    const denied = requirePermission(context, "canRead");
+    if (denied) return denied;
+    const patient = await getPatient(db, context, patientQuestionnaireMatch[1]);
+    if (!patient) return json({ error: "Patient not found." }, 404);
+    await db.prepare(
+      "UPDATE questionnaire_requests SET status = 'expired', updated_at = ? WHERE clinic_id = ? AND patient_id = ? AND status = 'draft' AND expires_at <= ?",
+    ).bind(nowIso(), clinic.id, patient.id, nowIso()).run();
+    const result = await db.prepare(
+      `SELECT * FROM questionnaire_requests
+       WHERE clinic_id = ? AND patient_id = ?
+       ORDER BY created_at DESC
+       LIMIT 12`,
+    ).bind(clinic.id, patient.id).all();
+    return json({ questionnaires: (result.results || []).map((row) => questionnaireRow(row)) });
+  }
+
+  if (patientQuestionnaireMatch && request.method === "POST") {
+    const denied = requirePermission(context, "canCreateAssessment");
+    if (denied) return denied;
+    const patient = await getPatient(db, context, patientQuestionnaireMatch[1]);
+    if (!patient) return json({ error: "Patient not found." }, 404);
+    if (!normalizeBirthDate(patient.birth_date)) {
+      return json({ error: "환자 생년월일을 먼저 입력해 주세요. 문진 링크의 본인 확인에 사용됩니다." }, 400);
+    }
+    const pendingSubmission = await db.prepare(
+      "SELECT id FROM questionnaire_requests WHERE clinic_id = ? AND patient_id = ? AND status = 'submitted' ORDER BY submitted_at DESC LIMIT 1",
+    ).bind(clinic.id, patient.id).first();
+    if (pendingSubmission) return json({ error: "의료진 확인을 기다리는 제출 문진이 있습니다. 먼저 불러오거나 취소해 주세요." }, 409);
+
+    const now = nowIso();
+    await db.prepare(
+      "UPDATE questionnaire_requests SET status = 'revoked', revoked_at = ?, updated_at = ?, version = version + 1 WHERE clinic_id = ? AND patient_id = ? AND status = 'draft'",
+    ).bind(now, now, clinic.id, patient.id).run();
+    const body = await readJson(request);
+    const assessmentDate = /^\d{4}-\d{2}-\d{2}$/.test(String(body?.assessmentDate || ""))
+      ? body.assessmentDate
+      : now.slice(0, 10);
+    const token = makeQuestionnaireToken();
+    const tokenHash = await hashQuestionnaireToken(token);
+    const id = makeId("qnr");
+    const expiresAt = questionnaireExpiresAt();
+    await db.prepare(
+      `INSERT INTO questionnaire_requests (
+        id, clinic_id, patient_id, assessment_date, token_hash, status, response_data, expires_at,
+        submitted_at, applied_at, applied_by, revoked_at, verification_failures, locked_until,
+        created_at, updated_at, created_by, version
+      ) VALUES (?, ?, ?, ?, ?, 'draft', '{}', ?, NULL, NULL, NULL, NULL, 0, NULL, ?, ?, ?, 1)`,
+    ).bind(id, clinic.id, patient.id, assessmentDate, tokenHash, expiresAt, now, now, user.id).run();
+    await audit(db, context, request, "questionnaire.create", "questionnaire", id, null, { id, clinic_id: clinic.id, assessment_date: assessmentDate, version: 1 });
+    return json({
+      questionnaire: {
+        id,
+        patientId: patient.id,
+        assessmentDate,
+        status: "draft",
+        answeredCount: 0,
+        totalQuestions: QUESTIONNAIRE_FIELDS.length,
+        expiresAt,
+        createdAt: now,
+      },
+      link: `${url.origin}/?questionnaire=${encodeURIComponent(token)}`,
+    }, 201);
+  }
+
+  const questionnaireActionMatch = url.pathname.match(/^\/api\/questionnaires\/([^/]+)\/(apply|revoke)$/);
+  if (questionnaireActionMatch && request.method === "POST") {
+    const denied = requirePermission(context, "canEdit");
+    if (denied) return denied;
+    const before = await db.prepare(
+      "SELECT * FROM questionnaire_requests WHERE id = ? AND clinic_id = ?",
+    ).bind(questionnaireActionMatch[1], clinic.id).first();
+    if (!before) return json({ error: "문진 기록을 찾을 수 없습니다." }, 404);
+    const action = questionnaireActionMatch[2];
+    const now = nowIso();
+    if (action === "apply") {
+      if (before.status !== "submitted") return json({ error: "제출 완료된 문진만 불러올 수 있습니다." }, 409);
+      await db.prepare(
+        "UPDATE questionnaire_requests SET status = 'applied', applied_at = ?, applied_by = ?, updated_at = ?, version = version + 1 WHERE id = ? AND clinic_id = ? AND status = 'submitted'",
+      ).bind(now, user.id, now, before.id, clinic.id).run();
+      await audit(db, context, request, "questionnaire.apply", "questionnaire", before.id, before, { id: before.id, status: "applied", version: Number(before.version || 1) + 1 });
+      return json({ questionnaire: questionnaireRow({ ...before, status: "applied", applied_at: now, updated_at: now }, true) });
+    }
+    if (!["draft", "submitted"].includes(before.status)) return json({ error: "취소할 수 없는 문진 상태입니다." }, 409);
+    await db.prepare(
+      "UPDATE questionnaire_requests SET status = 'revoked', revoked_at = ?, updated_at = ?, version = version + 1 WHERE id = ? AND clinic_id = ?",
+    ).bind(now, now, before.id, clinic.id).run();
+    await audit(db, context, request, "questionnaire.revoke", "questionnaire", before.id, before, { id: before.id, status: "revoked", version: Number(before.version || 1) + 1 });
+    return json({ ok: true });
   }
 
   const patientMatch = url.pathname.match(/^\/api\/patients\/([^/]+)\/assessments$/);

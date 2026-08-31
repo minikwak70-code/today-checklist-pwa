@@ -435,6 +435,385 @@ textarea:focus-visible {
   padding: 8px 10px;
 }
 
+.patient-questionnaire-panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.patient-questionnaire-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.patient-questionnaire-panel-head h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.questionnaire-link-area {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.questionnaire-link-area[hidden] {
+  display: none !important;
+}
+
+.questionnaire-link-area input {
+  min-width: 0;
+  font-size: 12px;
+}
+
+.questionnaire-request-list {
+  display: grid;
+  gap: 8px;
+}
+
+.questionnaire-request-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid rgba(220, 229, 223, 0.9);
+}
+
+.questionnaire-request-item:first-child {
+  border-top: 0;
+}
+
+.questionnaire-request-item p,
+.questionnaire-request-item small {
+  margin: 0;
+}
+
+.questionnaire-request-item p {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.questionnaire-request-item small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.questionnaire-request-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.questionnaire-status-badge {
+  display: inline-block;
+  margin-right: 6px;
+  color: var(--green-dark);
+  font-weight: 900;
+}
+
+.patient-questionnaire-mode {
+  min-height: 100vh;
+  background: #eef3ef;
+}
+
+.patient-questionnaire-app {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.patient-questionnaire-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 2px 18px;
+}
+
+.patient-questionnaire-header div {
+  display: grid;
+  gap: 2px;
+}
+
+.patient-questionnaire-header strong {
+  color: var(--green-dark);
+  font-size: 16px;
+}
+
+.patient-questionnaire-header span:not(.patient-questionnaire-mark) {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.patient-questionnaire-mark {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--green);
+  color: white;
+  font-weight: 900;
+}
+
+.patient-questionnaire-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 28px;
+  box-shadow: 0 14px 38px rgba(31, 64, 52, 0.08);
+}
+
+.questionnaire-eyebrow {
+  margin: 0 0 7px;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.patient-questionnaire-card h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 28px;
+  letter-spacing: 0;
+}
+
+.patient-questionnaire-card h1 + p {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.questionnaire-verify-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.questionnaire-verify-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.questionnaire-verify-form label span {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.questionnaire-status {
+  min-height: 19px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.questionnaire-status[data-status="saved"] {
+  color: var(--green-dark);
+}
+
+.questionnaire-status[data-status="error"] {
+  color: var(--red);
+}
+
+.questionnaire-progress-block {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: -12px -12px 0;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.questionnaire-progress-block > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.questionnaire-progress-track {
+  height: 7px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e6eee9;
+}
+
+.questionnaire-progress-track span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 180ms ease;
+}
+
+.questionnaire-section {
+  padding-top: 26px;
+}
+
+.questionnaire-section + .questionnaire-section {
+  margin-top: 10px;
+  border-top: 2px solid #e3ebe6;
+}
+
+.questionnaire-section h2 {
+  margin: 0;
+  color: var(--green-dark);
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.questionnaire-section > p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.questionnaire-question-list {
+  margin-top: 8px;
+}
+
+.questionnaire-question {
+  min-width: 0;
+  margin: 0;
+  padding: 18px 0;
+  border: 0;
+  border-bottom: 1px solid #e5ece8;
+}
+
+.questionnaire-question legend {
+  width: 100%;
+  display: block;
+  color: #34433d;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.questionnaire-question legend > span {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  margin-right: 7px;
+  border-radius: 6px;
+  background: #eef4f1;
+  color: var(--green-dark);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.questionnaire-question legend strong {
+  margin-right: 7px;
+  color: var(--ink);
+}
+
+.questionnaire-scale {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.questionnaire-scale label {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.questionnaire-scale input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.questionnaire-scale label span {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #cddbd3;
+  border-radius: 7px;
+  background: #fff;
+  color: #43534c;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.questionnaire-scale input:checked + span {
+  border-color: var(--green);
+  background: var(--green);
+  color: white;
+  box-shadow: 0 0 0 2px rgba(35, 116, 90, 0.13);
+}
+
+.questionnaire-scale input:focus-visible + span {
+  outline: 3px solid rgba(35, 116, 90, 0.22);
+  outline-offset: 2px;
+}
+
+.questionnaire-scale-anchors {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.questionnaire-submit {
+  width: 100%;
+  min-height: 50px;
+  margin-top: 26px;
+  font-size: 15px;
+}
+
+.questionnaire-privacy {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.questionnaire-complete {
+  padding: 38px 10px;
+  text-align: center;
+}
+
+.questionnaire-complete strong {
+  color: var(--green-dark);
+  font-size: 22px;
+}
+
+.questionnaire-complete p {
+  margin: 12px auto 0;
+  max-width: 420px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
 .inline-select {
   display: flex;
   align-items: center;
@@ -1874,10 +2253,11 @@ button:disabled {
 }
 
 .summary-comment {
-  margin: 18px 0 0;
-  color: #34433d;
-  font-size: 15px;
-  line-height: 1.65;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
 }
 
 .flag-area {
@@ -2948,6 +3328,46 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .patient-questionnaire-panel-head,
+  .questionnaire-request-item {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .questionnaire-request-actions {
+    justify-content: flex-start;
+  }
+
+  .questionnaire-link-area,
+  .questionnaire-verify-form {
+    grid-template-columns: 1fr;
+  }
+
+  .patient-questionnaire-app {
+    padding: 16px 10px 36px;
+  }
+
+  .patient-questionnaire-card {
+    padding: 20px 16px;
+  }
+
+  .patient-questionnaire-card h1 {
+    font-size: 24px;
+  }
+
+  .questionnaire-question legend {
+    font-size: 13px;
+  }
+
+  .questionnaire-scale {
+    gap: 5px;
+  }
+
+  .questionnaire-scale label span {
+    min-height: 40px;
+  }
+
   .score-badge {
     width: 100%;
     min-height: 104px;
@@ -3191,6 +3611,11 @@ button:disabled {
   .summary-card,
   .detail-section > div {
     padding: 14px;
+  }
+
+  .summary-comment {
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .page-summary {

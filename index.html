@@ -4,14 +4,71 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f5f7f4" />
+    <meta name="referrer" content="no-referrer" />
     <meta name="description" content="5개 대사건강 축을 계산하고 출력용 환자 리포트를 생성하는 웹앱" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=54" />
+    <link rel="stylesheet" href="./styles.css?v=56" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
+    <main id="patientQuestionnaireApp" class="patient-questionnaire-app" hidden>
+      <header class="patient-questionnaire-header">
+        <span class="patient-questionnaire-mark" aria-hidden="true">M</span>
+        <div>
+          <strong id="questionnaireClinicName">공덕경희한의원</strong>
+          <span>대사건강 사전 문진</span>
+        </div>
+      </header>
+      <section class="patient-questionnaire-card">
+        <div id="questionnaireIntro">
+          <p class="questionnaire-eyebrow">PATIENT QUESTIONNAIRE</p>
+          <h1>현재 상태를 알려주세요</h1>
+          <p>최근 4주간의 상태를 기준으로 답변해 주세요. 답변은 자동으로 저장되며 의료진이 확인한 뒤 검사에 반영합니다.</p>
+          <form id="questionnaireVerifyForm" class="questionnaire-verify-form">
+            <label>
+              <span>생년월일</span>
+              <input id="questionnaireBirthDate" type="text" inputmode="numeric" maxlength="10" placeholder="YYYY-MM-DD" autocomplete="bday" required />
+            </label>
+            <button class="primary-button" type="submit">문진 시작</button>
+          </form>
+          <p id="questionnaireVerifyStatus" class="questionnaire-status" role="status"></p>
+        </div>
+        <form id="questionnaireForm" hidden>
+          <div class="questionnaire-progress-block">
+            <div>
+              <span id="questionnairePatientLabel">환자 문진</span>
+              <strong id="questionnaireProgressText">0 / 14</strong>
+            </div>
+            <div class="questionnaire-progress-track" aria-hidden="true"><span id="questionnaireProgressBar"></span></div>
+            <p id="questionnaireSaveStatus" class="questionnaire-status" role="status">답변을 선택하면 자동으로 저장됩니다.</p>
+          </div>
+          <section class="questionnaire-section">
+            <h2>만성염증 관련 증상</h2>
+            <p>0은 전혀 아니다, 5는 매우 그렇다를 의미합니다.</p>
+            <div id="questionnaireInflammationQuestions" class="questionnaire-question-list"></div>
+          </section>
+          <section class="questionnaire-section">
+            <h2>섭취·소화 상태</h2>
+            <p>최근 식사와 소화 상태를 선택해 주세요.</p>
+            <div id="questionnaireIntakeQuestions" class="questionnaire-question-list"></div>
+          </section>
+          <section class="questionnaire-section">
+            <h2>신체수행능력·체력</h2>
+            <p>일상 활동에서 느끼는 어려움을 선택해 주세요.</p>
+            <div id="questionnairePerformanceQuestions" class="questionnaire-question-list"></div>
+          </section>
+          <button id="questionnaireSubmitButton" class="primary-button questionnaire-submit" type="submit" disabled>문진 제출</button>
+          <p class="questionnaire-privacy">제출한 내용은 해당 한의원의 인증된 의료진만 확인할 수 있습니다.</p>
+        </form>
+        <div id="questionnaireComplete" class="questionnaire-complete" hidden>
+          <strong>문진이 제출되었습니다.</strong>
+          <p>답변이 안전하게 저장되었습니다. 검사 및 상담 시 의료진이 확인합니다.</p>
+        </div>
+      </section>
+    </main>
+
     <div class="app-shell">
       <header class="topbar no-print">
         <a class="brand" href="#" aria-label="공덕경희 대사건강 리포트 홈">
@@ -144,6 +201,23 @@
                 <span id="selectedPriority">현재 관리 필요영역: --</span>
               </div>
             </div>
+            <section class="patient-questionnaire-panel" aria-labelledby="patientQuestionnaireHeading">
+              <div class="patient-questionnaire-panel-head">
+                <div>
+                  <p class="section-title">환자 모바일 문진</p>
+                  <h3 id="patientQuestionnaireHeading">문진 링크와 제출 상태</h3>
+                </div>
+                <button id="createQuestionnaireButton" class="primary-button" type="button">문진 링크 생성</button>
+              </div>
+              <div id="questionnaireLinkArea" class="questionnaire-link-area" hidden>
+                <input id="questionnaireLink" type="text" readonly aria-label="환자 문진 링크" />
+                <button id="copyQuestionnaireLinkButton" class="ghost-button" type="button">링크 복사</button>
+              </div>
+              <p id="questionnaireClinicianStatus" class="form-note" role="status">링크를 만들면 7일 동안 사용할 수 있습니다.</p>
+              <div id="questionnaireRequestList" class="questionnaire-request-list">
+                <p class="empty-state">환자를 선택하면 최근 문진 요청이 표시됩니다.</p>
+              </div>
+            </section>
             <details class="patient-edit-panel">
               <summary>환자 기본정보 수정</summary>
               <form id="patientEditForm" class="mini-form">
@@ -612,7 +686,7 @@
                   </table>
                 </div>
                 <div class="criteria-note-grid">
-                  <p><strong>종합상태:</strong> 건강은 85점 이상이면서 모든 축 15점 이상 · 양호는 70점 이상이면서 모든 축 10점 이상 · 관리필요는 55점 이상이면서 모든 축 5점 이상 · 그 외 적극관리필요</p>
+                  <p><strong>종합상태:</strong> 양호는 85점 이상이면서 모든 축 15점 이상 · 관리필요 1단계는 70점 이상이면서 모든 축 10점 이상 · 관리필요 2단계는 55점 이상이면서 모든 축 5점 이상 · 그 외 관리필요 3단계</p>
                   <p><strong>우선 원칙:</strong> 미입력 축은 100점으로 환산하지 않습니다. 안전 경고가 있으면 총점과 관계없이 의학적 확인 우선으로 표시합니다.</p>
                 </div>
                 <p class="criteria-footnote"><strong>의학적 확인 우선:</strong> HbA1c ≥6.5% · TG ≥500 mg/dL · LDL-C ≥190 mg/dL · 혈압 ≥180/120 mmHg · hs-CRP &gt;10 mg/L · ALT/AST 기준상한 3배 이상 · 빌리루빈 상승과 간수치 이상 동반</p>
@@ -1094,7 +1168,7 @@
                 <p id="patientLine" class="patient-line">환자 정보를 입력하면 리포트에 반영됩니다.</p>
               </div>
               <div class="score-badge">
-                <span id="scoreTitle">대사축 종합점수</span>
+                <span id="scoreTitle">대사건강 종합점수</span>
                 <strong id="totalScore">--</strong>
                 <em id="gradeLabel">계산 대기</em>
                 <small id="gradeHelp" hidden></small>
@@ -1159,7 +1233,7 @@
 
           <section class="report-page page-interpretation">
             <article class="summary-card">
-              <p class="section-title">종합 자동 해석</p>
+              <p class="section-title">검사결과요약</p>
               <p id="summaryComment" class="summary-comment"></p>
             </article>
             <article class="priority-card priority-card-wide">
@@ -1240,7 +1314,8 @@
       </div>
     </dialog>
 
-    <script src="./app.js?v=95" defer></script>
-    <script src="./tracking.js?v=39" defer></script>
+    <script src="./questionnaire.js?v=1" defer></script>
+    <script src="./app.js?v=97" defer></script>
+    <script src="./tracking.js?v=40" defer></script>
   </body>
 </html>

@@ -1,10 +1,11 @@
-const CACHE_NAME = "metabolic-report-v119";
+const CACHE_NAME = "metabolic-report-v123";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=54",
-  "./app.js?v=95",
-  "./tracking.js?v=39",
+  "./styles.css?v=56",
+  "./app.js?v=97",
+  "./tracking.js?v=40",
+  "./questionnaire.js?v=1",
   "./manifest.webmanifest",
   "./assets/icon.svg",
   "./assets/icon-192.png",
@@ -29,7 +30,12 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) {
+  const requestUrl = new URL(event.request.url);
+  if (event.request.method !== "GET" || requestUrl.origin !== self.location.origin) {
+    return;
+  }
+
+  if (requestUrl.pathname.startsWith("/api/")) {
     return;
   }
 
