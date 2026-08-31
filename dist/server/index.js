@@ -201,9 +201,10 @@ async function ensureSchemaOnce(db) {
   if (!schemaReadyPromise) {
     schemaReadyPromise = db.prepare("SELECT id FROM clinics LIMIT 1").first()
       .then(() => db.prepare("SELECT id FROM questionnaire_requests LIMIT 1").first())
+      .then(() => db.prepare("SELECT clinician_review FROM assessments LIMIT 1").first())
       .then(() => undefined)
       .catch((error) => {
-        if (/no such table/i.test(String(error?.message || error))) return ensureSchema(db);
+        if (/no such (?:table|column)/i.test(String(error?.message || error))) return ensureSchema(db);
         throw error;
       })
       .catch((error) => {
