@@ -44,6 +44,7 @@ const TREATMENT_PROGRAMS = [
   { id: "lean_diet", name: "린다이어트 프로그램" },
   { id: "enzyme_fast", name: "효소절식 프로그램" },
   { id: "herbal_medicine", name: "한약치료" },
+  { id: "diet_management", name: "식단관리" },
 ];
 
 const TREATMENT_FIELD_IDS = [
