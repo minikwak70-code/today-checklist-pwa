@@ -1032,6 +1032,44 @@ label {
   font-weight: 760;
 }
 
+.criteria-help-trigger {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+  cursor: pointer;
+  outline: none;
+}
+
+.criteria-help-trigger::after {
+  content: "i";
+  display: inline-grid;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  place-items: center;
+  border: 1px solid #9eb9ad;
+  border-radius: 50%;
+  color: var(--green);
+  background: #f3f8f5;
+  font-family: Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.criteria-help-trigger:hover,
+.criteria-help-trigger:focus-visible {
+  color: var(--green-dark);
+}
+
+.criteria-help-trigger:focus-visible {
+  border-radius: 3px;
+  box-shadow: 0 0 0 3px rgba(38, 126, 98, 0.18);
+}
+
 input,
 select,
 textarea {
@@ -2984,6 +3022,148 @@ button:disabled {
 .clinician-review-dialog::backdrop {
   background: rgba(18, 34, 29, 0.55);
   backdrop-filter: blur(2px);
+}
+
+.criteria-help-dialog {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(720px, calc(100vh - 28px));
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 22px 64px rgba(20, 42, 34, 0.26);
+}
+
+.criteria-help-dialog::backdrop {
+  background: rgba(18, 34, 29, 0.46);
+}
+
+.criteria-help-shell {
+  display: flex;
+  max-height: min(720px, calc(100vh - 28px));
+  flex-direction: column;
+}
+
+.criteria-help-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #f1f7f4;
+}
+
+.criteria-help-header p,
+.criteria-help-header h2,
+.criteria-help-role,
+.criteria-help-note {
+  margin: 0;
+}
+
+.criteria-help-header p {
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.criteria-help-header h2 {
+  margin-top: 3px;
+  color: var(--green-dark);
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
+.criteria-help-close {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  border: 1px solid #cbdad3;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--ink);
+  font-size: 23px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.criteria-help-role {
+  margin: 16px 22px 10px;
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.criteria-help-rows {
+  margin: 0 22px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+
+.criteria-help-rows > div {
+  display: grid;
+  grid-template-columns: minmax(118px, 0.8fr) minmax(0, 1.35fr);
+  gap: 14px;
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.criteria-help-rows dt,
+.criteria-help-rows dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.criteria-help-rows dt {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.criteria-help-rows dd {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.criteria-help-note {
+  margin: 12px 22px 0;
+  padding: 11px 12px;
+  border-left: 3px solid #9fc9b8;
+  background: #f5f8f6;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.criteria-help-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 22px 20px;
+}
+
+.criteria-help-footer a {
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 800;
+  text-underline-offset: 3px;
+}
+
+.criteria-help-footer .primary-button {
+  min-width: 74px;
+}
+
+@media (max-width: 520px) {
+  .criteria-help-rows > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }
 
 .clinician-review-shell {

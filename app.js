@@ -8,6 +8,189 @@ const DEFAULT_ULN = {
   alp: 120,
 };
 
+const CRITERIA_HELP = {
+  hba1c: {
+    title: "HbA1c",
+    role: "당대사 점수 · 12점",
+    rows: [
+      ["<5.4%", "12점 · 양호"], ["5.4~5.6%", "10점 · 정상범위 상단"],
+      ["5.7~5.9%", "7점 · 당뇨병 전단계 범위"], ["6.0~6.4%", "4점 · 혈당 관리 필요"],
+      ["≥6.5%", "0점 · 의학적 확인 우선"],
+    ],
+  },
+  tg: {
+    title: "중성지방(TG)",
+    role: "지질대사 점수 · 8점 / TG·HDL-C 비율 계산",
+    rows: [
+      ["<100 mg/dL", "8점 · 양호"], ["100~149", "6점 · 정상범위 상단"],
+      ["150~199", "4점 · 상승"], ["200~499", "2점 · 높음"],
+      ["≥500", "0점 · 의학적 확인 우선"],
+    ],
+    note: "HDL-C와 함께 TG/HDL-C 비율을 계산해 당대사 점수에도 반영합니다.",
+  },
+  totalChol: {
+    title: "총콜레스테롤", role: "참고지표",
+    rows: [["활용", "총콜레스테롤 - HDL-C로 non-HDL-C를 자동 계산"]],
+    note: "총콜레스테롤 자체는 종합점수에 직접 반영하지 않습니다.",
+  },
+  hdl: {
+    title: "HDL-C", role: "계산지표",
+    rows: [
+      ["TG/HDL-C <2.00", "8점 · 지질대사 균형 양호"], ["2.00~2.49", "6점 · 균형 관찰"],
+      ["2.50~2.99", "4점 · 인슐린 저항 관련 관찰"], ["3.00~3.49", "2점 · 관리 필요"],
+      ["≥3.50", "0점 · 집중 관리 필요"],
+    ],
+    note: "총콜레스테롤과 함께 non-HDL-C도 계산하지만, HDL-C 단독으로 점수를 부여하지는 않습니다.",
+  },
+  ldl: {
+    title: "LDL-C", role: "지질대사 점수 · 12점",
+    rows: [
+      ["<100 mg/dL", "12점 · 양호"], ["100~129", "9점 · 권장범위 상단"],
+      ["130~159", "6점 · 상승"], ["160~189", "3점 · 높음"],
+      ["≥190", "0점 · 의학적 확인 우선"],
+    ],
+  },
+  alt: {
+    title: "ALT", role: "간대사 점수 · 10점",
+    rows: [
+      ["≤30 U/L", "10점 · 양호"], [">30~40", "8점 · 정상범위 상단"],
+      [">40~60", "6점 · 경도 상승"], [">60~80", "4점 · 상승"],
+      [">80~120", "2점 · 추가 평가"], [">120", "0점 · 원인 확인 우선"],
+    ],
+    note: "앱의 기준상한은 40 U/L이며, 검사기관 기준이 다르면 별도로 확인합니다.",
+  },
+  ast: {
+    title: "AST", role: "간대사 점수 · 5점",
+    rows: [
+      ["≤30 U/L", "5점 · 양호"], [">30~40", "4점 · 정상범위 상단"],
+      [">40~60", "3점 · 경도 상승"], [">60~80", "2점 · 상승"],
+      [">80~120", "1점 · 추가 평가"], [">120", "0점 · 원인 확인 우선"],
+    ],
+    note: "앱의 기준상한은 40 U/L이며, 검사기관 기준이 다르면 별도로 확인합니다.",
+  },
+  ggt: {
+    title: "GGT", role: "간대사 점수 · 5점",
+    rows: [
+      ["기준상한의 75% 이하", "5점 · 양호"], [">75~100%", "4점 · 정상범위 상단"],
+      [">1.0~1.5배", "3점 · 경도 상승"], [">1.5~2배", "2점 · 상승"],
+      [">2~3배", "1점 · 추가 평가"], [">3배", "0점 · 원인 확인 우선"],
+    ],
+    note: "기준상한은 남성 63 U/L, 여성 35 U/L를 적용합니다.",
+  },
+  tbil: {
+    title: "총빌리루빈(TBIL)", role: "간대사 감점지표",
+    rows: [
+      ["≤1.2 mg/dL", "감점 없음"], [">1.2~1.5", "1점 감점"],
+      [">1.5~2.0", "2점 감점"], [">2.0~3.0", "3점 감점"],
+      [">3.0", "5점 감점 · 원인 확인 우선"],
+    ],
+    note: "ALT·AST·GGT·ALP와 함께 상승 양상을 확인합니다.",
+  },
+  alp: {
+    title: "ALP", role: "간대사 참고지표",
+    rows: [["≤120 U/L", "정상범위 이내"], [">120~180", "경도 상승"], [">180~360", "상승"], [">360", "원인 확인 우선"]],
+    note: "점수에는 직접 반영하지 않으며, GGT와 함께 간담도성인지 뼈 유래인지 확인합니다.",
+  },
+  hsCrp: {
+    title: "hs-CRP", role: "만성염증 점수 · 10점",
+    rows: [
+      ["≤0.2 mg/L", "10점 · 최적 수준"], [">0.2~0.3", "9점 · 낮은 수준"],
+      [">0.3~0.4", "8점 · 낮은 수준"], [">0.4~0.5", "7점 · 저강도 염증 관찰"],
+      [">0.5~0.6", "6점 · 저강도 염증 관리"], [">0.6~0.8", "5점 · 저강도 염증 관리"],
+      [">0.8~1.0", "4점 · 상승 관찰"], [">1.0~2.0", "2점 · 원인 및 지속 여부 확인"],
+      [">2.0~3.0", "1점 · 뚜렷한 상승"], [">3.0~10.0", "0점 · 재검 및 원인 확인"],
+      [">10.0", "판정 보류 · 급성 염증원 확인"],
+    ],
+  },
+  graPercent: {
+    title: "GRA", role: "GRA/LYM 비율 계산용 참고지표",
+    rows: [["비율 <1.8", "참고범위"], ["1.8~2.49", "경계 참고"], ["2.5~3.49", "상승 참고"], ["≥3.5", "높은 상승 참고"]],
+    note: "GRA ÷ LYM으로 계산하며 점수에는 반영하지 않습니다. 정식 NLR과 동일한 검사가 아닙니다.",
+  },
+  lymPercent: {
+    title: "LYM", role: "GRA/LYM 비율 계산용 참고지표",
+    rows: [["비율 <1.8", "참고범위"], ["1.8~2.49", "경계 참고"], ["2.5~3.49", "상승 참고"], ["≥3.5", "높은 상승 참고"]],
+    note: "GRA ÷ LYM으로 계산하며 점수에는 반영하지 않습니다. LYM이 0이거나 비어 있으면 계산하지 않습니다.",
+  },
+  visceralFat: {
+    title: "내장지방레벨", role: "복부비만 평가 · 보조지표",
+    rows: [["1~9", "정상범위"], ["≥10", "내장지방 증가 · 복부비만 위험 1점"]],
+    note: "허리-키 비율과 허리둘레를 함께 평가하며, 내장지방레벨만으로 복부비만형을 확정하지 않습니다.",
+  },
+  waist: {
+    title: "허리둘레", role: "복부비만 평가 · 보조지표",
+    rows: [["남성 ≥90 cm", "복부비만 기준 이상 · 위험 1점"], ["여성 ≥85 cm", "복부비만 기준 이상 · 위험 1점"]],
+    note: "키와 함께 WHtR을 계산합니다. 입력범위는 40~200 cm입니다.",
+  },
+  height: {
+    title: "키", role: "WHtR 계산용",
+    rows: [["WHtR <0.50", "양호"], ["WHtR ≥0.50", "복부지방 위험 증가 · 위험 2점"]],
+    note: "WHtR = 허리둘레(cm) ÷ 키(cm)입니다. 키 입력범위는 100~220 cm입니다.",
+  },
+  hrvIndexGrade: {
+    title: "HRV-Index", role: "자율신경 점수 · 5점",
+    rows: [["매우높음·높음", "5점"], ["보통", "4점"], ["낮음", "2점"], ["매우낮음", "0점"]],
+  },
+  ansActivity: {
+    title: "ANS Activity", role: "자율신경 점수 · 5점",
+    rows: [["매우높음·높음", "5점"], ["보통", "4점"], ["낮음", "2점"], ["매우낮음", "0점"]],
+  },
+  stressGrade: {
+    title: "Stress", role: "자율신경 점수 · 5점",
+    rows: [["매우낮음·낮음", "5점"], ["보통", "4점"], ["높음", "2점"], ["매우높음", "0점"]],
+  },
+  snsPercent: {
+    title: "SNS 비율", role: "SNS:PNS 균형 점수 · 5점",
+    rows: [
+      ["46~54%", "5점 · 균형 양호"], ["44~45.9% 또는 54.1~56%", "4점 · 가벼운 치우침"],
+      ["40~43.9% 또는 56.1~60%", "2점 · 균형 관리 필요"], ["<40% 또는 >60%", "0점 · 뚜렷한 치우침"],
+    ],
+    note: "PNS 비율은 100 - SNS 비율로 자동 계산됩니다.",
+  },
+  pnsPercent: {
+    title: "PNS 비율", role: "자동 계산값", rows: [["계산식", "100 - SNS 비율"]],
+    note: "판정은 SNS 비율이 50%에서 얼마나 벗어났는지로 계산합니다.",
+  },
+  sbp: {
+    title: "수축기 혈압", role: "자율신경 참고지표",
+    rows: [["<120 / <80 mmHg", "정상혈압"], ["120~129 / <80", "주의혈압"], ["130~139 또는 80~89", "고혈압 전단계"], ["140~159 또는 90~99", "고혈압 범위"], ["그 이상", "매우 높은 범위"], ["≥180 또는 ≥120", "의학적 확인 우선"]],
+    note: "수축기와 이완기 중 더 높은 단계의 기준을 적용합니다.",
+  },
+  dbp: {
+    title: "이완기 혈압", role: "자율신경 참고지표",
+    rows: [["<120 / <80 mmHg", "정상혈압"], ["120~129 / <80", "주의혈압"], ["130~139 또는 80~89", "고혈압 전단계"], ["140~159 또는 90~99", "고혈압 범위"], ["그 이상", "매우 높은 범위"], ["≥180 또는 ≥120", "의학적 확인 우선"]],
+    note: "수축기와 이완기 중 더 높은 단계의 기준을 적용합니다.",
+  },
+  restingHr: {
+    title: "안정 시 심박수", role: "자율신경 참고지표",
+    rows: [["<50 bpm", "낮은 심박수 확인"], ["50~59", "낮은 범위"], ["60~89", "참고범위"], ["90~99", "상승"], ["≥100", "높은 범위"]],
+    note: "점수에는 직접 반영하지 않고 증상·복용약·측정상황과 함께 확인합니다.",
+  },
+  skeletalMuscleMass: {
+    title: "골격근량", role: "신체기능 참고지표", rows: [["활용", "치료 전후 근육량 변화 추적"]],
+    note: "절대 골격근량은 성별과 체격의 영향을 받으므로 단독 기준으로 점수화하지 않습니다. SMI를 함께 확인합니다.",
+  },
+  smi: {
+    title: "SMI", role: "신체기능상태 평가",
+    rows: [["남성 <7.0 kg/m²", "근육량 저하"], ["여성 <5.7 kg/m²", "근육량 저하"], ["남성 7.0~<7.5", "경계 관찰"], ["여성 5.7~<6.0", "경계 관찰"]],
+  },
+  rightGripStrength: {
+    title: "오른손 악력", role: "신체기능상태 평가",
+    rows: [["남성 대표 악력 <28 kg", "근력 저하"], ["여성 대표 악력 <18 kg", "근력 저하"]],
+    note: "좌우 중 높은 값을 대표 악력으로 사용하며, 좌우 차이는 참고지표로만 표시합니다.",
+  },
+  leftGripStrength: {
+    title: "왼손 악력", role: "신체기능상태 평가",
+    rows: [["남성 대표 악력 <28 kg", "근력 저하"], ["여성 대표 악력 <18 kg", "근력 저하"]],
+    note: "좌우 중 높은 값을 대표 악력으로 사용하며, 좌우 차이는 참고지표로만 표시합니다.",
+  },
+  weightLossContext: {
+    title: "최근 비의도적 체중감소", role: "신체기능상태 평가",
+    rows: [["있음", "체중 및 체중 변화 위험 1점"], ["없음·모름", "위험점수 없음"]],
+    note: "다이어트 등 의도적인 감량이 아닌 체중감소 여부를 확인합니다.",
+  },
+};
+
 const TYPE_OPTIONS = [
   ["", "자동 판정 사용"],
   ["0. 간관리 선행형", "간관리 선행형"],
@@ -3017,6 +3200,64 @@ function setupTreatmentProgramSelects() {
   }
 }
 
+function openCriteriaHelp(key) {
+  const criteria = CRITERIA_HELP[key];
+  const dialog = document.querySelector("#criteriaHelpDialog");
+  const title = document.querySelector("#criteriaHelpTitle");
+  const role = document.querySelector("#criteriaHelpRole");
+  const rows = document.querySelector("#criteriaHelpRows");
+  const note = document.querySelector("#criteriaHelpNote");
+  if (!criteria || !dialog || !title || !role || !rows || !note) return;
+
+  title.textContent = criteria.title;
+  role.textContent = criteria.role;
+  rows.replaceChildren(...criteria.rows.map(([range, meaning]) => {
+    const row = document.createElement("div");
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = range;
+    description.textContent = meaning;
+    row.append(term, description);
+    return row;
+  }));
+  note.textContent = criteria.note || "";
+  note.hidden = !criteria.note;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+function setupCriteriaHelp() {
+  Object.keys(CRITERIA_HELP).forEach((key) => {
+    const input = field(key);
+    const label = input?.closest("label");
+    const trigger = label?.querySelector(":scope > span");
+    if (!trigger) return;
+    trigger.classList.add("criteria-help-trigger");
+    trigger.setAttribute("role", "button");
+    trigger.setAttribute("tabindex", "0");
+    trigger.setAttribute("aria-haspopup", "dialog");
+    trigger.setAttribute("aria-label", `${trigger.textContent.trim()} 평가기준 보기`);
+    const open = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openCriteriaHelp(key);
+    };
+    trigger.addEventListener("click", open);
+    trigger.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") open(event);
+    });
+  });
+
+  const dialog = document.querySelector("#criteriaHelpDialog");
+  dialog?.querySelectorAll("[data-criteria-help-close]").forEach((button) => {
+    button.addEventListener("click", () => dialog.close());
+  });
+  dialog?.addEventListener("click", (event) => {
+    if (event.target === dialog) dialog.close();
+  });
+  document.querySelector("#criteriaHelpFullLink")?.addEventListener("click", () => dialog?.close());
+}
+
 function regenerateTreatmentPlan() {
   const data = readForm();
   const validation = validateInputs(data);
@@ -3064,6 +3305,7 @@ setupManualTypeSelects();
 setupTreatmentProgramSelects();
 setupBirthDateInputs();
 setupLinearScales();
+setupCriteriaHelp();
 setValues({
   testDate: localDateKey(),
 });
