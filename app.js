@@ -1896,6 +1896,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
       focusIds: [],
       focusCustom: "",
       direction: "검사결과를 입력하면 타입에 따른 치료 방향이 자동으로 표시됩니다.",
+      abdominalManagement: false,
     };
   }
   const primary = selectedPrimaryType(typeResult, data);
@@ -1923,7 +1924,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     addFocus("focusAlcoholAvoidance");
     addFocus("focusSupplement");
   }
-  const abdominalManagement = types.some((type) => type.includes("복부비만")) || results.parts.typeA?.score >= 1;
+  const abdominalManagement = types.some((type) => type.includes("복부비만")) || results.parts.typeA?.activated === true;
   if (abdominalManagement) {
     addProgram("lean_diet");
     addUnique(goals, "복부지방 감소");
@@ -2037,6 +2038,7 @@ function makeTreatmentSuggestion(data, results, grade, typeResult) {
     focusIds: focusIds.slice(0, 6),
     focusCustom: "",
     direction,
+    abdominalManagement,
   };
 }
 
@@ -2083,6 +2085,22 @@ function treatmentGoalsFromText(text, fallbackGoals) {
     .map((item) => item.trim())
     .filter(Boolean);
   return goals.length ? goals : fallbackGoals;
+}
+
+const AUTO_ABDOMINAL_TREATMENT_GOALS = [
+  "복부지방 감소",
+  "12주 동안 허리둘레와 WHtR의 의미 있는 감소",
+];
+
+function removeLegacyAbdominalGoals(data, suggestion) {
+  if (suggestion.abdominalManagement || !data.treatmentGoals) return data;
+  const goals = treatmentGoalsFromText(data.treatmentGoals, []);
+  if (!AUTO_ABDOMINAL_TREATMENT_GOALS.every((goal) => goals.includes(goal))) return data;
+  const nextGoals = goals.filter((goal) => !AUTO_ABDOMINAL_TREATMENT_GOALS.includes(goal));
+  const value = nextGoals.join("\n");
+  const input = field("treatmentGoals");
+  if (input) input.value = value;
+  return { ...data, treatmentGoals: value };
 }
 
 function renderTreatmentPlan(data, suggestion) {
@@ -2844,6 +2862,7 @@ function render() {
   } else {
     data = maybeUpdateTotalTreatmentDuration(data, treatmentSuggestion);
   }
+  data = removeLegacyAbdominalGoals(data, treatmentSuggestion);
 
   renderComputed(data, results);
   renderValidation(validation);
