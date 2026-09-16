@@ -122,10 +122,15 @@ assert.equal(submitted.response.status, 200);
 
 const questionnaireList = await call(`/api/patients/${patientId}/questionnaires`, {}, true);
 assert.equal(questionnaireList.data.questionnaires[0].status, "submitted");
+assert.deepEqual(questionnaireList.data.questionnaires[0].responses, responses);
 
 const applied = await call(`/api/questionnaires/${questionnaireId}/apply`, { method: "POST", body: "{}" }, true);
 assert.equal(applied.response.status, 200);
 assert.deepEqual(applied.data.questionnaire.responses, responses);
+
+const appliedQuestionnaireList = await call(`/api/patients/${patientId}/questionnaires`, {}, true);
+assert.equal(appliedQuestionnaireList.data.questionnaires[0].status, "applied");
+assert.deepEqual(appliedQuestionnaireList.data.questionnaires[0].responses, responses);
 
 if (process.argv.includes("--serve")) {
   const preview = await call(`/api/patients/${patientId}/questionnaires`, {

@@ -776,7 +776,11 @@ async function handleApi(request, env) {
        ORDER BY created_at DESC
        LIMIT 12`,
     ).bind(clinic.id, patient.id).all();
-    return json({ questionnaires: (result.results || []).map((row) => questionnaireRow(row)) });
+    return json({
+      questionnaires: (result.results || []).map((row) =>
+        questionnaireRow(row, ["submitted", "applied"].includes(row.status))
+      ),
+    });
   }
 
   if (patientQuestionnaireMatch && request.method === "POST") {

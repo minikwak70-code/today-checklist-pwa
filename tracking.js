@@ -816,7 +816,35 @@ async function openPatient(patientId) {
   resetReportForPatient(tracking.selectedPatient);
   await Promise.all([loadAssessments(), loadQuestionnaires()]);
   const latest = latestAssessment();
-  if (latest) openAssessment(latest.id);
+  const questionnaire = latestAppliedQuestionnaire();
+  const shouldRestoreQuestionnaire = questionnaire && (!latest || questionnaire.assessmentDate >= latest.assessmentDate);
+  if (shouldRestoreQuestionnaire) {
+    const matchingAssessment = latestAssessmentForDate(questionnaire.assessmentDate);
+    if (matchingAssessment) openAssessment(matchingAssessment.id);
+    else resetReportForPatient(tracking.selectedPatient, { testDate: questionnaire.assessmentDate });
+    window.metabolicReportApp?.setValues({
+      ...(questionnaire.responses || {}),
+      testDate: questionnaire.assessmentDate,
+    });
+    t.questionnaireStatus.textContent = matchingAssessment
+      ? "서버에 반영된 문진 답변을 같은 날짜의 검사기록과 함께 불러왔습니다."
+      : "서버에 반영된 문진 답변을 새 검사 입력 화면에 불러왔습니다. 검사수치를 확인한 뒤 저장해 주세요.";
+    setBanner("다른 계정에서 반영한 최신 문진 답변을 불러왔습니다.", "ok");
+  } else if (latest) {
+    openAssessment(latest.id);
+  }
+}
+
+function latestAppliedQuestionnaire() {
+  return [...tracking.questionnaires]
+    .filter((item) => item.status === "applied" && Object.keys(item.responses || {}).length)
+    .sort((a, b) => `${b.assessmentDate}${b.appliedAt || b.updatedAt || ""}`.localeCompare(`${a.assessmentDate}${a.appliedAt || a.updatedAt || ""}`))[0] || null;
+}
+
+function latestAssessmentForDate(assessmentDate) {
+  return [...tracking.assessments]
+    .filter((assessment) => assessment.assessmentDate === assessmentDate)
+    .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))[0] || null;
 }
 
 function questionnaireStatusLabel(status) {
@@ -933,8 +961,8 @@ async function applyQuestionnaire(questionnaireId) {
       ...(data.questionnaire.responses || {}),
       testDate: item.assessmentDate,
     });
-    t.questionnaireStatus.textContent = "환자 문진을 검사 입력 화면에 불러왔습니다. 내용을 확인한 뒤 검사결과를 저장해 주세요.";
-    setBanner("환자 문진 답변을 불러왔습니다. 의료진 확인 후 검사결과를 저장해 주세요.", "ok");
+    t.questionnaireStatus.textContent = "문진 반영 상태가 서버에 저장되었습니다. 다른 계정에서도 환자를 열면 답변이 자동으로 표시됩니다.";
+    setBanner("환자 문진 답변을 공동 작업공간에 반영했습니다. 검사수치를 확인한 뒤 검사결과를 저장해 주세요.", "ok");
     await loadQuestionnaires();
     document.querySelector("#inputHeading")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
