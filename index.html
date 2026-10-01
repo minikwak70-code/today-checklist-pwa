@@ -9,7 +9,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./assets/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./assets/icon-192.png" />
-    <link rel="stylesheet" href="./styles.css?v=58" />
+    <link rel="stylesheet" href="./styles.css?v=59" />
     <title>공덕경희 대사건강 리포트</title>
   </head>
   <body>
@@ -62,9 +62,15 @@
           <button id="questionnaireSubmitButton" class="primary-button questionnaire-submit" type="submit" disabled>문진 제출</button>
           <p class="questionnaire-privacy">제출한 내용은 해당 한의원의 인증된 의료진만 확인할 수 있습니다.</p>
         </form>
-        <div id="questionnaireComplete" class="questionnaire-complete" hidden>
-          <strong>문진이 제출되었습니다.</strong>
-          <p>답변이 안전하게 저장되었습니다. 검사 및 상담 시 의료진이 확인합니다.</p>
+        <div id="questionnaireComplete" class="questionnaire-complete" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden>
+          <span class="questionnaire-complete-icon" aria-hidden="true">✓</span>
+          <p class="questionnaire-complete-label">제출 완료</p>
+          <h1>문진 제출이 완료되었습니다.</h1>
+          <p class="questionnaire-complete-message">작성하신 답변이 공덕경희한의원에 정상적으로 전달되었습니다.</p>
+          <div class="questionnaire-complete-next">
+            <strong>이제 이 화면을 닫으셔도 됩니다.</strong>
+            <span>의료진이 답변을 확인한 뒤 검사 및 상담에 반영합니다.</span>
+          </div>
         </div>
       </section>
     </main>
@@ -1333,7 +1339,7 @@
       </div>
     </dialog>
 
-    <script src="./questionnaire.js?v=2" defer></script>
+    <script src="./questionnaire.js?v=3" defer></script>
     <script src="./app.js?v=100" defer></script>
     <script src="./tracking.js?v=41" defer></script>
   </body>

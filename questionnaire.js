@@ -147,6 +147,15 @@ function scheduleQuestionnaireSave() {
   }, 450);
 }
 
+function showQuestionnaireComplete() {
+  questionnaireElement("questionnaireIntro").hidden = true;
+  questionnaireElement("questionnaireForm").hidden = true;
+  const complete = questionnaireElement("questionnaireComplete");
+  complete.hidden = false;
+  complete.focus({ preventScroll: true });
+  complete.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 async function verifyQuestionnaire(event) {
   event.preventDefault();
   const birthDateInput = questionnaireElement("questionnaireBirthDate");
@@ -166,8 +175,7 @@ async function verifyQuestionnaire(event) {
       body: JSON.stringify({ birthDate }),
     });
     if (["submitted", "applied"].includes(data.status)) {
-      questionnaireElement("questionnaireIntro").hidden = true;
-      questionnaireElement("questionnaireComplete").hidden = false;
+      showQuestionnaireComplete();
       return;
     }
     if (["expired", "revoked"].includes(data.status)) throw new Error("사용이 종료된 문진 링크입니다.");
@@ -196,9 +204,7 @@ async function submitQuestionnaire(event) {
       method: "POST",
       body: JSON.stringify({ birthDate: questionnaireState.birthDate, responses: questionnaireState.responses }),
     });
-    questionnaireElement("questionnaireForm").hidden = true;
-    questionnaireElement("questionnaireComplete").hidden = false;
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    showQuestionnaireComplete();
   } catch (error) {
     setQuestionnaireStatus(error.message, "error");
     button.disabled = false;
@@ -230,8 +236,7 @@ async function initializePatientQuestionnaire() {
     const data = await questionnaireApi(`/api/questionnaire/${encodeURIComponent(questionnaireToken)}`);
     questionnaireElement("questionnaireClinicName").textContent = data.clinicName || "공덕경희한의원";
     if (["submitted", "applied"].includes(data.status)) {
-      questionnaireElement("questionnaireIntro").hidden = true;
-      questionnaireElement("questionnaireComplete").hidden = false;
+      showQuestionnaireComplete();
     } else if (["expired", "revoked"].includes(data.status)) {
       const status = questionnaireElement("questionnaireVerifyStatus");
       status.textContent = "사용이 종료된 문진 링크입니다. 한의원에 새 링크를 요청해 주세요.";
